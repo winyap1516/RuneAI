@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html class="light" lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rune AI Dashboard</title>
+    <!-- ✅ 统一仅使用 Tailwind CDN（不再加载外部 CSS 文件） -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script>
+      // ✅ Tailwind 配置：颜色与字体统一
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#4A69FF",
+              secondary: "#8A4FFF",
+              "background-light": "#F4F5F7",
+              "background-dark": "#131022",
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#1A172A",
+              "text-primary-light": "#2D3748",
+              "text-primary-dark": "#E2E8F0",
+              "text-secondary-light": "#718096",
+              "text-secondary-dark": "#A0AEC0",
+            },
+            fontFamily: { display: ["Inter", "sans-serif"] },
+            borderRadius: { DEFAULT: "0.5rem", lg: "0.75rem", xl: "1rem", full: "9999px" },
+          },
+        },
+      };
+    </script>
+    <!-- ✅ 组件样式：移除 @apply，改为原生 CSS，避免 CDN 模式下失效 -->
+    <style>
+      /* 中文注释：以下为用户系统与 Dashboard 的辅助类，全部使用原生 CSS，兼容 Tailwind CDN 模式 */
+      .user-system-container { position: relative; }
+      .user-avatar {
+        width: 2.5rem; /* w-10 */
+        height: 2.5rem; /* h-10 */
+        border-radius: 9999px; /* rounded-full */
+        cursor: pointer;
+        transition: transform 0.2s ease, border-color 0.2s ease; /* transition-all duration-200 */
+        border: 2px solid transparent; /* border-2 border-transparent */
+      }
+      .user-avatar:hover {
+        transform: scale(1.05); /* hover:scale-105 */
+        border-color: #4A69FF; /* hover:border-primary（取自 Tailwind 配置）*/
+      }
+
+      .user-dropdown {
+        position: absolute; /* absolute */
+        right: 0; /* right-0 */
+        top: 3rem; /* top-12 */
+        width: 16rem; /* w-64 */
+        background-color: #FFFFFF; /* bg-surface-light */
+        border: 1px solid #E5E7EB; /* border border-gray-200 */
+        border-radius: 0.5rem; /* rounded-lg */
+        box-shadow: 0 10px 15px rgba(0,0,0,0.1); /* shadow-lg */
+        z-index: 50; /* z-50 */
+        display: none; /* hidden */
+      }
+      .dark .user-dropdown { background-color: #1A172A; border-color: #374151; /* dark:bg-surface-dark dark:border-gray-700 */ }
+      .user-dropdown.show { display: block; /* .show 状态显示 */ }
+
+      .user-modal {
+        position: fixed; /* fixed */
+        inset: 0; /* inset-0 */
+        background-color: rgba(0,0,0,0.5); /* bg-black/50 */
+        z-index: 50; /* z-50 */
+        display: none; /* hidden */
+      }
+      .user-modal.show { display: block; }
+
+      .user-welcome-card {
+        background-image: linear-gradient(to right, rgba(74,105,255,0.10), rgba(138,79,255,0.10)); /* from-primary/10 to-secondary/10 */
+        border: 1px solid rgba(74,105,255,0.20); /* border-primary/20 */
+        border-radius: 0.75rem; /* rounded-xl */
+        padding: 1.5rem; /* p-6 */
+      }
+      .dark .user-welcome-card {
+        background-image: linear-gradient(to right, rgba(74,105,255,0.20), rgba(138,79,255,0.20)); /* dark:... */
+        border-color: rgba(74,105,255,0.30); /* dark:border-primary/30 */
+      }
+
+      .user-loading {
+        display: inline-block; /* inline-block */
+        width: 1rem; /* w-4 */
+        height: 1rem; /* h-4 */
+        border: 2px solid currentColor; /* border-2 border-current */
+        border-top-color: transparent; /* border-t-transparent */
+        border-radius: 9999px; /* rounded-full */
+        animation: spin 1s linear infinite; /* animate-spin */
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* 侧栏折叠辅助 */
+      .aside-collapsed { width: 4.5rem !important; }
+      /* 品牌标题渐变文字 */
+      .brand-title { background: linear-gradient(90deg,#6E57E0,#8A7CF5); background-clip: text; -webkit-background-clip: text; color: transparent; }
+    </style>
+    <style>
+      /* 材料图标文字属性（浏览器兼容调整） */
+      .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+      .nav-section-title { opacity: 0.6; letter-spacing: 0.08em; font-weight: 700; font-size: 11px; }
+      .soft-hover:hover { box-shadow: 0 0 16px rgba(74,105,255,0.18); }
+      
+      /* ========== Sidebar Collapse Mode ========== */
+      /* 中文注释：折叠后宽度变窄，并加入宽度过渡动画 */
+      .sidebar.aside-collapsed { 
+        width: 4.5rem !important; 
+        transition: width 0.3s ease; 
+      }
+      
+      /* 中文注释：折叠后隐藏标题与标签，只留图标（包含品牌文字与副标题）*/
+      .sidebar.aside-collapsed .nav-section-title,
+      .sidebar.aside-collapsed .nav-label,
+      .sidebar.aside-collapsed .brand-title,
+      .sidebar.aside-collapsed .brand-text,
+      .sidebar.aside-collapsed .brand-tagline,
+      .sidebar.aside-collapsed p.text-sm,
+      .sidebar.aside-collapsed #addCategoryBtn { 
+        display: none !important; 
+      }
+      
+      /* 中文注释：折叠态居中显示 Logo 与图标 */
+      .sidebar.aside-collapsed .sidebar-header { 
+        justify-content: center !important; 
+      }
+      .sidebar.aside-collapsed .nav-item { 
+        justify-content: center !important; 
+      }
+      
+      /* 中文注释：折叠时图标稍微放大，提高可识别度 */
+      .sidebar.aside-collapsed .material-symbols-outlined { 
+        font-size: 1.6rem !important; 
+      }
+      
+      /* 中文注释：为折叠动画增加柔和过渡，避免突兀的跳变 */
+      .sidebar * { 
+        transition: all 0.25s ease-in-out; 
+      }
+
+      /* 中文注释：导航项激活状态样式 - 左侧渐变指示条 */
+      .nav-item.active-item {
+        position: relative;
+        background: linear-gradient(90deg, rgba(74,105,255,0.1) 0%, rgba(74,105,255,0.05) 100%);
+        color: #4A69FF;
+      }
+      
+      .nav-item.active-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 70%;
+        background: linear-gradient(180deg, #4A69FF 0%, #8A4FFF 100%);
+        border-radius: 0 2px 2px 0;
+      }
+      
+      .dark .nav-item.active-item {
+        background: linear-gradient(90deg, rgba(74,105,255,0.2) 0%, rgba(74,105,255,0.1) 100%);
+      }
+      
+      /* =============================
+         Rune Card UI 辅助样式
+         中文注释：配合统一模板的卡片结构，补充摘要截断、分隔线与标签基础样式
+         ============================= */
+      .rune-card-desc {
+        display: -webkit-box; /* 采用弹性盒模型实现截断 */
+        -webkit-line-clamp: 3; /* 最多显示 3 行 */
+        -webkit-box-orient: vertical; /* 垂直排布 */
+        overflow: hidden; /* 超出隐藏 */
+      }
+      .rune-card-divider {
+        height: 1px;
+        background: linear-gradient(90deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.03) 100%);
+        border-radius: 9999px;
+      }
+      .dark .rune-card-divider {
+        background: linear-gradient(90deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.08) 100%);
+      }
+      .rune-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem; /* px-2 py-1 */
+        font-size: 0.75rem; /* text-xs */
+        font-weight: 600; /* font-semibold */
+        border-radius: 9999px; /* rounded-full */
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark font-display text-text-primary-light dark:text-text-primary-dark">
+    <!-- ✅ 页面总体布局：侧栏 + 顶栏 + 主内容区 -->
+    <div class="flex h-screen w-full">
+      <!-- SideNavBar - 左侧导航栏（包含 LINKS/AI FEATURES/USER 分组） -->
+      <aside class="sidebar relative flex flex-col justify-between w-64 h-screen bg-surface-light dark:bg-surface-dark border-r border-gray-200 dark:border-gray-800 shrink-0">
+        <!-- 侧栏头部：Logo + 折叠按钮 -->
+        <div class="sidebar-header flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+          <button id="logoBtn" class="flex items-center gap-2">
+            <img src="logo/logo_icon.png" alt="Rune AI" class="w-20 h-20 rounded-full transition-all duration-300" />
+            
+         
+          <button id="sidebarToggle" class="material-symbols-outlined text-2xl text-text-secondary-light dark:text-text-secondary-dark" title="Toggle Sidebar">menu_open</button>
+        </div>
+        <!-- 侧栏主体：分组导航 -->
+        <div class="sidebar-body flex-1 overflow-y-auto">
+          <nav id="sideNav" class="flex flex-col gap-3 px-4">
+            <!-- LINKS 组：分类列表 + 新增分类按钮 -->
+            <div class="rounded-lg">
+              <button id="linksGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="LINKS">
+                <span class="nav-section-title">LINKS</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </button>
+              <div id="linksGroupBody" class="flex flex-col gap-2 mt-1">
+                <div id="linksGroupList" class="flex flex-col gap-2"></div>
+                <button id="addCategoryBtn" class="mt-2 h-9 px-3 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20 soft-hover" title="New Category">+ New Category</button>
+              </div>
+            </div>
+            <!-- AI FEATURES 组：Digest/Chat -->
+            <div class="rounded-lg">
+              <button id="aiGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI FEATURES">
+                <span class="nav-section-title">AI FEATURES</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </button>
+              <div id="aiGroupBody" class="flex flex-col gap-2 mt-1">
+                <a id="navDigest" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI Digest">
+                  <span class="material-symbols-outlined text-xl">article</span>
+                  <span class="nav-label text-sm font-medium leading-normal">AI Digest</span>
+                  <span id="digestDot" class="dot-indicator ml-auto hidden"></span>
+                </a>
+                <a id="navChat" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Chat / AI Assistant">
+                  <span class="material-symbols-outlined text-xl">chat</span>
+                  <span class="nav-label text-sm font-medium leading-normal">Chat / AI Assistant</span>
+                </a>
+              </div>
+            </div>
+            <!-- USER 组：设置入口 -->
+            <div class="rounded-lg mt-auto">
+              <button id="userGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="USER">
+                <span class="nav-section-title">RuneArea</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </button>
+              <div id="userGroupBody" class="flex flex-col gap-2 mt-1">
+                <a id="navSettings" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Settings">
+                  
+                </a>
+              </div>
+            </div>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Main Content - 顶栏 + 主区域 -->
+      <div class="flex flex-1 flex-col overflow-y-auto">
+        <!-- 顶栏：品牌 + 搜索 + 操作区 + 用户系统区域 -->
+        <header class="flex h-16 items-center justify-between whitespace-nowrap border-b border-gray-200 dark:border-gray-800 bg-surface-light dark:bg-surface-dark px-6 sticky top-0 z-10">
+          <div class="flex flex-1 items-center gap-6">
+            <div class="flex items-center gap-3">
+              <h1 class="brand-title text-lg font-bold leading-tight">Rune AI</h1>
+              <p class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-normal tracking-wide hidden md:block">Runes of Intelligence</p>
+            </div>
+            <label class="flex flex-col min-w-40 w-full max-w-lg">
+              <div class="flex w-full flex-1 items-stretch rounded-lg h-10">
+                <div class="text-text-secondary-light dark:text-text-secondary-dark flex bg-gray-100 dark:bg:white/5 items-center justify-center pl-3 pr-2 rounded-l-lg">
+                  <span class="material-symbols-outlined text-xl">search</span>
+                </div>
+                <input id="searchInput" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg text-text-primary-light dark:text-text-primary-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-gray-100 dark:bg-white/5 h-full placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark p-2 text-sm font-normal leading-normal" placeholder="Search links or ask AI..." />
+              </div>
+            </label>
+          </div>
+          <div class="flex flex-shrink-0 items-center justify-end gap-4">
+            <button id="addLinkBtn" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 gap-2 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90">
+              <span class="material-symbols-outlined text-xl">add</span>
+              <span class="truncate">Add Link</span>
+            </button>
+            <button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-gray-100 dark:bg-white/5 text-text-secondary-light dark:text-text-secondary-dark text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+              <span class="material-symbols-outlined">notifications</span>
+            </button>
+            <!-- 用户系统区域：头像下拉容器 -->
+    <div id="userSystemArea" class="flex items-center gap-2">
+              <div id="userDropdownContainer" class="relative"><!-- 由 JS 动态加载用户下拉；Dashboard 场景下隐藏登录/注册按钮，仅显示已登录头像 --></div>
+            </div>
+          </div>
+        </header>
+
+        <!-- 主内容区：欢迎卡片 + 页面标题 + 卡片网格 + 调试按钮 -->
+        <main class="flex-1 p-6">
+          <div id="userWelcomeCard" class="mb-6"><!-- 由 JS 动态加载欢迎卡片 --></div>
+          <div class="flex flex-wrap justify-between gap-3 mb-6">
+            <h1 class="text-text-primary-light dark:text-text-primary-dark text-3xl font-bold leading-tight tracking-tight">All Links</h1>
+          </div>
+          <div id="cardsContainer" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+          <div class="mt-6">
+           
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- Add Link 模态：默认隐藏，避免页面堆叠 -->
+    <div id="addLinkModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="addLinkBackdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark shadow-xl border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-xl font-bold mb-4">Add a New Link</h3>
+        <div class="grid grid-cols-1 gap-3">
+          <label class="text-sm">URL
+            <input id="inpUrl" class="mt-1 w-full form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none focus:ring-2 focus:ring-primary/50" placeholder="https://example.com" />
+          </label>
+          <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">只需粘贴链接，其它信息将由 AI 自动生成。</p>
+        </div>
+        <div class="mt-5 flex justify-end gap-3">
+          <button id="cancelAddLinkBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold">Cancel</button>
+          <button id="saveLinkBtn" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold">Save</button>
+        </div>
+        <button id="closeModalX" class="absolute top-3 right-3 text-text-secondary-light dark:text-text-secondary-dark">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+  </div>
+</div>
+
+    <!-- Edit Link 模态：默认隐藏 -->
+    <div id="editLinkModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md w-full">
+        <h3 class="text-lg font-bold mb-4 text-text-primary-light dark:text-text-primary-dark">Edit Link</h3>
+        <form id="editLinkForm" class="flex flex-col gap-3">
+          <input id="editLinkTitle" type="text" placeholder="Title" class="form-input h-10 rounded-lg border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-white/5 px-3" />
+          <input id="editLinkURL" type="text" placeholder="URL" class="form-input h-10 rounded-lg border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-white/5 px-3" />
+          <textarea id="editLinkDesc" placeholder="Description" rows="3" class="form-textarea rounded-lg border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-white/5 px-3"></textarea>
+          <input id="editLinkTags" type="text" placeholder="Tags (comma separated)" class="form-input h-10 rounded-lg border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-white/5 px-3" />
+          <select id="editLinkCategory" class="form-select h-10 rounded-lg border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-white/5 px-3">
+            <option value="">Select Category</option>
+          </select>
+          <!-- 中文注释：当选择“新增分类”时展示此输入框，用于输入新分类名称 -->
+          <input id="editLinkCategoryNew" type="text" placeholder="New category" class="form-input h-10 rounded-lg border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-white/5 px-3 hidden" />
+          <div class="flex justify-end gap-3 mt-4">
+            <button type="button" id="cancelEditBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20">Cancel</button>
+            <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Category 模态：默认隐藏 -->
+    <div id="addCategoryModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="addCategoryBackdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark shadow-xl border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-xl font-bold mb-4">Add a New Category</h3>
+        <div class="grid grid-cols-1 gap-3">
+          <label class="text-sm">Category Name
+            <input id="inpCategoryName" class="mt-1 w-full form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none focus:ring-2 focus:ring-primary/50" placeholder="e.g. ML Papers" />
+          </label>
+        </div>
+        <div class="mt-5 flex justify-end gap-3">
+          <button id="cancelCategoryBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold">Cancel</button>
+          <button id="saveCategoryBtn" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold">Save</button>
+        </div>
+        <button id="closeCategoryX" class="absolute top-3 right-3 text-text-secondary-light dark:text-text-secondary-dark">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Confirm 通用确认模态：默认隐藏 -->
+    <div id="confirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-sm w-full">
+        <h3 id="confirmTitle" class="text-lg font-bold mb-4 text-text-primary-light dark:text-text-primary-dark">确认删除？</h3>
+        <p id="confirmMessage" class="text-sm text-text-secondary-light dark:text-text-secondary-dark mb-6">此操作无法撤销。</p>
+        <div class="flex justify-end gap-3">
+          <button id="confirmCancel" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20">取消</button>
+          <button id="confirmOk" class="h-10 px-4 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 用户系统弹窗容器（内容由组件注入，默认保持隐藏） -->
+    <!-- 中文注释：Dashboard 是登录后的页面，此处不再包含“登录/注册”容器。
+         仅保留“资料/设置”等已登录用户相关的弹窗容器。登录与注册改由 index 页面负责。-->
+    <div id="modalBackdrop" class="fixed inset-0 bg-black/50 z-40 hidden"></div>
+    <div id="userModalsContainer">
+      <!-- 已登录用户相关弹窗容器（保留） -->
+      <div id="profileModalContainer"></div>
+      <div id="settingsModalContainer"></div>
+    </div>
+    <!-- Digest 弹窗容器（组件由入口注入到 body；此处无需额外容器） -->
+
+    <!-- ✅ 脚本引用：入口唯一，统一由 js/main.js 控制路由与挂载 -->
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
