@@ -624,13 +624,11 @@ export function initDashboard() {
       };
       form?.addEventListener('submit', onSubmit);
       cancelBtn?.addEventListener('click', onCancel);
-      // 类别选择“新增”时显示输入框
-      const fCat = document.getElementById('editLinkCategory');
-      const fCatNew2 = document.getElementById('editLinkCategoryNew');
+      // 类别选择“新增”时显示输入框（使用已声明的 fCat 与 fCatNew，避免重复声明）
       if (fCat) {
         fCat.addEventListener('change', () => {
-          if (fCat.value === '__new__') fCatNew2?.classList.remove('hidden');
-          else fCatNew2?.classList.add('hidden');
+          if (fCat.value === '__new__') fCatNew?.classList.remove('hidden');
+          else fCatNew?.classList.add('hidden');
         }, { once: true });
       }
     });
