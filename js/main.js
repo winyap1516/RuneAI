@@ -1,6 +1,6 @@
 // main.js
 import { initDashboard } from './features/dashboard.js';
-import storageAdapter from './utils/storageAdapter.js';
+import storageAdapter from './storage/storageAdapter.js';
 // 中文注释：引入本地 Mock 抓取与 AI 摘要（用于订阅与日报生成）
 import { mockFetchSiteContent, mockAIFromUrl } from '../mockFunctions.js';
 // 中文注释：引入订阅设定面板交互脚本（在设置面板打开时渲染订阅列表）
@@ -26,7 +26,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 模拟已登录用户
   const user = { nickname: 'SoloDev', avatar: '', email: 'solo@example.com' };
-  localStorage.setItem('runeai_user', JSON.stringify(user));
+  storageAdapter.saveUser(user);
 
   // 初始化页面
   initDashboard(user);
@@ -63,7 +63,9 @@ window.addEventListener('DOMContentLoaded', () => {
     async function processSubscription(sub) {
       if (!sub?.enabled) return;
       if (sub?.inProgress) return;
-      sub.inProgress = true; sub.status = 'in_progress'; storageAdapter.saveSubscription(sub);
+      sub.inProgress = true; sub.status = 'in_progress'; 
+      storageAdapter.updateSubscription(sub);
+      
       const dateStr = new Date().toISOString().slice(0,10);
       try {
         let site = await tryFetchRealSite(sub.url);
@@ -75,7 +77,7 @@ window.addEventListener('DOMContentLoaded', () => {
           sub.lastChecked = Date.now();
           sub.inProgress = false;
           sub.status = 'ok';
-          storageAdapter.saveSubscription(sub);
+          storageAdapter.updateSubscription(sub);
           return;
         }
         const entry = {
@@ -86,7 +88,7 @@ window.addEventListener('DOMContentLoaded', () => {
           highlights: Array.isArray(ai.tags) ? ai.tags : [],
           raw: { site, ai }
         };
-        const digests = storageAdapter.loadDigests();
+        const digests = storageAdapter.getDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         if (merged) {
           const exist = new Set((merged.entries||[]).map(e=>normalizeUrl(e.url)));
@@ -103,14 +105,15 @@ window.addEventListener('DOMContentLoaded', () => {
             entries: [entry],
             created_at: Date.now()
           };
-          digests.push(merged);
         }
-        storageAdapter.saveDigest(merged);
+        storageAdapter.addDigest(merged);
+        
         sub.lastChecked = Date.now();
         sub.lastHash = currentHash;
         sub.inProgress = false;
         sub.status = 'ok';
-        storageAdapter.saveSubscription(sub);
+        storageAdapter.updateSubscription(sub);
+        
         try {
           const toast = document.createElement('div');
           toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
@@ -119,19 +122,20 @@ window.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => toast.remove(), 1800);
         } catch {}
       } catch (e) {
-        const digests = storageAdapter.loadDigests();
+        const digests = storageAdapter.getDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         const entry = { subscriptionId: sub.id, url: sub.url, title: sub.title||sub.url, summary: 'Fetch failed', highlights: [], raw: { error: String(e?.message||e) } };
         if (merged) { (merged.entries||[]).push(entry); merged.entries = merged.entries||[]; merged.siteCount = merged.entries.length; merged.updated_at = Date.now(); }
-        else { digests.push({ id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [entry], created_at: Date.now() }); }
-        storageAdapter.saveDigest(merged);
+        else { merged = { id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [entry], created_at: Date.now() }; }
+        storageAdapter.addDigest(merged);
+        
         sub.inProgress = false; sub.status = 'error'; sub.lastError = String(e?.message||e);
-        storageAdapter.saveSubscription(sub);
+        storageAdapter.updateSubscription(sub);
       }
     }
 
     async function checkAllSubscriptions() {
-      const subs = storageAdapter.loadSubscriptions();
+      const subs = storageAdapter.getSubscriptions();
       const now = Date.now();
       for (const sub of subs) {
         const interval = frequencyToMs(sub.frequency);

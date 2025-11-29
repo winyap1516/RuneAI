@@ -111,8 +111,8 @@
       /* ========== Sidebar Collapse Mode ========== */
       /* 中文注释：折叠后宽度变窄，并加入宽度过渡动画 */
       .sidebar.aside-collapsed { 
-        width: 4.5rem !important; 
-        transition: width 0.3s ease; 
+        width: 4rem !important; /* ~64px */
+        transition: width 180ms ease, box-shadow 200ms ease;
       }
       
       /* 中文注释：折叠后隐藏标题与标签，只留图标（包含品牌文字与副标题）*/
@@ -122,32 +122,278 @@
       .sidebar.aside-collapsed .brand-text,
       .sidebar.aside-collapsed .brand-tagline,
       .sidebar.aside-collapsed p.text-sm,
-      .sidebar.aside-collapsed #addCategoryBtn { 
+      .sidebar.aside-collapsed #addCategoryBtn,
+      .sidebar.aside-collapsed .material-symbols-outlined:not(:first-child) /* Hide expand/collapse arrows */
+      { 
         display: none !important; 
+      }
+
+      /* Show only the first icon in nav items (the main icon) */
+      .sidebar.aside-collapsed .nav-item .material-symbols-outlined:first-child,
+      .sidebar.aside-collapsed #linksGroupHeader .material-symbols-outlined:first-child, /* This might hide the arrow if it's not first, let's be careful */
+      .sidebar.aside-collapsed #aiGroupHeader .material-symbols-outlined:first-child,
+      .sidebar.aside-collapsed #userGroupHeader .material-symbols-outlined:first-child {
+        display: block !important;
+        margin: 0 auto;
+      }
+      
+      /* Ensure headers in collapsed mode center their content */
+      .sidebar.aside-collapsed #linksGroupHeader,
+      .sidebar.aside-collapsed #aiGroupHeader,
+      .sidebar.aside-collapsed #userGroupHeader {
+          justify-content: center !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+      }
+      /* Hide the arrow explicitly if it's the second child */
+      .sidebar.aside-collapsed #linksGroupHeader .material-symbols-outlined:nth-child(2),
+      .sidebar.aside-collapsed #aiGroupHeader .material-symbols-outlined:nth-child(2),
+      .sidebar.aside-collapsed #userGroupHeader .material-symbols-outlined:nth-child(2) {
+          display: none !important;
+      }
+
+      /* Hide category names in collapsed mode */
+      .sidebar.aside-collapsed .category-filter {
+          display: none !important;
+      }
+      /* Show only category dots/more menu trigger? Or maybe first letter? 
+         User requirement: "包括 category item 的 icon 或首字母 avatar"
+         Current category item HTML: <button class="category-filter ...">Name</button> ... <button class="category-more ...">...</button>
+         We need to show SOMETHING.
+         Let's style category-more to be centered and maybe that's enough? 
+         Or we need to inject an icon/initial for categories.
+         For now, let's center the 'more' button if it's the only thing visible, OR inject a pseudo-element for initial.
+      */
+      
+      .sidebar.aside-collapsed [data-name] {
+          justify-content: center !important;
+          padding: 0.5rem 0 !important;
+      }
+      
+      .sidebar.aside-collapsed [data-name] .category-filter {
+          display: none !important;
+      }
+
+      /* In collapsed mode, we might want to show the first letter of the category name.
+         Since we can't easily change HTML structure via CSS only, we might need JS helper or rely on the 'more' menu.
+         However, user said "only icons (including category item's icon or initial avatar)".
+         Existing category items don't have icons.
+         Let's use the 'more' button as the handle for now, or add a pseudo-element if possible.
+         Actually, the 'more' button (three dots) is a good handle for "Options".
+         But for navigation, we usually want to filter.
+         If I hide the filter button, users can't click the category to filter.
+         So I should probably make the filter button show only the first letter.
+         CSS trick: visibility: hidden for text, ::first-letter visible? 
+         It's tricky with flexbox buttons.
+         Let's try to just show the 'more' button for now as the user interaction point, 
+         OR rely on tooltips to show the name.
+         Let's stick to showing the 'more' button as the visual anchor, and maybe add a 'folder' icon.
+      */
+      
+      /* 
+         Strategy for Categories in Collapsed Mode:
+         Hide text button.
+         Show a 'folder' icon (inserted via JS or CSS pseudo) that represents the category.
+         Clicking it filters?
+         The current DOM has `category-filter` button.
+         I will update JS to inject an icon into the category item, or use CSS ::before on the item wrapper.
+      */
+      .sidebar.aside-collapsed [data-name]::before {
+          content: 'folder';
+          font-family: 'Material Symbols Outlined';
+          font-size: 24px;
+          color: #A0AEC0;
+          cursor: pointer;
+          display: block;
+      }
+      .sidebar.aside-collapsed [data-name]:hover::before {
+          color: #4A69FF;
+      }
+      /* Hide the original buttons in collapsed mode to avoid clutter, 
+         but we need the click event on the ::before to trigger filter?
+         ::before events bubble to the parent div. 
+         The parent div `[data-name]` doesn't have a click handler, the children do.
+         So clicking ::before won't trigger filter.
+         Better approach: Make the `category-filter` button text transparent, and show an icon background or pseudo.
+      */
+      .sidebar.aside-collapsed .category-filter {
+          display: block !important;
+          width: 24px !important;
+          flex: 0 0 auto !important;
+          overflow: hidden;
+          color: transparent;
+          position: relative;
+          padding: 0 !important;
+          margin-right: 0 !important;
+      }
+      .sidebar.aside-collapsed .category-filter::before {
+          content: 'folder';
+          font-family: 'Material Symbols Outlined';
+          font-size: 24px;
+          color: #9CA3AF; /* text-gray-400 */
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+      }
+      .sidebar.aside-collapsed .category-filter:hover::before {
+          color: #4A69FF;
+      }
+      
+      .sidebar.aside-collapsed .category-more {
+          display: none !important; /* Hide 3-dots in collapsed mode to save space? Or keep it? 
+                                      User said "三点菜单（…）在折叠状态仍工作". 
+                                      If width is 64px, we can't fit both folder icon and 3-dots easily side-by-side.
+                                      Maybe hover shows 3-dots? Or right click?
+                                      Let's keep it simple: The "Folder" icon opens the filter. 
+                                      The 3-dots... maybe we hide 3-dots and make the folder icon trigger menu on right click?
+                                      Or: stacking them vertically? No.
+                                      Let's try to fit them or just show the folder, and maybe the menu is accessible via the folder?
+                                      Actually, if I hide the 3-dots, I lose the "Rename/Delete" functionality.
+                                      User requirement: "三点菜单（…）在折叠状态仍工作... 鼠标 hover 在某个图标上显示 tooltip；点击图标后如果需要显示菜单..."
+                                      This implies icons are clickable.
+                                      Maybe I can make the Category Item just one icon (Folder), clicking it filters.
+                                      And the Menu? 
+                                      Maybe the user accepts that in collapsed mode, you only filter? 
+                                      "三点菜单（…）在折叠状态仍工作" -> This strongly suggests it MUST work.
+                                      So I should probably keep the `category-more` visible, or merge them.
+                                      Let's try to keep `category-more` visible but small, maybe absolute positioned on hover?
+                                      Or just show `category-more` INSTEAD of folder? No, then we can't filter.
+                                      Let's show only the Filter Icon (Folder). 
+                                      And allow the Menu to be triggered by... maybe long press or right click?
+                                      Or: Just show the 3-dots icon as the category representation? 
+                                      No, "Delete" is in the menu. "Filter" is the main action.
+                                      Let's stick to: Sidebar collapsed -> Show Folder Icon. 
+                                      Hovering Folder Icon -> Show Tooltip (Name).
+                                      Where is the menu?
+                                      Maybe I'll leave the 3-dots visible but very small or overlay?
+                                      Actually, 64px is enough for one icon centered.
+                                      If I have to support both, maybe the item height increases?
+                                      Let's assume for now: In collapsed mode, the category item becomes just the "More" icon? No, that breaks filtering.
+                                      Let's make the category item display the First Letter of the category name (Avatar style).
+                                      And clicking it filters.
+                                      How to access menu? Maybe the Avatar *is* the trigger for a combined menu (Filter / Options)?
+                                      That changes behavior too much.
+                                      Let's try: Show 3-dots icon. Clicking it opens menu. Menu has "Filter" option added?
+                                      That's a code change.
+                                      
+                                      Alternative: Show Folder Icon. 
+                                      The User said: "包括 category item 的 icon 或首字母 avatar".
+                                      So I will convert the text button to a "First Letter" avatar.
+                                      And keep the 3-dots button hidden, BUT make the Avatar context-menu (right click) trigger the menu?
+                                      Or just keep both if I can squeeze them (24px + 24px = 48px, fits in 64px with tight padding).
+                                      Let's try to fit both:
+                                      Flex col? Or row with small gap.
+                                      64px width. Padding x-2 (8px total). Content width 56px.
+                                      Icon 20px. Gap 4px. MoreBtn 20px. Total 44px. It fits!
+      */
+     
+      .sidebar.aside-collapsed [data-name] {
+          padding: 4px !important;
+          justify-content: center !important;
+          gap: 2px !important;
+      }
+      .sidebar.aside-collapsed .category-filter {
+          display: flex !important;
+          align-items: center;
+          justify-content: center;
+          width: 28px !important;
+          height: 28px !important;
+          border-radius: 4px;
+          background: #F3F4F6; /* bg-gray-100 */
+          color: #4B5563;
+          font-weight: bold;
+          font-size: 14px;
+          padding: 0 !important;
+          margin: 0 !important;
+      }
+      .dark .sidebar.aside-collapsed .category-filter {
+          background: rgba(255,255,255,0.1);
+          color: #E5E7EB;
+      }
+      /* Show first letter only */
+      .sidebar.aside-collapsed .category-filter {
+          text-indent: -9999px;
+          position: relative;
+      }
+      .sidebar.aside-collapsed .category-filter::after {
+          content: attr(title); /* Use title attribute for content */
+          text-indent: 0;
+          position: absolute;
+          left: 0;
+          right: 0;
+          text-align: center;
+          display: block;
+          overflow: hidden;
+          white-space: nowrap;
+          width: 100%;
+          /* We need to extract first letter. CSS can't do substring. 
+             JS needs to set a data attribute for the initial.
+             I will update JS to set data-initial.
+          */
+          content: attr(data-initial);
+      }
+
+      .sidebar.aside-collapsed .category-more {
+          width: 24px !important;
+          height: 24px !important;
+          padding: 0 !important;
+          display: flex !important;
+          align-items: center;
+          justify-content: center;
+      }
+      .sidebar.aside-collapsed .category-more span {
+          font-size: 18px !important;
       }
       
       /* 中文注释：折叠态居中显示 Logo 与图标 */
       .sidebar.aside-collapsed .sidebar-header { 
         justify-content: center !important; 
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+      .sidebar.aside-collapsed #sidebarToggle {
+          display: none !important; /* Hide the toggle button, Logo acts as toggle */
       }
       .sidebar.aside-collapsed .nav-item { 
         justify-content: center !important; 
+        padding-left: 0 !important;
+        padding-right: 0 !important;
       }
       /* 中文注释：折叠时缩小 Logo 尺寸，避免侧栏溢出 */
       .sidebar.aside-collapsed .sidebar-header img { 
-        width: 2rem !important; 
-        height: 2rem !important; 
+        width: 2.5rem !important; 
+        height: 2.5rem !important; 
       }
       
       /* 中文注释：折叠时图标稍微放大，提高可识别度 */
       .sidebar.aside-collapsed .material-symbols-outlined { 
-        font-size: 1.6rem !important; 
+        font-size: 1.5rem !important; 
+        margin: 0 !important;
       }
       
       /* 中文注释：为折叠动画增加柔和过渡，避免突兀的跳变 */
       .sidebar * { 
-        transition: all 0.25s ease-in-out; 
+        transition: all 0.2s ease-in-out; 
       }
+
+      /* Tooltip styles for collapsed mode */
+      .sidebar.aside-collapsed [data-tooltip]:hover::after {
+          content: attr(data-tooltip);
+          position: fixed;
+          left: 4.5rem; /* Sidebar width + gap */
+          z-index: 100;
+          background: #1F2937;
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          white-space: nowrap;
+          pointer-events: none;
+          animation: fadeIn 0.2s;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
       /* 中文注释：导航项激活状态样式 - 左侧渐变指示条 */
       .nav-item.active-item {
@@ -233,21 +479,25 @@
     <!-- ✅ 页面总体布局：侧栏 + 顶栏 + 主内容区 -->
     <div class="flex h-screen w-full">
       <!-- SideNavBar - 左侧导航栏（包含 LINKS/AI FEATURES/USER 分组） -->
-      <aside class="sidebar relative flex flex-col justify-between w-64 h-screen bg-surface-light dark:bg-surface-dark border-r border-gray-200 dark:border-gray-800 shrink-0">
+      <aside id="sidebar" class="sidebar relative flex flex-col justify-between w-64 h-screen bg-surface-light dark:bg-surface-dark border-r border-gray-200 dark:border-gray-800 shrink-0 z-20" aria-expanded="true">
         <!-- 侧栏头部：Logo + 折叠按钮 -->
         <div class="sidebar-header flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-          <button id="logoBtn" class="flex items-center gap-2">
-            <img src="logo/logo_icon.png" alt="Rune AI" class="w-20 h-20 rounded-full transition-all duration-300" />
-            
-         
-          <button id="sidebarToggle" class="material-symbols-outlined text-2xl text-text-secondary-light dark:text-text-secondary-dark" title="Toggle Sidebar">menu_open</button>
+          <button id="logoBtn" class="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-lg active:scale-95 transition-transform" aria-label="Toggle Sidebar" tabindex="0">
+            <img src="logo/logo_icon.png" alt="Rune AI" class="w-10 h-10 rounded-full transition-all duration-300" />
+            <div class="brand-text flex flex-col items-start">
+               <h1 class="brand-title text-lg font-bold leading-tight">Rune AI</h1>
+               <p class="brand-tagline text-xs text-text-secondary-light dark:text-text-secondary-dark font-normal tracking-wide">Runes of Intelligence</p>
+            </div>
+          </button>
+          <!-- Sidebar Toggle Button (Optional, can be kept for mobile or explicit action) -->
+          <button id="sidebarToggle" class="material-symbols-outlined text-2xl text-text-secondary-light dark:text-text-secondary-dark hidden" title="Toggle Sidebar">menu_open</button>
         </div>
         <!-- 侧栏主体：分组导航 -->
-        <div class="sidebar-body flex-1 overflow-y-auto">
-          <nav id="sideNav" class="flex flex-col gap-3 px-4">
+        <div class="sidebar-body flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <nav id="sideNav" class="flex flex-col gap-3 px-4 py-2">
             <!-- LINKS 组：分类列表 + 新增分类按钮 -->
             <div class="rounded-lg">
-              <button id="linksGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="LINKS">
+              <button id="linksGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="LINKS" data-tooltip="Links">
                 <span class="nav-section-title">LINKS</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </button>
@@ -256,20 +506,19 @@
                 <button id="addCategoryBtn" class="mt-2 h-9 px-3 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20 soft-hover" title="New Category">+ New Category</button>
               </div>
             </div>
-            <!-- 中文注释：按需求移除 SUBSCRIPTIONS 侧栏块；订阅功能改由卡片按钮呈现 -->
             <!-- AI FEATURES 组：Digest/Chat -->
             <div class="rounded-lg">
-              <button id="aiGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI FEATURES">
+              <button id="aiGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI FEATURES" data-tooltip="AI Features">
                 <span class="nav-section-title">AI FEATURES</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </button>
               <div id="aiGroupBody" class="flex flex-col gap-2 mt-1">
-                <a id="navDigest" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI Digest">
+                <a id="navDigest" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI Digest" data-tooltip="AI Digest">
                   <span class="material-symbols-outlined text-xl">article</span>
                   <span class="nav-label text-sm font-medium leading-normal">AI Digest</span>
                   <span id="digestDot" class="dot-indicator ml-auto hidden"></span>
                 </a>
-                <a id="navChat" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Chat / AI Assistant">
+                <a id="navChat" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Chat / AI Assistant" data-tooltip="Chat / AI Assistant">
                   <span class="material-symbols-outlined text-xl">chat</span>
                   <span class="nav-label text-sm font-medium leading-normal">Chat / AI Assistant</span>
                 </a>
@@ -277,13 +526,14 @@
             </div>
             <!-- USER 组：设置入口 -->
             <div class="rounded-lg mt-auto">
-              <button id="userGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="USER">
+              <button id="userGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="USER" data-tooltip="User">
                 <span class="nav-section-title">RuneArea</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </button>
               <div id="userGroupBody" class="flex flex-col gap-2 mt-1">
-                <a id="navSettings" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Settings">
-                  
+                <a id="navSettings" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Settings" data-tooltip="Settings">
+                  <span class="material-symbols-outlined text-xl">settings</span>
+                  <span class="nav-label text-sm font-medium leading-normal">Settings</span>
                 </a>
               </div>
             </div>
@@ -296,9 +546,13 @@
         <!-- 顶栏：品牌 + 搜索 + 操作区 + 用户系统区域 -->
         <header class="flex h-16 items-center justify-between whitespace-nowrap border-b border-gray-200 dark:border-gray-800 bg-surface-light dark:bg-surface-dark px-6 sticky top-0 z-10">
           <div class="flex flex-1 items-center gap-6">
+            <div class="flex items-center gap-3 md:hidden">
+               <!-- Mobile Toggle -->
+               <button id="mobileSidebarToggle" class="material-symbols-outlined text-2xl text-text-secondary-light dark:text-text-secondary-dark">menu</button>
+            </div>
             <div class="flex items-center gap-3">
-              <h1 class="brand-title text-lg font-bold leading-tight">Rune AI</h1>
-              <p class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-normal tracking-wide hidden md:block">Runes of Intelligence</p>
+              <h1 class="brand-title text-lg font-bold leading-tight md:hidden">Rune AI</h1>
+              <!-- Desktop title hidden in header if sidebar is expanded, but let's keep it for now as per original design -->
             </div>
             <label class="flex flex-col min-w-40 w-full max-w-lg">
               <div class="flex w-full flex-1 items-stretch rounded-lg h-10">
@@ -318,7 +572,7 @@
               <span class="material-symbols-outlined">notifications</span>
             </button>
             <!-- 用户系统区域：头像下拉容器 -->
-    <div id="userSystemArea" class="flex items-center gap-2">
+            <div id="userSystemArea" class="flex items-center gap-2">
               <div id="userDropdownContainer" class="relative"><!-- 由 JS 动态加载用户下拉；Dashboard 场景下隐藏登录/注册按钮，仅显示已登录头像 --></div>
             </div>
           </div>

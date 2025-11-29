@@ -150,3 +150,66 @@ export function closeModal(modalEl) {
   // 中文注释：清除全局模态开启标记，恢复头像等交互
   try { delete document.body.dataset.modalOpen; } catch {}
 }
+
+/**
+ * 中文注释：通用确认模态封装
+ * @param {object} options
+ * @param {string} options.title
+ * @param {string} options.message
+ * @param {Function} options.onOk
+ * @param {boolean} options.okDanger
+ * @param {string} options.okText
+ */
+export function openConfirm({ title = 'Confirm action?', message = 'This action cannot be undone.', onOk = () => {}, okDanger = false, okText = 'Confirm' } = {}) {
+  const modal = document.getElementById('confirmModal');
+  const titleEl = document.getElementById('confirmTitle');
+  const msgEl = document.getElementById('confirmMessage');
+  const btnCancel = document.getElementById('confirmCancel');
+  const btnOk = document.getElementById('confirmOk');
+  if (!modal || !titleEl || !msgEl || !btnCancel || !btnOk) return;
+  titleEl.textContent = title;
+  msgEl.textContent = message;
+  btnOk.textContent = okText;
+  show(modal);
+  document.body.dataset.modalOpen = '1';
+  if (okDanger) { btnOk.classList.add('bg-red-600','text-white'); }
+  else { btnOk.classList.remove('bg-red-600','text-white'); }
+  const cleanup = () => {
+    hide(modal);
+     delete document.body.dataset.modalOpen;
+    btnCancel.removeEventListener('click', onCancel);
+    btnOk.removeEventListener('click', onConfirm);
+  };
+  const onCancel = () => cleanup();
+  const onConfirm = () => { try { onOk(); } finally { cleanup(); } };
+  btnCancel.addEventListener('click', onCancel);
+  btnOk.addEventListener('click', onConfirm);
+}
+
+/**
+ * 中文注释：通用文本输入模态（替代 prompt）
+ */
+export async function openTextPrompt({ title='Input', placeholder='' } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('textPromptModal');
+    const input = document.getElementById('textPromptInput');
+    const ttl = document.getElementById('textPromptTitle');
+    const btnOk = document.getElementById('textPromptOk');
+    const btnCancel = document.getElementById('textPromptCancel');
+    if (!modal || !input || !ttl || !btnOk || !btnCancel) return resolve(null);
+    ttl.textContent = title;
+    input.value = '';
+    input.placeholder = placeholder;
+    modal.style.display = 'flex';
+    function cleanup() {
+      modal.style.display = 'none';
+      btnOk.removeEventListener('click', onOk);
+      btnCancel.removeEventListener('click', onCancel);
+    }
+    function onOk() { cleanup(); resolve(input.value); }
+    function onCancel() { cleanup(); resolve(null); }
+    btnOk.addEventListener('click', onOk);
+    btnCancel.addEventListener('click', onCancel);
+    setTimeout(() => input.focus(), 0);
+  });
+}

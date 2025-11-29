@@ -1,7 +1,8 @@
 // 中文注释：订阅设定页面交互脚本（集中管理抓取频率）
 // 中文注释：该模块提供 window.renderSubscriptionsSettings()，在设置面板打开后渲染订阅列表
 
-import storageAdapter from '../utils/storageAdapter.js';
+import storageAdapter from '../storage/storageAdapter.js';
+import { openConfirm } from '../utils/dom.js';
 
 // 中文注释：频率选项映射（与 js/main.js 保持一致）
 const FREQ_OPTIONS = [
@@ -12,11 +13,24 @@ const FREQ_OPTIONS = [
   { value: 'daily', label: 'Daily' },
 ];
 
+function normalizeForCompare(raw = '') {
+  const s = String(raw).trim();
+  if (!s) return '';
+  const guess = /^(https?:)?\/\//i.test(s) ? s : `https://${s}`;
+  try {
+    const u = new URL(guess);
+    const path = String(u.pathname || '').replace(/\/+$/, '');
+    return `${u.hostname.toLowerCase()}${path}`;
+  } catch {
+    return String(guess).toLowerCase().replace(/\/+$/, '');
+  }
+}
+
 // 中文注释：渲染订阅设定列表（名称/URL/频率下拉），变更即保存
 window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
   const wrap = document.getElementById('subsSettingsList');
   if (!wrap) return;
-  const subs = storageAdapter.loadSubscriptions();
+  const subs = storageAdapter.getSubscriptions();
   wrap.innerHTML = '';
   // 批量操作工具栏
   const toolbar = document.createElement('div');
@@ -69,10 +83,10 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
     sel.value = String(sub.frequency || 'daily');
     sel.addEventListener('change', () => {
       const next = sel.value || 'daily';
-      const arr = storageAdapter.loadSubscriptions();
+      const arr = storageAdapter.getSubscriptions();
       const idx = arr.findIndex(s => String(s.id) === String(sub.id));
       if (idx !== -1) {
-        storageAdapter.saveSubscription({ ...arr[idx], frequency: next, lastChecked: arr[idx].lastChecked || 0 });
+        storageAdapter.updateSubscription({ ...arr[idx], frequency: next, lastChecked: arr[idx].lastChecked || 0 });
         try {
           const ok = document.createElement('div');
           ok.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
@@ -87,11 +101,11 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
     toggle.className = 'ml-2 px-3 py-1.5 text-sm rounded-lg ' + (sub.enabled!==false ? 'bg-primary text-white' : 'bg-gray-100');
     toggle.textContent = sub.enabled!==false ? 'Enabled' : 'Disabled';
     toggle.addEventListener('click', () => {
-      const arr = storageAdapter.loadSubscriptions();
+      const arr = storageAdapter.getSubscriptions();
       const idx = arr.findIndex(s => String(s.id) === String(sub.id));
       if (idx !== -1) {
         const nextEn = !(arr[idx].enabled!==false);
-        storageAdapter.saveSubscription({ ...arr[idx], enabled: nextEn });
+        storageAdapter.updateSubscription({ ...arr[idx], enabled: nextEn });
         toggle.className = 'ml-2 px-3 py-1.5 text-sm rounded-lg ' + (nextEn ? 'bg-primary text-white' : 'bg-gray-100');
         toggle.textContent = nextEn ? 'Enabled' : 'Disabled';
       }
@@ -106,35 +120,48 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
   const bulkUnsub = document.getElementById('bulkUnsubBtn');
   const bulkDelete = document.getElementById('bulkDeleteBtn');
   if (bulkUnsub) bulkUnsub.addEventListener('click', () => {
-    const arr = storageAdapter.loadSubscriptions();
+    const arr = storageAdapter.getSubscriptions();
     const ids = Array.from(selected);
     if (ids.length === 0) return;
-    if (!confirm(`Unsubscribe ${ids.length} selected sites?`)) return;
-    ids.forEach(id => {
-      const idx = arr.findIndex(s => String(s.id) === String(id));
-      if (idx !== -1) storageAdapter.saveSubscription({ ...arr[idx], enabled: false });
-    });
-    window.renderSubscriptionsSettings();
-  });
-  if (bulkDelete) bulkDelete.addEventListener('click', () => {
-    const arr = storageAdapter.loadSubscriptions();
-    const ids = Array.from(selected);
-    if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} saved links? This will remove related digest entries.`)) return;
-    ids.forEach(id => {
-      const s = arr.find(x => String(x.id) === String(id));
-      if (s) {
-        storageAdapter.deleteSubscription(id);
-        // 清理相关 digest 条目（与 P0 删除一致）
-        const digests = storageAdapter.loadDigests();
-        const keep = [];
-        for (const d of digests) {
-          const next = Array.isArray(d.entries) ? d.entries.filter(e => String(e.subscriptionId) !== String(id)) : [];
-          if (next.length > 0) { storageAdapter.saveDigest({ ...d, entries: next, siteCount: next.length }); keep.push(d.id); }
-          else { storageAdapter.deleteDigest(d.id); }
-        }
+    openConfirm({
+      title: 'Bulk Unsubscribe',
+      message: `Unsubscribe ${ids.length} selected sites?`,
+      okText: 'Unsubscribe',
+      onOk: () => {
+        ids.forEach(id => {
+          const idx = arr.findIndex(s => String(s.id) === String(id));
+          if (idx !== -1) storageAdapter.updateSubscription({ ...arr[idx], enabled: false });
+        });
+        window.renderSubscriptionsSettings();
       }
     });
-    window.renderSubscriptionsSettings();
+  });
+  if (bulkDelete) bulkDelete.addEventListener('click', () => {
+    const arr = storageAdapter.getSubscriptions();
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    openConfirm({
+      title: 'Bulk Delete',
+      message: `Delete ${ids.length} saved links? This will remove related digest entries.`,
+      okDanger: true,
+      okText: 'Delete',
+      onOk: () => {
+        ids.forEach(subId => {
+          const sub = arr.find(x => String(x.id) === String(subId));
+          if (sub) {
+            // 尝试找到对应的 Link 并删除
+            const links = storageAdapter.getLinks();
+            const link = links.find(l => normalizeForCompare(l.url) === normalizeForCompare(sub.url));
+            if (link) {
+              storageAdapter.deleteLink(link.id);
+            } else {
+              // 如果只有订阅没有 Link（孤儿订阅），直接删订阅
+              storageAdapter.deleteSubscriptionByUrl(sub.url);
+            }
+          }
+        });
+        window.renderSubscriptionsSettings();
+      }
+    });
   });
 };

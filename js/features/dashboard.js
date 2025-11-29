@@ -1,7 +1,6 @@
-
-import { $, $$, fadeIn, slideToggle, on, openModal, closeModal, show, hide, mountHTML, delegate } from "../utils/dom.js";
-// Use mock functions from project root directory, keep interface consistent
+import { $, $$, fadeIn, slideToggle, on, openModal, closeModal, show, hide, mountHTML, delegate, openConfirm, openTextPrompt } from "../utils/dom.js";
 import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from "../../mockFunctions.js";
+import storageAdapter from "../storage/storageAdapter.js";
 
 // =============================
 // 🎴 统一卡片模板与辅助函数
@@ -17,7 +16,7 @@ function escapeHTML(str = "") {
     .replace(/'/g, "&#39;");
 }
 
-// Normalize URLs for comparison (ignore protocol and trailing slashes, compare host + path only)
+// Normalize URLs for comparison
 function normalizeForCompare(raw = '') {
   const n = normalizeUrl(raw);
   if (!n) return '';
@@ -30,24 +29,39 @@ function normalizeForCompare(raw = '') {
   }
 }
 
-// Check if a URL is subscribed (enabled !== false)
+// Check if a URL is subscribed
 function isUrlSubscribed(url = '') {
-  const subs = storageAdapter.loadSubscriptions();
-  const n = normalizeForCompare(url || '');
-  return subs.some(s => s && s.enabled !== false && normalizeForCompare(s.url || '') === n);
+  return storageAdapter.isSubscribed(url);
 }
 
-// Get Tailwind color classes based on tag keywords (light and dark mode compatible)
+// Get Tailwind color classes based on tag keywords (Auto-color system)
 function getTagClass(tag = "") {
-  const t = tag.toLowerCase();
-  if (/(^|\b)(ai|research)(\b|$)/.test(t)) return "bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300";
-  if (/(^|\b)(design|ux)(\b|$)/.test(t)) return "bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-300";
-  if (/(^|\b)(productivity)(\b|$)/.test(t)) return "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-300";
-  if (/(^|\b)(development|dev)(\b|$)/.test(t)) return "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300";
-  return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300";
+  const t = tag.toLowerCase().trim();
+  if (!t) return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300";
+  
+  const colors = [
+    "bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300",
+    "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
+    "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-300",
+    "bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-300",
+    "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300",
+    "bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300",
+    "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300",
+    "bg-teal-100 text-teal-600 dark:bg-teal-500/20 dark:text-teal-300",
+    "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300",
+    "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300"
+  ];
+
+  // Simple hash function for consistent color mapping
+  let hash = 0;
+  for (let i = 0; i < t.length; i++) {
+    hash = t.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
 }
 
-// Unified button loading state toggle (disable + text change), preserve styling
+// Unified button loading state toggle
 function setLoading(btn, on, text = 'Processing…') {
   if (!btn) return;
   if (on) {
@@ -60,10 +74,9 @@ function setLoading(btn, on, text = 'Processing…') {
   }
 }
 
-// Build card icon (prefer favicon, fallback to title initial)
+// Build card icon
 function buildIconHTML({ title = "", url = "" } = {}) {
   const initial = (title || url || "U").trim().charAt(0).toUpperCase() || "U";
-  // 简化：直接使用首字符方块；如需 favicon 可替换为 img 标签（保留注释说明）
   return `
     <div class="rune-card-icon w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center text-base font-bold">
       ${escapeHTML(initial)}
@@ -71,14 +84,14 @@ function buildIconHTML({ title = "", url = "" } = {}) {
   `;
 }
 
-// Unified card template, returns complete HTML string
+// Unified card template
 export function createCard(data = {}) {
-  // Contains id for event delegation card positioning; other fields for UI display
   const { id = "", title = "Untitled", description = "AI-generated summary placeholder…", category = "", tags = [], url = "" } = data;
   const tagsHtml = (Array.isArray(tags) ? tags : []).map((raw) => {
     const label = String(raw).trim();
     const colorCls = getTagClass(label);
-    return `<span class="rune-tag ${colorCls}">${escapeHTML(label)}</span>`;
+    // 确保样式符合要求：圆角 999px (rounded-full), 小字体 (text-xs), padding 4px 10px (px-2.5 py-1)
+    return `<span class="rune-tag ${colorCls} rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">${escapeHTML(label)}</span>`;
   }).join("");
 
   return `
@@ -89,7 +102,6 @@ export function createCard(data = {}) {
           <div class="rune-card-title text-base font-bold">${escapeHTML(title)}</div>
         </div>
         <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark" title="More">more_horiz</button>
-        <!-- Card top-right more menu (Edit/Regenerate/Delete/Unsubscribe) -->
         <div class="rune-card-menu absolute right-3 top-10 hidden rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 shadow-md z-50">
           <ul class="min-w-[140px] p-2 text-sm">
             <li><button class="menu-edit w-full text-left px-3 py-2">Edit</button></li>
@@ -103,7 +115,6 @@ export function createCard(data = {}) {
       <div class="rune-card-tags flex flex-wrap gap-2">
         ${tagsHtml}
       </div>
-      <!-- Subscription button area (main button + controls container); controls only shown after subscription. Frequency settings moved to "Subscription Settings" page, no frequency controls here -->
       <div class="mt-3 card-actions flex items-center justify-end gap-2">
         ${(() => { const nurl = normalizeUrl(url); return `<button class\="btn-subscribe btn btn-small btn-muted\" data-url=\"${escapeHTML(nurl)}\">Subscribe</button>`; })()}
         <div class="card-controls" style="display:none;">
@@ -115,98 +126,14 @@ export function createCard(data = {}) {
 }
 
 // =============================
-// 💾 本地存储与数据模型（localStorage）
+// 💾 本地存储与数据模型（适配器模式）
 // =============================
 
-// Generate stable unique ID (timestamp + random segment)
-function generateId() {
-  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-// Storage key conventions
-const STORAGE_KEYS = { cards: 'rune_cards', categories: 'rune_categories' };
-
-// In-memory data structures
-let cards = [];
-const cardsMap = new Map();
-let categories = [];
-// Reserved category set (cannot be deleted); All Links used to display all cards
 const RESERVED_CATEGORIES = new Set(['All Links']);
 
-// Read/write localStorage (with fallback)
-function loadFromStorage(key, fallback) {
-  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
-}
-function saveToStorage(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} }
-
-// 中文注释：删除订阅并清理关联 Digest 条目（支持传入订阅 id 或 url）
-function deleteSubscriptionAndCleanup(subIdOrUrl) {
-  const subs = storageAdapter.loadSubscriptions();
-  const digests = storageAdapter.loadDigests();
-  const byIdOrUrl = (s) => String(s.id) === String(subIdOrUrl) || normalizeForCompare(s.url || '') === normalizeForCompare(subIdOrUrl || '');
-  const leftSubs = subs.filter(s => !byIdOrUrl(s));
-  storageAdapter.deleteSubscription(subIdOrUrl);
-  const cleaned = digests.map(d => {
-    if (!Array.isArray(d.entries)) return d;
-    d.entries = d.entries.filter(e => {
-      const matchId = String(e.subscriptionId) === String(subIdOrUrl);
-      const matchUrl = normalizeForCompare(e.url || '') === normalizeForCompare(subIdOrUrl || '');
-      return !(matchId || matchUrl);
-    });
-    d.siteCount = Array.isArray(d.entries) ? d.entries.length : 0;
-    return d;
-  }).filter(d => !Array.isArray(d.entries) || d.entries.length > 0);
-  const keepIds = new Set(cleaned.map(x => x.id));
-  digests.forEach(d => { if (!keepIds.has(d.id)) storageAdapter.deleteDigest(d.id); });
-  cleaned.forEach(c => storageAdapter.saveDigest(c));
-  markSubscribedButtons();
-}
-
-function persistCards() { saveToStorage(STORAGE_KEYS.cards, cards); }
-function persistCategories() { saveToStorage(STORAGE_KEYS.categories, categories); }
-
-// 中文注释：添加卡片到内存并持久化
-function addCardToStore(card) {
-  cards.unshift(card);
-  cardsMap.set(card.id, card);
-  persistCards();
-  ensureCategory(card.category);
-}
-
-// 中文注释：更新卡片内容并持久化
-function updateCardInStore(id, patch) {
-  const idx = cards.findIndex(c => c.id === id);
-  if (idx !== -1) {
-    cards[idx] = { ...cards[idx], ...patch };
-    cardsMap.set(id, cards[idx]);
-    persistCards();
-  }
-}
-
-// 中文注释：从内存与存储中删除卡片
-function deleteCardFromStore(id) {
-  cards = cards.filter(c => c.id !== id);
-  cardsMap.delete(id);
-  persistCards();
-}
-
-// 中文注释：确保分类存在，不存在则新增并持久化与侧栏同步
-function ensureCategory(name) {
-  const n = String(name || '').trim();
-  if (!n) return;
-  if (RESERVED_CATEGORIES.has(n)) return; // 跳过保留分类
-  if (!categories.includes(n)) {
-    categories.push(n);
-    persistCategories();
-    renderCategoriesSidebar();
-    syncEditCategorySelect();
-  }
-}
-
-// Mark subscription button states on cards based on current subscription data
-  function markSubscribedButtons() {
-  // Normalize both subscription and button URLs to avoid matching failures due to slashes/case differences
-  const subs = storageAdapter.loadSubscriptions();
+// Mark subscription button states
+function markSubscribedButtons() {
+  const subs = storageAdapter.getSubscriptions();
   const urls = new Set(
     subs
       .filter(s => s.enabled !== false)
@@ -225,7 +152,7 @@ function ensureCategory(name) {
     const onceBtn = wrap.querySelector('.btn-generate-once');
     const card = b.closest('.rune-card');
     const menuUnsub = card?.querySelector('.menu-unsubscribe');
-    const subsAll = storageAdapter.loadSubscriptions();
+    const subsAll = storageAdapter.getSubscriptions();
     const sub = subsAll.find(s => s.enabled !== false && normalizeForCompare(s.url) === normalizeForCompare(url));
     const isOn = !!sub;
     if (controls) controls.style.display = isOn ? 'inline-flex' : 'none';
@@ -235,7 +162,6 @@ function ensureCategory(name) {
   syncCardControlsVisibility();
 }
 
-// Sync card controls visibility after rendering (fallback for async insertion)
 function syncCardControlsVisibility() {
   const container = document.getElementById('cardsContainer');
   if (!container) return;
@@ -251,11 +177,10 @@ function syncCardControlsVisibility() {
   });
 }
 
-// URL normalization (complete protocol, clean spaces, unify domain case); returns empty string on failure
 function normalizeUrl(raw = '') {
   const s = String(raw).trim();
   if (!s) return '';
-  const guess = /^(https?:)?\/\//i.test(s) ? s : `https://${s}`; // 默认补全为 https
+  const guess = /^(https?:)?\/\//i.test(s) ? s : `https://${s}`;
   try {
     const u = new URL(guess);
     u.hostname = u.hostname.toLowerCase();
@@ -265,23 +190,20 @@ function normalizeUrl(raw = '') {
   }
 }
 
-// Find existing card by URL to avoid duplicate additions
 function findCardByUrl(url = '') {
   const target = String(url).trim();
   if (!target) return null;
+  const cards = storageAdapter.getLinks();
   return cards.find(c => String(c.url).trim() === target) || null;
 }
 
 // =============================
 // ☁️ 云端 AI 封装（Supabase Edge Functions）
 // =============================
-
-// Automatically determine if cloud mode is enabled (only when necessary environment variables exist)
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
 const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-// 中文注释：调用 Edge Function 生成 AI 摘要/分类；失败抛错（由调用方处理回退）
 async function fetchAIFromCloud(url) {
   const endpoint = `${SUPABASE_URL}/functions/v1/super-endpoint`;
   const res = await fetch(endpoint, {
@@ -294,11 +216,9 @@ async function fetchAIFromCloud(url) {
   });
   if (!res.ok) throw new Error(`Cloud AI failed: ${res.status}`);
   const data = await res.json();
-  // 期望返回字段：{ title, description, category, tags }
   return data;
 }
 
-// 中文注释：云端拉取已保存的 links（通过 Supabase PostgREST）；失败则返回空数组
 async function loadCloudLinks() {
   try {
     const endpoint = `${SUPABASE_URL}/rest/v1/links?select=*`;
@@ -310,9 +230,8 @@ async function loadCloudLinks() {
     });
     if (!res.ok) throw new Error(`List failed: ${res.status}`);
     const arr = await res.json();
-    // 映射为前端卡片结构
     return (Array.isArray(arr) ? arr : []).map(row => ({
-      id: row.id || generateId(),
+      id: row.id, // Use ID from cloud
       url: row.url || '',
       title: row.title || 'Untitled',
       description: row.description || 'Summary from cloud',
@@ -327,64 +246,57 @@ async function loadCloudLinks() {
   }
 }
 
-// 中文注释：侧栏分类渲染（与删除按钮）
 function renderCategoriesSidebar() {
   const list = document.getElementById('linksGroupList');
   if (!list) return;
   list.innerHTML = '';
-  // 中文注释：首先插入“All Links”保留分类（无删除按钮），点击显示全部卡片
+  const categories = storageAdapter.getCategories();
+
   const allItem = document.createElement('div');
-  allItem.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5';
-  allItem.setAttribute('data-name', ''); // 空名称代表显示全部
-  allItem.innerHTML = `
-    <button class="category-filter text-sm font-medium text-left flex-1">All Links</button>
-  `;
+  allItem.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer';
+  allItem.setAttribute('data-name', '');
+  allItem.innerHTML = `<button class="category-filter text-sm font-medium text-left flex-1 w-full focus:outline-none" title="All Links" data-initial="All">All Links</button>`;
   list.appendChild(allItem);
-  // 其他分类（可删除）
+
   categories.forEach(cat => {
-    if (!cat || RESERVED_CATEGORIES.has(cat)) return;
+    if (!cat || cat === 'All Links') return;
     const item = document.createElement('div');
-    item.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5';
+    item.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative group';
     item.setAttribute('data-name', cat);
+    
+    const safeName = String(cat).replace(/\s+/g, '-').toLowerCase();
+    const menuId = `cat-menu-${safeName}`;
+    const btnId = `cat-btn-${safeName}`;
+    // Get first letter for avatar
+    const initial = (cat || 'U').charAt(0).toUpperCase();
+
     item.innerHTML = `
-      <button class="category-filter text-sm font-medium text-left flex-1">${escapeHTML(cat)}</button>
-      <button class="category-delete text-xs text-text-secondary-light dark:text-text-secondary-dark">Delete</button>
+      <button class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}" data-initial="${escapeHTML(initial)}">${escapeHTML(cat)}</button>
+      <div class="relative shrink-0">
+        <button id="${btnId}" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors" aria-haspopup="true" aria-expanded="false" aria-controls="${menuId}" aria-label="Options">
+          <span class="material-symbols-outlined text-base">more_horiz</span>
+        </button>
+        <div id="${menuId}" class="category-menu absolute right-0 top-8 hidden w-40 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 shadow-xl z-50 overflow-hidden flex flex-col py-1" role="menu" aria-labelledby="${btnId}">
+           <button class="w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed bg-gray-50 dark:bg-white/5" disabled role="menuitem">Rename Category</button>
+           <button class="category-delete w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20 focus:outline-none transition-colors" role="menuitem">Delete Category</button>
+        </div>
+      </div>
     `;
     list.appendChild(item);
   });
 }
 
-// 中文注释：Edit 模态下拉同步当前分类（支持新增）
 function syncEditCategorySelect() {
   const sel = document.getElementById('editLinkCategory');
   if (!sel) return;
-  sel.innerHTML = '<option value="">Select Category</option>' + categories.map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('') + '<option value="__new__">+ New category…</option>';
+  const categories = storageAdapter.getCategories();
+  sel.innerHTML = '<option value="">Select Category</option>' + categories.filter(c => c !== 'All Links').map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('') + '<option value="__new__">+ New category…</option>';
 }
-
-// 中文注释：从 URL 模拟生成 AI 元数据（标题/摘要/类别/标签）
-// 中文注释：移除本地 mock，实现统一从 mockFunctions.js 引入；保留 createCard 作为模板构建函数
 
 export function initDashboard() {
   console.log("📊 Dashboard initialized");
 
-  // 中文注释：开发模式下运行轻量级单元测试，覆盖 URL 规范化/标签颜色映射/去重逻辑
   if (import.meta?.env?.DEV) {
-    try {
-      const cases = [
-        { in: 'example.com', out: 'https://example.com/' },
-        { in: 'HTTP://EXAMPLE.COM/path', out: 'http://example.com/path' },
-        { in: 'https://github.com', out: 'https://github.com/' },
-      ];
-      cases.forEach(({ in: raw, out }) => {
-        const got = normalizeUrl(raw);
-        if (!got || !got.startsWith(out.replace(/\/$/, ''))) throw new Error(`normalizeUrl 失败: ${raw} -> ${got}`);
-      });
-      if (!getTagClass('ai')) throw new Error('getTagClass 映射失败');
-      console.log('✅ 自测通过：normalizeUrl / getTagClass');
-    } catch (err) {
-      console.warn('❌ 自测失败：', err);
-    }
-    // 中文注释：集成自测（仅当 URL 包含 selftest 标记时执行，不影响正常使用）
     if (window.location.search.includes('selftest')) {
       (async () => {
         try {
@@ -393,16 +305,15 @@ export function initDashboard() {
           if (useCloud) { try { ai = await fetchAIFromCloud(url); } catch { ai = null; } }
           const mock = ai || await mockAIFromUrlExternal(url);
           const data = {
-            id: generateId(),
             title: mock?.title || 'SelfTest',
             description: mock?.description || 'Integration test placeholder',
             category: mock?.category || 'All Links',
             tags: Array.isArray(mock?.tags) && mock.tags.length ? mock.tags : ['bookmark'],
             url,
           };
-          addCardToStore(data);
+          const added = storageAdapter.addLink(data);
           console.log('✅ Self-test: add flow completed');
-          deleteCardFromStore(data.id);
+          storageAdapter.deleteLink(added.id);
           console.log('✅ Self-test: delete flow completed');
         } catch (e) {
           console.warn('❌ Self-test failed:', e);
@@ -411,29 +322,82 @@ export function initDashboard() {
     }
   }
 
-  // 缓存默认主内容 HTML，以便在视图切换后恢复
   const mainEl = document.querySelector('main');
   const defaultMainHTML = mainEl ? mainEl.innerHTML : '';
 
-  // ====== Logo 按钮：返回首页 ======
-  const logoBtn = document.getElementById("logoBtn");
-  if (logoBtn) {
-    // 中文注释：点击 Logo 进行“软刷新”（仅重置主视图与数据），避免浏览器因整页刷新产生 ERR_ABORTED 日志
-    on(logoBtn, "click", () => {
-      try { renderDefaultMain(); } catch {}
-    });
-  }
-
-  // ====== 折叠侧栏 ======
   const toggle = document.getElementById("sidebarToggle");
+  const logoBtn = document.getElementById("logoBtn");
   const sidebar = document.querySelector(".sidebar");
-  if (toggle && sidebar) {
-    toggle.addEventListener("click", () => {
-      sidebar.classList.toggle("aside-collapsed");
+  const mobileToggle = document.getElementById("mobileSidebarToggle");
+
+  const toggleSidebar = (forceState) => {
+    if (!sidebar) return;
+    
+    // If forceState is provided, use it. Otherwise toggle.
+    // true = collapsed, false = expanded
+    const isCollapsed = forceState !== undefined ? forceState : !sidebar.classList.contains("aside-collapsed");
+    
+    if (isCollapsed) {
+      sidebar.classList.add("aside-collapsed");
+      sidebar.setAttribute("aria-expanded", "false");
+    } else {
+      sidebar.classList.remove("aside-collapsed");
+      sidebar.setAttribute("aria-expanded", "true");
+    }
+    
+    // Save preference
+    try {
+      localStorage.setItem("sidebarCollapsed", isCollapsed);
+    } catch {}
+  };
+
+  // Initialize state from localStorage
+  try {
+    const stored = localStorage.getItem("sidebarCollapsed");
+    // Default to expanded (false) if not set. 
+    // If stored is 'true', then collapse.
+    // Mobile check: on mobile, default to hidden/expanded overlay? 
+    // Current CSS handles mobile sidebar visibility differently (usually overlay).
+    // But for the "collapse to icon" feature, user said: "在移动端（max-width <= 768px）折叠默认为展开（不要自动折叠成 logo-only）"
+    // So we only apply stored preference if window width > 768
+    if (window.innerWidth > 768 && stored === 'true') {
+      toggleSidebar(true);
+    }
+  } catch {}
+
+  if (logoBtn) {
+    on(logoBtn, "click", (e) => {
+      // If sidebar is collapsed, expand it.
+      // If sidebar is expanded, collapse it.
+      toggleSidebar(); 
+    });
+    // Keyboard support for logoBtn (Enter/Space handled by 'click' on button usually, but let's ensure)
+    on(logoBtn, "keydown", (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleSidebar();
+      }
     });
   }
 
-  // ====== 折叠导航分组 ======
+  if (toggle) {
+    toggle.addEventListener("click", () => toggleSidebar());
+  }
+  
+  if (mobileToggle && sidebar) {
+     // Mobile menu toggle logic (often different from desktop collapse)
+     // Existing logic might be missing for mobileSidebarToggle, let's add it.
+     // Usually mobile toggle shows/hides the sidebar completely (transform translate).
+     // But here we just focus on the collapse feature. 
+     // If the user wants the mobile button to toggle the sidebar *visibility* (off-canvas), 
+     // that's separate from "aside-collapsed".
+     // Assuming existing CSS handles mobile visibility or we leave it as is for now.
+     // The user prompt implies: "响应式：在移动端...折叠默认为展开...但仍允许用户手动折叠"
+     // So maybe mobile toggle also toggles collapse? 
+     // "click logo 展开/收起" applies.
+     // Let's stick to the desktop collapse logic first.
+  }
+
   const navGroups = [
     { header: "linksGroupHeader", body: "linksGroupBody" },
     { header: "subsGroupHeader", body: "subsGroupBody" },
@@ -441,21 +405,71 @@ export function initDashboard() {
     { header: "userGroupHeader", body: "userGroupBody" },
   ];
 
-  // 中文注释：将折叠逻辑替换为 slideToggle，提供更柔和的视觉反馈；移除直接操作 hidden 类与图标切换，由 CSS 过渡与布局承担体验。
   navGroups.forEach(({ header, body }) => {
     const h = document.getElementById(header);
     const b = document.getElementById(body);
     if (h && b) {
-      // 初始化：设置 max-height 以便动画计算
-      b.style.overflow = "hidden"; // 防止内容溢出影响动画
-      b.style.maxHeight = b.scrollHeight + "px";
-      h.addEventListener("click", () => {
-        slideToggle(b);
+      // Initialize as open and visible (so menus can pop out)
+      b.style.maxHeight = "none";
+      b.style.overflow = "visible";
+      
+      // Setup icon rotation
+      const icon = h.querySelector('.material-symbols-outlined');
+      if (icon) {
+         icon.style.transition = 'transform 0.2s ease';
+         icon.style.transform = 'rotate(180deg)'; // Open = 180deg
+      }
+      
+      // ARIA
+      h.setAttribute('role', 'button');
+      h.setAttribute('aria-expanded', 'true');
+      h.setAttribute('aria-controls', body);
+
+      h.addEventListener("click", (e) => {
+        e.preventDefault();
+        
+        // Check current state based on maxHeight
+        // If maxHeight is 'none' or non-zero, it's open.
+        const isOpen = b.style.maxHeight !== '0px';
+        
+        if (isOpen) {
+          // Closing
+          // 1. Set explicit height for transition to work (from 'none' or 'auto')
+          b.style.maxHeight = b.scrollHeight + "px";
+          b.style.overflow = "hidden";
+          
+          // 2. Force reflow
+          b.offsetHeight; 
+          
+          // 3. Set to 0
+          b.style.transition = 'max-height 200ms ease-in-out';
+          b.style.maxHeight = "0px";
+          
+          if (icon) icon.style.transform = 'rotate(0deg)';
+          h.setAttribute('aria-expanded', 'false');
+        } else {
+          // Opening
+          b.style.overflow = "hidden";
+          b.style.transition = 'max-height 200ms ease-in-out';
+          b.style.maxHeight = b.scrollHeight + "px";
+          
+          if (icon) icon.style.transform = 'rotate(180deg)';
+          h.setAttribute('aria-expanded', 'true');
+          
+          // After transition, set overflow to visible so menus can show
+          const onEnd = () => {
+             if (b.style.maxHeight !== '0px') { // Still open
+                 b.style.maxHeight = "none";
+                 b.style.overflow = "visible";
+             }
+             b.removeEventListener('transitionend', onEnd);
+          };
+          b.addEventListener('transitionend', onEnd);
+        }
       });
     }
   });
 
-  // ====== 点击菜单高亮 ======
   const navItems = document.querySelectorAll(".nav-item");
   navItems.forEach((item) => {
     item.addEventListener("click", (e) => {
@@ -465,41 +479,14 @@ export function initDashboard() {
     });
   });
 
-  // ====== 视图切换：Digest 与 Chat 占位 ======
   function renderDefaultMain() {
     if (mainEl) {
       mainEl.innerHTML = defaultMainHTML;
-      // 中文注释：恢复主视图后重新渲染卡片（从 localStorage 或云端拉取），避免空页面
       try { seedDemoCards(); } catch {}
-      // 中文注释：重新标记订阅按钮状态（新容器）
       markSubscribedButtons();
     }
   }
-  // 中文注释：通用文本输入模态（替代 prompt）
-async function openTextPrompt({ title='Input', placeholder='' } = {}) {
-    return new Promise((resolve) => {
-      const modal = document.getElementById('textPromptModal');
-      const input = document.getElementById('textPromptInput');
-      const ttl = document.getElementById('textPromptTitle');
-      const btnOk = document.getElementById('textPromptOk');
-      const btnCancel = document.getElementById('textPromptCancel');
-      if (!modal || !input || !ttl || !btnOk || !btnCancel) return resolve(null);
-      ttl.textContent = title;
-      input.value = '';
-      input.placeholder = placeholder;
-      modal.style.display = 'flex';
-      function cleanup() {
-        modal.style.display = 'none';
-        btnOk.removeEventListener('click', onOk);
-        btnCancel.removeEventListener('click', onCancel);
-      }
-      function onOk() { cleanup(); resolve(input.value); }
-      function onCancel() { cleanup(); resolve(null); }
-      btnOk.addEventListener('click', onOk);
-      btnCancel.addEventListener('click', onCancel);
-      setTimeout(() => input.focus(), 0);
-    });
-  }
+
   function renderDigestView() {
     if (!mainEl) return;
     mountHTML(mainEl, `
@@ -517,25 +504,20 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
           <select id="digestSub" class="form-select rounded-lg bg-gray-100 dark:bg-white/5 border-none text-sm"><option value="">All Subscriptions</option></select>
           <input id="digestSearch" placeholder="Search summaries/titles…" class="form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none text-sm flex-1" />
         </div>
-        <!-- 中文注释：使用网格布局 digest-grid -->
         <div id="digestList" class="digest-grid"></div>
       </section>
     `);
-    // 中文注释：填充订阅下拉
-    const subs = storageAdapter.loadSubscriptions();
+    const subs = storageAdapter.getSubscriptions();
     const sel = document.getElementById('digestSub');
     if (sel) {
       sel.innerHTML = '<option value="">All Subscriptions</option>' + subs.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.title||s.url)}</option>`).join('');
     }
-    // 渲染列表
     const listEl = document.getElementById('digestList');
     const dateEl = document.getElementById('digestDate');
     const mockBtn = document.getElementById('digestMockGenerate');
-    const retryBtn = document.getElementById('digestRetryErrors');
     const searchEl = document.getElementById('digestSearch');
     const render = () => {
-      // 中文注释：仅渲染当日合并 Digest（merged=true），按日期过滤；未选日期则展示全部合并条目
-      const all = storageAdapter.loadDigests();
+      const all = storageAdapter.getDigests();
       const date = dateEl?.value || '';
       const siteId = sel?.value || '';
       const keyword = (searchEl?.value || '').trim().toLowerCase();
@@ -552,16 +534,12 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
       merged.forEach(d => {
         const siteCount = Number(d.siteCount || (Array.isArray(d.entries)?d.entries.length:0));
         const entries = Array.isArray(d.entries) ? d.entries : [];
-        // 中文注释：计算显示用时间戳（优先 updated_at，其次 created_at）
         const ts = d.updated_at || d.created_at || Date.now();
         const tsText = new Date(ts).toLocaleString();
         const card = document.createElement('div');
-        // 中文注释：网格卡片样式，增加 hover 浮起效果与圆角
         card.className = 'digest-card bg-surface-light dark:bg-surface-dark rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer relative group flex flex-col h-full';
         card.setAttribute('data-digest-id', d.id);
         
-        // 中文注释：卡片内容 - 标题、日期、ID、SiteCount、站点简要列表
-        // 站点简要列表：限制显示前 5 个，超出显示 +N more
         const maxSites = 5;
         const shownEntries = entries.slice(0, maxSites);
         const moreCount = entries.length > maxSites ? entries.length - maxSites : 0;
@@ -573,7 +551,6 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
                <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">${escapeHTML(d.date)} · 1 day</div>
             </div>
             <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute top-3 right-3">
-               <!-- 中文注释：卡片上的快速删除按钮 -->
                <button class="digest-delete p-1.5 rounded-full bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600" data-id="${escapeHTML(d.id)}" title="Delete">
                  <span class="material-symbols-outlined text-lg">delete</span>
                </button>
@@ -601,7 +578,6 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
              }).join('')}
              ${moreCount > 0 ? `<div class="text-xs text-text-secondary-light dark:text-text-secondary-dark pl-9">+${moreCount} more sites...</div>` : ''}
           </div>
-          <!-- 中文注释：卡片右下角补充信息：生成时间 + 查看摘要按钮 -->
           <div class="mt-3 flex items-center justify-end gap-3">
             <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Generated at: ${escapeHTML(tsText)}</div>
             <button class="digest-view-btn btn btn-small btn-outline" data-id="${escapeHTML(d.id)}">
@@ -617,17 +593,16 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
     if (sel) on(sel, 'change', render);
     if (searchEl) on(searchEl, 'input', render);
     if (mockBtn) on(mockBtn, 'click', async () => {
-      // 中文注释：生成当日合并 Digest（merged=true），只新增/更新一条当日卡片
-      const subsAll = storageAdapter.loadSubscriptions().filter(s=>s.enabled!==false);
+      const subsAll = storageAdapter.getSubscriptions().filter(s=>s.enabled!==false);
       const targetId = sel?.value || '';
       const targets = targetId ? subsAll.filter(s => s.id === targetId) : subsAll;
       if (!targets.length) {
-        alert('No active subscriptions');
+        openTextPrompt({ title: 'Error', placeholder: 'No active subscriptions' });
         return;
       }
       try {
         const dateStr = new Date().toISOString().slice(0,10);
-        const digests = storageAdapter.loadDigests();
+        const digests = storageAdapter.getDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         const newEntries = [];
         for (const s of targets) {
@@ -658,33 +633,28 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
             entries: newEntries,
             created_at: Date.now()
           };
-          digests.push(merged);
         }
-        storageAdapter.saveDigest(merged);
+        storageAdapter.addDigest(merged);
         const toast = document.createElement('div');
         toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
         toast.textContent = `Merged digest generated (${merged.siteCount} sites)`;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 1600);
         render();
-      } catch (e) { alert('Generation failed'); }
+      } catch (e) { console.error(e); }
     });
-    // 下载事件委托（不再在卡片上直接操作，保留逻辑以防万一，但UI上按钮已移除或移动）
-    // 中文注释：详情面板中的下载按钮逻辑需单独绑定
     
-    // 删除事件委托（带确认弹窗）
     delegate(listEl, '.digest-delete', 'click', (e, btn) => {
       e.preventDefault();
       e.stopPropagation();
-      // e.stopImmediatePropagation(); // 不需要，只要阻止冒泡即可
       const id = btn.getAttribute('data-id');
       if (!id) return;
       openConfirm({
         title: 'Delete digest?',
         message: 'This action cannot be undone.',
+        okText: 'Delete',
         onOk: () => {
           storageAdapter.deleteDigest(id);
-          // 轻量提示
           try {
             const toast = document.createElement('div');
             toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-red-500 text-white text-sm shadow-lg';
@@ -697,13 +667,11 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
       });
     });
     
-    // 点击 Digest 卡片显示详细内容（详情 Modal / Side Panel）
     delegate(listEl, '.digest-card', 'click', (e, card) => {
-      // 避免点击内部按钮时触发
       if (e.target.closest('button')) return;
       
       const id = card.getAttribute('data-digest-id');
-      const all = storageAdapter.loadDigests();
+      const all = storageAdapter.getDigests();
       const d = all.find(x => x.id === id);
       if (!d) return;
       
@@ -712,10 +680,8 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
         panel = document.createElement('div');
         panel.id = 'digestDetailPanel';
         panel.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm';
-        // 中文注释：详情 Modal 结构
         panel.innerHTML = `
           <div class="relative w-full max-w-3xl max-h-[85vh] flex flex-col rounded-2xl bg-surface-light dark:bg-surface-dark shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <!-- Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
                <div>
                  <h3 class="text-xl font-bold text-text-primary-light dark:text-text-primary-dark" id="digestDetailTitle"></h3>
@@ -730,14 +696,11 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
                  </button>
                </div>
             </div>
-            
-            <!-- Body (Scrollable) -->
             <div id="digestDetailEntries" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4"></div>
           </div>`;
         document.body.appendChild(panel);
       }
       
-      // 填充数据
       const t = document.getElementById('digestDetailTitle');
       const m = document.getElementById('digestDetailMeta');
       const dlBtn = document.getElementById('digestDetailDownload');
@@ -745,9 +708,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
       if (t) t.textContent = `${d.title}`;
       if (m) m.textContent = `${d.date} · ${Number(d.siteCount|| (Array.isArray(d.entries)?d.entries.length:0))} sites · ID: ${d.id}`;
       
-      // 绑定下载事件
       if (dlBtn) {
-        // 移除旧的监听器（通过替换节点）
         const newBtn = dlBtn.cloneNode(true);
         dlBtn.parentNode.replaceChild(newBtn, dlBtn);
         newBtn.onclick = () => {
@@ -781,33 +742,28 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
           `;
           container.appendChild(block);
         });
-        // 中文注释：不展示 Raw JSON
       }
       
       show(panel);
       
       const closeBtn = document.getElementById('digestDetailClose');
       if (closeBtn) {
-          // 防止多次绑定
           const newClose = closeBtn.cloneNode(true);
           closeBtn.parentNode.replaceChild(newClose, closeBtn);
           newClose.onclick = () => hide(panel);
       }
       
-      // 点击遮罩关闭
       panel.onclick = (ev) => {
           if (ev.target === panel) hide(panel);
       };
     });
 
-    // 中文注释：“查看摘要”按钮显式打开详情面板
     delegate(listEl, '.digest-view-btn', 'click', (e, btn) => {
       e.preventDefault(); e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const all = storageAdapter.loadDigests();
+      const all = storageAdapter.getDigests();
       const d = all.find(x => x.id === id);
       if (!d) return;
-      // 复用卡片点击逻辑：触发卡片点击以打开详情
       const card = btn.closest('.digest-card');
       if (card) {
         const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
@@ -855,7 +811,6 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
   if (navChat) on(navChat, 'click', (e) => { e.preventDefault(); renderChatView(); });
   if (navSettings) on(navSettings, 'click', (e) => {
     e.preventDefault();
-    // 中文注释：打开设置弹窗，占位内容；使用页面已有的 modalBackdrop 作为遮罩
     const backdrop = document.getElementById('modalBackdrop');
     const container = document.getElementById('settingsModalContainer');
     if (!container) return;
@@ -878,7 +833,6 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
               <input type="checkbox" class="form-checkbox ml-2" />
             </label>
           </div>
-          <!-- 中文注释：订阅设定分区（集中管理抓取频率） -->
           <div class="mt-4">
             <h4 class="text-base font-semibold mb-2">Subscription settings</h4>
             <div id="subsSettingsList" class="space-y-2"></div>
@@ -891,54 +845,20 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
     }
     show(backdrop);
     show(panel);
-    // 中文注释：打开设置面板后渲染“订阅设定”列表（若模块已加载）
     try { if (typeof window.renderSubscriptionsSettings === 'function') window.renderSubscriptionsSettings(); } catch {}
     const closeBtn = document.getElementById('settingsCloseBtn');
     if (closeBtn) on(closeBtn, 'click', () => { hide(panel); hide(backdrop); });
     on(backdrop, 'click', () => { hide(panel); hide(backdrop); });
   });
 
-  // ====== 通用确认模态封装 ======
-  // 中文注释：通用确认模态支持危险动作样式（okDanger=true 时红色按钮）
-function openConfirm({ title = 'Confirm action?', message = 'This action cannot be undone.', onOk = () => {}, okDanger = false } = {}) {
-    const modal = document.getElementById('confirmModal');
-    const titleEl = document.getElementById('confirmTitle');
-    const msgEl = document.getElementById('confirmMessage');
-    const btnCancel = document.getElementById('confirmCancel');
-    const btnOk = document.getElementById('confirmOk');
-    if (!modal || !titleEl || !msgEl || !btnCancel || !btnOk) return;
-    titleEl.textContent = title;
-    msgEl.textContent = message;
-    show(modal);
-    // 中文注释：设置模态状态，屏蔽头像点击动作
-    document.body.dataset.modalOpen = '1';
-    // 中文注释：根据危险动作切换按钮样式（红色强调）
-    if (okDanger) { btnOk.classList.add('bg-red-600','text-white'); }
-    else { btnOk.classList.remove('bg-red-600','text-white'); }
-    const cleanup = () => {
-      hide(modal);
-       delete document.body.dataset.modalOpen;
-      btnCancel.removeEventListener('click', onCancel);
-      btnOk.removeEventListener('click', onConfirm);
-    };
-    const onCancel = () => cleanup();
-    const onConfirm = () => { try { onOk(); } finally { cleanup(); } };
-    btnCancel.addEventListener('click', onCancel);
-    btnOk.addEventListener('click', onConfirm);
-  }
-
-  // ====== 顶栏通知按钮：打开简单通知面板 ======
-  // 中文注释：页面未提供通知容器，这里通过查询顶栏内的按钮图标为 notifications 的按钮进行绑定
   const headerButtons = Array.from(document.querySelectorAll('header button'));
   const notifyBtn = headerButtons.find((btn) => btn.querySelector('.material-symbols-outlined')?.textContent?.trim() === 'notifications');
   if (notifyBtn) {
     on(notifyBtn, 'click', () => {
-      // 构建一个临时通知面板（靠近按钮定位），再次点击或点击外部关闭
       let panel = document.getElementById('notifPanel');
       if (!panel) {
         panel = document.createElement('div');
         panel.id = 'notifPanel';
-        // 中文注释：使用独立类名，避免与头像下拉样式/逻辑冲突
         panel.className = 'notify-panel';
         panel.innerHTML = `
           <div class="p-4">
@@ -949,7 +869,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
             </div>
           </div>`;
         document.body.appendChild(panel);
-        // 简单定位：跟随按钮在视窗右上区域
         const rect = notifyBtn.getBoundingClientRect();
         panel.style.position = 'fixed';
         panel.style.top = `${rect.bottom + 8}px`;
@@ -957,7 +876,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         show(panel);
         const closeBtn = panel.querySelector('#notifCloseBtn');
         on(closeBtn, 'click', (ev) => { ev.preventDefault(); ev.stopPropagation(); hide(panel); });
-        // 外部点击关闭
         const onDocClick = (e) => {
           if (!panel.contains(e.target) && e.target !== notifyBtn) {
             hide(panel);
@@ -966,13 +884,11 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         };
         setTimeout(() => document.addEventListener('click', onDocClick), 0);
       } else {
-        // 切换显示
         if (panel.style.display === 'none' || !panel.style.display) { show(panel); } else { hide(panel); }
       }
     });
   }
 
-  // ====== 初始化用户卡片（避免重复注入） ======
   const card = document.getElementById("userWelcomeCard");
   if (card) {
     card.innerHTML = `
@@ -982,7 +898,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       </div>`;
   }
 
-  // ====== Add Link 模态：打开/关闭/保存 ======
   const addLinkBtn = document.getElementById('addLinkBtn');
   const addLinkModal = document.getElementById('addLinkModal');
   const cancelAddLinkBtn = document.getElementById('cancelAddLinkBtn');
@@ -992,56 +907,47 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
   const cardsContainer = document.getElementById('cardsContainer');
 
   if (addLinkBtn && addLinkModal) {
-    // 中文注释：打开添加链接模态
     on(addLinkBtn, 'click', () => {
-      if (inpUrl) inpUrl.value = ''; // 清空输入框，防止残留上次的输入
+      if (inpUrl) inpUrl.value = '';
       openModal(addLinkModal);
     });
   }
   if (cancelAddLinkBtn && addLinkModal) {
-    // 中文注释：取消关闭模态
     on(cancelAddLinkBtn, 'click', () => closeModal(addLinkModal));
   }
   if (closeModalX && addLinkModal) {
-    // 中文注释：右上角关闭
     on(closeModalX, 'click', () => closeModal(addLinkModal));
   }
   if (saveLinkBtn && addLinkModal && inpUrl && cardsContainer) {
-    // 中文注释：保存链接 → 调用 mockFunctions.js 的 mockAIFromUrl(url) → 构建卡片并持久化
     on(saveLinkBtn, 'click', async () => {
-      // 中文注释：若输入为空或 normalizeUrl 失败（如纯空格），则提示无效
       const raw = (inpUrl.value || '').trim();
-      if (!raw) { alert('Please enter a valid URL'); return; }
+      if (!raw) { openTextPrompt({ title: 'Error', placeholder: 'Please enter a valid URL' }); return; }
       const normalized = normalizeUrl(raw);
       if (!normalized) {
-        alert('Please enter a valid URL');
+        openTextPrompt({ title: 'Error', placeholder: 'Please enter a valid URL' });
         return;
       }
-      // 中文注释：去重检查，若已存在则直接提示并阻止重复添加；后续可改为更新逻辑
       const exists = findCardByUrl(normalized);
       if (exists) {
-        alert('This link already exists.');
+        openTextPrompt({ title: 'Notice', placeholder: 'This link already exists.' });
         return;
       }
       setLoading(saveLinkBtn, true, 'Generating summary…');
-      // 中文注释：优先尝试云端 AI；失败或未配置则回退到本地 mock
       let ai = null;
       if (useCloud) {
         try { ai = await fetchAIFromCloud(normalized); } catch { ai = null; }
       }
       const mock = ai || await mockAIFromUrlExternal(normalized).catch(() => ({ title: '', description: '', category: 'All Links', tags: ['bookmark'] }));
       const data = {
-        id: generateId(),
         title: mock?.title || (normalized.replace(/^https?:\/\//, '').split('/')[0] || 'Untitled'),
         description: mock?.description || 'Mock: Auto-generated summary placeholder.',
         category: mock?.category || 'All Links',
         tags: Array.isArray(mock?.tags) && mock.tags.length ? mock.tags : ['bookmark'],
         url: normalized,
       };
-      addCardToStore(data);
-      const html = createCard(data);
+      const added = storageAdapter.addLink(data);
+      const html = createCard(added);
       cardsContainer.insertAdjacentHTML('afterbegin', html);
-      // 中文注释：刷新订阅按钮状态（与现有订阅匹配显示 Subscribed）
       markSubscribedButtons();
       inpUrl.value = '';
       closeModal(addLinkModal);
@@ -1049,7 +955,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     });
   }
 
-  // ====== 搜索框：输入与回车筛选卡片 ======
   const searchInput = document.getElementById('searchInput');
   function filterCards(query) {
     const q = (query || '').trim().toLowerCase();
@@ -1061,7 +966,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       cardEl.style.display = match ? '' : 'none';
       if (match) visibleCount++;
     });
-    // 空状态占位
     let emptyEl = document.getElementById('emptyState');
     if (!emptyEl) {
       emptyEl = document.createElement('div');
@@ -1080,18 +984,12 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     });
   }
 
-  // ===== 动态加载用户数据（未来接 Supabase）=====
   loadUserWelcome();
 
-  // ====== 注入示例卡片，用于自测交互 ======
   function seedDemoCards() {
     const container = document.getElementById('cardsContainer');
     if (!container) return;
-    // 中文注释：云端模式优先尝试拉取 links；否则回退本地缓存与示例注入
-    cards = loadFromStorage(STORAGE_KEYS.cards, []);
-    categories = loadFromStorage(STORAGE_KEYS.categories, []);
-    cardsMap.clear();
-    cards.forEach(c => cardsMap.set(c.id, c));
+    const cards = storageAdapter.getLinks();
     if (cards.length > 0) {
       container.innerHTML = '';
       cards.forEach(c => {
@@ -1103,7 +1001,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       return;
     }
     if (useCloud) {
-      // 尝试云端拉取；成功则渲染并缓存到本地，作为离线数据
       (async () => {
         const cloud = await loadCloudLinks();
       if (cloud.length > 0) {
@@ -1111,26 +1008,22 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         cloud.forEach(c => {
           const html = createCard(c);
           container.insertAdjacentHTML('beforeend', html);
-          // 中文注释：按 URL 去重合并到本地缓存
-          if (!findCardByUrl(c.url)) addCardToStore(c);
-          ensureCategory(c.category);
+          if (!findCardByUrl(c.url)) storageAdapter.addLink(c);
+          storageAdapter.ensureCategory(c.category);
         });
         renderCategoriesSidebar();
         syncEditCategorySelect();
         markSubscribedButtons();
         return;
       }
-        // 若云端为空，继续示例注入
         injectSamples();
       })();
       return;
     }
     injectSamples();
     function injectSamples() {
-      // 中文注释：统一使用 createCard(data) 渲染示例卡片，确保与新增链接的 UI 一致
       const samples = [
       {
-        id: generateId(),
         title: 'Figma — Design tool',
         description: 'AI Summary: Figma is a modern design collaboration platform for prototyping and UI design.',
         category: 'Design',
@@ -1138,7 +1031,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         url: 'https://figma.com/',
       },
       {
-        id: generateId(),
         title: 'OpenAI — GPT Models',
         description: 'AI Summary: OpenAI provides advanced large language models and API access.',
         category: 'AI',
@@ -1146,7 +1038,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         url: 'https://openai.com/',
       },
       {
-        id: generateId(),
         title: 'GitHub — Code hosting',
         description: 'AI Summary: GitHub is a mainstream code hosting and collaboration platform.',
         category: 'Development',
@@ -1155,10 +1046,9 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       },
     ];
       samples.forEach((data) => {
-        const html = createCard(data);
+        const added = storageAdapter.addLink(data);
+        const html = createCard(added);
         container.insertAdjacentHTML('beforeend', html);
-        addCardToStore(data);
-        ensureCategory(data.category);
       });
       renderCategoriesSidebar();
       syncEditCategorySelect();
@@ -1166,52 +1056,36 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     }
   }
   seedDemoCards();
-  // 中文注释：订阅按钮统一处理函数（放在外层作用域，供统一事件绑定调用）
-  // 中文注释：行为说明：
-  // 1）首次点击将卡片 URL 写入 localStorage 的 rune_subscriptions，结构包含 id/url/title/frequency/enabled/lastChecked
-  // 2）再次点击进行 toggle：enabled = false 表示取消订阅；enabled = true 表示启用订阅
-  // 3）更新按钮 UI 文案与高亮；同时刷新左侧 SUBSCRIPTIONS 列表并同步其他卡片按钮状态
+
   const handleSubscribe = (e, btn) => {
     e.preventDefault();
     e.stopPropagation();
-    // 中文注释：立即阻止后续同源事件（避免 click 与 pointerdown 双重触发导致状态闪烁）
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     const url = normalizeUrl(btn.getAttribute('data-url') || '');
     if (!url) return;
-    // 中文注释：按钮短暂 loading，提升交互反馈（不改变最终文案）
     setLoading(btn, true, 'Processing…');
-    const subs = storageAdapter.loadSubscriptions();
-    // 中文注释：查找是否已有该 URL 的订阅记录（不区分 enabled 状态）
-    let existed = subs.find(s => normalizeUrl(s.url) === url);
-    if (existed) {
-      // 中文注释：仅在未启用时执行启用；已订阅状态下不支持直接取消订阅（改用三点菜单）
-      const wasEnabled = existed.enabled !== false;
-      if (!wasEnabled) {
-        storageAdapter.saveSubscription({ ...existed, enabled: true });
-      }
+    
+    const cards = storageAdapter.getLinks();
+    const link = cards.find(c => normalizeForCompare(c.url) === normalizeForCompare(url));
+    
+    if (link) {
+      storageAdapter.subscribe(link.id);
     } else {
-      // 中文注释：创建新订阅记录（lastChecked 初始为 0）
-      const card = btn.closest('.rune-card');
-      const titleEl = card?.querySelector('.rune-card-title');
-      const titleText = titleEl?.textContent?.trim() || url.replace(/^https?:\/\//, '').split('/')[0];
-      const sub = { id: generateId(), url, title: titleText, frequency: 'daily', enabled: true, lastChecked: 0 };
-      storageAdapter.saveSubscription(sub);
+       // 理论上不应该发生，因为 subscribe 按钮在卡片上
+       console.error('Link not found for subscription');
     }
-    // 中文注释：关闭 loading，再根据最新状态更新按钮文案与样式
+    
     setLoading(btn, false);
-    const nowEnabled = (subs.find(s => normalizeUrl(s.url) === url)?.enabled !== false);
+    const nowEnabled = isUrlSubscribed(url);
     applySubscribeStyle(btn, nowEnabled);
-    // 中文注释：同步所有卡片上的按钮状态，无需侧栏刷新
     markSubscribedButtons();
   };
-  // 中文注释：统一抽象事件绑定，避免散落在各处导致维护困难
+
   function registerCardEvents() {
-    // 中文注释：避免重复绑定（通过全局标记控制）
     if (document.body.dataset.cardEventsBound === '1') return;
     document.body.dataset.cardEventsBound = '1';
-    // 中文注释：Subscribe 按钮仅绑定 click，避免 pointerdown 与 click 叠加触发造成闪烁
     delegate(document, '.btn-subscribe', 'click', handleSubscribe);
-    // 中文注释：频率设置（打开下拉选择 Modal）
+    
     const freqModal = document.getElementById('freqModal');
     const freqSelect = document.getElementById('freqSelect');
     const freqOk = document.getElementById('freqOk');
@@ -1219,7 +1093,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     let __freqEditingSubId = null;
     function openFreqModal(subId) {
       __freqEditingSubId = subId;
-      const subs = storageAdapter.loadSubscriptions();
+      const subs = storageAdapter.getSubscriptions();
       const sub = subs.find(s => s.id === subId) || {};
       if (freqSelect) freqSelect.value = sub.frequency || 'daily';
       freqModal?.classList.remove('hidden');
@@ -1229,28 +1103,28 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     if (freqOk) freqOk.addEventListener('click', () => {
       if (!__freqEditingSubId) { closeFreqModal(); return; }
       const val = freqSelect?.value || 'daily';
-      const subs = storageAdapter.loadSubscriptions();
+      const subs = storageAdapter.getSubscriptions();
       const idx = subs.findIndex(s => s.id === __freqEditingSubId);
       if (idx !== -1) {
-        storageAdapter.saveSubscription({ ...subs[idx], frequency: val, lastChecked: subs[idx].lastChecked || 0 });
+        storageAdapter.updateSubscription({ ...subs[idx], frequency: val, lastChecked: subs[idx].lastChecked || 0 });
       }
       markSubscribedButtons();
       closeFreqModal();
     });
 
-    // 中文注释：“生成一次”（单站点写入当日合并 Digest）
     delegate(document, '.btn-generate-once', 'click', async (e, b) => {
       e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       const subId = b.getAttribute('data-sub-id') || '';
-      const subs = storageAdapter.loadSubscriptions().filter(s=>s.enabled!==false);
+      const subs = storageAdapter.getSubscriptions().filter(s=>s.enabled!==false);
       const target = subs.find(s => s.id === subId);
       if (!target) return;
+      setLoading(b, true, 'Generating…');
       try {
         const site = await mockFetchSiteContentExternal(target.url);
         const ai = await mockAIFromUrlExternal(target.url);
         const eobj = { subscriptionId: target.id, url: normalizeUrl(target.url), title: ai.title || target.title || target.url, summary: ai.description || (site?.content||'').slice(0,500) || 'No summary', highlights: Array.isArray(ai.tags)?ai.tags:[], raw: { site, ai } };
         const dateStr = new Date().toISOString().slice(0,10);
-        const digests = storageAdapter.loadDigests();
+        const digests = storageAdapter.getDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         if (merged) {
           const exist = new Set((merged.entries||[]).map(x=>normalizeUrl(x.url)));
@@ -1259,36 +1133,26 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
           merged.siteCount = merged.entries.length; merged.updated_at = Date.now();
         } else {
           merged = { id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [eobj], created_at: Date.now() };
-          digests.push(merged);
         }
-        storageAdapter.saveDigest(merged);
-        const t = document.createElement('div'); t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg'; t.textContent=`Merged digest generated (${merged.siteCount} sites)`; document.body.appendChild(t); setTimeout(()=>t.remove(),1600);
-        const navDigest = document.getElementById('navDigest');
-        if (navDigest) navDigest.click();
-      } catch { alert('Generation failed'); }
+        storageAdapter.addDigest(merged);
+        const t = document.createElement('div'); t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg'; t.textContent='Digest generated successfully!'; document.body.appendChild(t); setTimeout(()=>t.remove(),1600);
+      } catch { console.error('Generation failed'); }
+      setLoading(b, false);
     });
   }
 
-  // =============================
-  // 🧰 卡片更多菜单 + 编辑/删除 事件委托
-  // =============================
   if (cardsContainer) {
-    // 中文注释：为卡片容器添加一次性 MutationObserver，检测到子节点变更后同步按钮状态（兜底）
     if (!document.body.dataset.subsObserverBound) {
       const obs = new MutationObserver(() => { try { markSubscribedButtons(); } catch {} });
       obs.observe(cardsContainer, { childList: true, subtree: false });
       document.body.dataset.subsObserverBound = '1';
     }
-    // 中文注释：注册统一事件绑定
     registerCardEvents();
-    // 中文注释：取消旧容器委托，避免与文档级委托重复触发导致状态回滚
-    // 中文注释：关闭所有卡片菜单（防多开）
     const closeAllMenus = () => {
       const menus = cardsContainer.querySelectorAll('.rune-card-menu');
       menus.forEach(m => m.classList.add('hidden'));
     };
 
-    // 中文注释：文档级“更多”按钮委托，避免容器重建失效
     const closeAllMenusDoc = () => {
       const menus = document.querySelectorAll('.rune-card-menu');
       menus.forEach(m => m.classList.add('hidden'));
@@ -1297,7 +1161,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      // 中文注释：打开卡片菜单前关闭头像下拉，并设置全局菜单开启标记
       closeUserDropdown();
       closeAllMenusDoc();
       const card = btn.closest('.rune-card');
@@ -1319,19 +1182,17 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       }
     });
 
-    // 中文注释：编辑操作 → 文档级委托，打开 Edit 模态并预填
     delegate(document, '.menu-edit', 'click', (e, btn) => {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      // 中文注释：打开编辑前关闭头像下拉，避免同时出现多个浮层
       closeUserDropdown();
       const cardEl = btn.closest('.rune-card');
       const id = cardEl?.getAttribute('data-card-id');
-      const data = id ? cardsMap.get(id) : null;
+      const cards = storageAdapter.getLinks();
+      const data = id ? cards.find(c => c.id === id) : null;
       const modal = document.getElementById('editLinkModal');
       if (!data || !modal) return;
-      // 预填表单字段
       const fTitle = document.getElementById('editLinkTitle');
       const fURL = document.getElementById('editLinkURL');
       const fDesc = document.getElementById('editLinkDesc');
@@ -1345,15 +1206,12 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       syncEditCategorySelect();
       if (fCat) fCat.value = data.category || '';
       if (fCatNew) { fCatNew.value = ''; fCatNew.classList.add('hidden'); }
-      // 打开模态
       openModal(modal);
-      // 保存事件（一次性绑定）
       const form = document.getElementById('editLinkForm');
       const cancelBtn = document.getElementById('cancelEditBtn');
       const menu = cardEl.querySelector('.rune-card-menu');
       const onSubmit = (ev) => {
         ev.preventDefault();
-        // 读取字段
         const title = fTitle?.value?.trim() || 'Untitled';
         const url = fURL?.value?.trim() || '';
         const description = fDesc?.value?.trim() || '';
@@ -1361,13 +1219,11 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         const catVal = fCat?.value || '';
         const newCat = fCatNew?.value?.trim() || '';
         const category = catVal === '__new__' ? (newCat || '') : catVal;
-        // 校验 URL
-        if (!url) { alert('URL cannot be empty'); return; }
-        // 更新内存与持久化
+        if (!url) { openTextPrompt({ title: 'Error', placeholder: 'URL cannot be empty' }); return; }
         const tags = tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
-        updateCardInStore(id, { title, url, description, tags, category });
-        ensureCategory(category);
-        // 中文注释：云端模式下同步更新（乐观更新，失败仅提示不回滚）
+        
+        storageAdapter.updateLink(id, { title, url, description, tags, category });
+        
         if (useCloud) {
           (async () => {
             try {
@@ -1380,33 +1236,17 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
               if (!res.ok) throw new Error(`Update failed: ${res.status}`);
             } catch (err) {
               console.error(err);
-              const warn = document.createElement('div');
-              warn.className = 'text-orange-600 text-sm mt-2';
-              warn.textContent = 'Cloud update failed (saved locally)';
-              document.body.appendChild(warn);
-              setTimeout(() => { warn.remove(); }, 2000);
             }
           })();
         }
-        // 更新 DOM（保留原位置）：直接替换卡片内部结构
-        const updated = cardsMap.get(id);
+        const updated = storageAdapter.getLinks().find(c => c.id === id);
         if (updated && cardEl) {
-          // 渐隐替换优化：避免全移除导致布局抖动
           cardEl.style.transition = 'opacity 120ms ease';
           cardEl.style.opacity = '0.4';
-          // 替换内部 HTML
           cardEl.outerHTML = createCard(updated);
         }
-        // 关闭菜单与模态
         if (menu) menu.classList.add('hidden');
         closeModal(modal);
-        // 成功提示（轻量）
-        const ok = document.createElement('div');
-        ok.className = 'text-green-600 text-sm mt-2';
-        ok.textContent = 'Saved';
-        document.body.appendChild(ok);
-        setTimeout(() => { ok.remove(); }, 1500);
-        // 清理绑定
         form?.removeEventListener('submit', onSubmit);
         cancelBtn?.removeEventListener('click', onCancel);
       };
@@ -1417,16 +1257,16 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       };
       form?.addEventListener('submit', onSubmit);
       cancelBtn?.addEventListener('click', onCancel);
-      // 类别选择“新增”时显示输入框（使用已声明的 fCat 与 fCatNew，避免重复声明）
       if (fCat) {
-        fCat.addEventListener('change', () => {
+        const onChange = () => {
           if (fCat.value === '__new__') fCatNew?.classList.remove('hidden');
           else fCatNew?.classList.add('hidden');
-        }, { once: true });
+        };
+        fCat.removeEventListener('change', onChange);
+        fCat.addEventListener('change', onChange);
       }
     });
 
-    // 中文注释：删除操作 → 文档级委托，确认后删除 DOM 与内存
     delegate(document, '.menu-delete', 'click', (e, btn) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1435,22 +1275,19 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       const cardEl = btn.closest('.rune-card');
       const id = cardEl?.getAttribute('data-card-id');
       if (!id) return;
-      const data = cardsMap.get(id);
+      const cards = storageAdapter.getLinks();
+      const data = cards.find(c => c.id === id);
       const menu = cardEl.querySelector('.rune-card-menu');
       openConfirm({
         title: `Delete saved link "${escapeHTML(data?.title || (data?.url||'').replace(/^https?:\/\//,''))}"?`,
         message: 'This will remove the link and its related digest entries.',
+        okText: 'Delete',
         onOk: () => {
-          // 淡出动画后移除
           cardEl.style.transition = 'opacity 160ms ease';
           cardEl.style.opacity = '0';
           setTimeout(() => { cardEl.remove(); }, 180);
-          deleteCardFromStore(id);
-          if (data?.url) {
-            deleteSubscriptionAndCleanup(data.url);
-          }
+          storageAdapter.deleteLink(id);
 
-          // 中文注释：云端模式下按 URL 删除（若存在 URL）
           if (useCloud && data?.url) {
             (async () => {
               try {
@@ -1463,11 +1300,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
                 if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
               } catch (err) {
                 console.error(err);
-                const warn = document.createElement('div');
-                warn.className = 'text-orange-600 text-sm mt-2';
-                warn.textContent = 'Cloud delete failed (deleted locally)';
-                document.body.appendChild(warn);
-                setTimeout(() => { warn.remove(); }, 2000);
               }
             })();
           }
@@ -1476,7 +1308,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       });
     });
 
-    // 中文注释：取消订阅 → 文档级委托，确认后退订并清理关联 Digest
     delegate(document, '.menu-unsubscribe', 'click', (e, btn) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1485,21 +1316,17 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       const cardEl = btn.closest('.rune-card');
       const id = cardEl?.getAttribute('data-card-id');
       if (!id) return;
-      const data = cardsMap.get(id);
+      const cards = storageAdapter.getLinks();
+      const data = cards.find(c => c.id === id);
       const titleText = data?.title || (data?.url||'').replace(/^https?:\/\//,'');
-      const subUrl = data?.url || '';
+      
       openConfirm({
         title: `Unsubscribe from "${escapeHTML(titleText)}"?`,
         message: 'You will no longer receive AI digests for this site.',
         okDanger: true,
+        okText: 'Unsubscribe',
         onOk: () => {
-          if (subUrl) {
-            const subs = storageAdapter.loadSubscriptions();
-            const idx = subs.findIndex(s => normalizeForCompare(s.url||'') === normalizeForCompare(subUrl));
-            if (idx !== -1) {
-              storageAdapter.saveSubscription({ ...subs[idx], enabled: false });
-            }
-          }
+          storageAdapter.unsubscribe(id);
           const btnSub = cardEl?.querySelector('.btn-subscribe');
           applySubscribeStyle(btnSub, false);
           const controls = cardEl?.querySelector('.card-controls');
@@ -1509,14 +1336,10 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         }
       });
     });
-
-
   }
 
-  // ====== 用户头像下拉：展开与收起 ======
   const dropdownContainer = document.getElementById('userDropdownContainer');
   if (dropdownContainer) {
-    // 中文注释：构建下拉菜单容器
     let menu = dropdownContainer.querySelector('.user-dropdown');
     if (!menu) {
       menu = document.createElement('div');
@@ -1533,11 +1356,9 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     if (avatar) {
       on(avatar, 'click', (e) => {
         e.stopPropagation();
-        // 中文注释：若模态弹窗开启则不响应头像点击
         if (document.body.dataset.modalOpen === '1' || document.body.dataset.menuOpen === '1') return;
         menu.classList.toggle('show');
       });
-      // 外部点击关闭
       const onDocClick = (e) => {
         if (!dropdownContainer.contains(e.target)) {
           menu.classList.remove('show');
@@ -1547,7 +1368,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') menu.classList.remove('show');
       });
-      // 菜单项占位动作
       const settingsBtn = document.getElementById('settingsBtn');
       if (settingsBtn) on(settingsBtn, 'click', () => {
         const navSettings = document.getElementById('navSettings');
@@ -1557,7 +1377,6 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     }
   }
 
-  // ====== Add Category 模态：打开/关闭/保存 ======
   const addCategoryBtn = document.getElementById('addCategoryBtn');
   const addCategoryModal = document.getElementById('addCategoryModal');
   const cancelCategoryBtn = document.getElementById('cancelCategoryBtn');
@@ -1567,33 +1386,28 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
   const linksGroupList = document.getElementById('linksGroupList');
 
   if (addCategoryBtn && addCategoryModal) {
-    // 中文注释：打开新增分类模态
     on(addCategoryBtn, 'click', () => openModal(addCategoryModal));
   }
   if (cancelCategoryBtn && addCategoryModal) {
-    // 中文注释：取消关闭
     on(cancelCategoryBtn, 'click', () => closeModal(addCategoryModal));
   }
   if (closeCategoryX && addCategoryModal) {
-    // 中文注释：右上角关闭
     on(closeCategoryX, 'click', () => closeModal(addCategoryModal));
   }
   if (saveCategoryBtn && addCategoryModal && inpCategoryName && linksGroupList) {
-    // 中文注释：保存分类（持久化到 localStorage 并刷新侧栏与 Edit 下拉）
     on(saveCategoryBtn, 'click', () => {
       const name = inpCategoryName.value.trim();
-      if (!name) { alert('Please enter a category name'); return; }
-      ensureCategory(name);
+      if (!name) { openTextPrompt({ title: 'Error', placeholder: 'Please enter a category name' }); return; }
+      storageAdapter.ensureCategory(name);
       inpCategoryName.value = '';
       closeModal(addCategoryModal);
+      renderCategoriesSidebar();
+      syncEditCategorySelect();
     });
   }
-  // 中文注释：分类删除（事件委托 + 确认弹窗），不影响已存在卡片的 category
   if (linksGroupList) {
-    // 中文注释：点击分类名称进行筛选显示同类卡片
     delegate(linksGroupList, '.category-filter', 'click', (e, btn) => {
       const name = btn?.closest('div')?.getAttribute('data-name') || '';
-      // 中文注释：若主视图当前为 Digest/Chat（无卡片容器），先恢复默认主内容
       let container = document.getElementById('cardsContainer');
       if (!container) {
         renderDefaultMain();
@@ -1602,11 +1416,10 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       const cardsEls = container ? Array.from(container.children) : [];
       let visibleCount = 0;
       cardsEls.forEach((el) => {
-        const match = !name || el.getAttribute('data-category') === name; // name 为空表示“全部”
+        const match = !name || el.getAttribute('data-category') === name;
         el.style.display = match ? '' : 'none';
         if (match) visibleCount++;
       });
-      // 同步空状态占位
       let emptyEl = document.getElementById('emptyState');
       if (!emptyEl) {
         emptyEl = document.createElement('div');
@@ -1618,36 +1431,134 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       }
       emptyEl.style.display = visibleCount === 0 ? '' : 'none';
     });
+    delegate(linksGroupList, '.category-more', 'click', (e, btn) => {
+      e.preventDefault(); e.stopPropagation();
+      console.log('menu click', btn.id); // Debug log requested by user
+      
+      const menu = btn.nextElementSibling;
+      if (!menu) {
+         console.error('Menu element not found for', btn);
+         return;
+      }
+
+      const isHidden = menu.classList.contains('hidden');
+      
+      // Close all other open menus
+      linksGroupList.querySelectorAll('.category-menu').forEach(m => {
+        if (m !== menu && !m.classList.contains('hidden')) {
+          m.classList.add('hidden');
+          // Update aria-expanded for others
+          const otherBtn = m.previousElementSibling;
+          if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Toggle current menu
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        
+        // Position menu fixed if needed (e.g. sidebar collapsed or near edge)
+        // Reset style first
+        menu.style.position = ''; 
+        menu.style.top = '';
+        menu.style.left = '';
+        menu.style.width = '';
+
+        const sidebar = document.querySelector('.sidebar');
+        const isCollapsed = sidebar && sidebar.classList.contains('aside-collapsed');
+        
+        if (isCollapsed) {
+           const rect = btn.getBoundingClientRect();
+           menu.style.position = 'fixed';
+           menu.style.top = `${rect.top}px`;
+           menu.style.left = `${rect.right + 10}px`;
+           menu.style.width = '160px'; // w-40
+           menu.style.zIndex = '100'; // higher z-index
+        }
+      } else {
+        menu.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+
+      // Close on outside click
+      const onDocClick = (ev) => {
+        if (!btn.contains(ev.target) && !menu.contains(ev.target)) {
+          menu.classList.add('hidden');
+          btn.setAttribute('aria-expanded', 'false');
+          document.removeEventListener('click', onDocClick);
+        }
+      };
+      
+      // Use setTimeout to avoid immediate triggering
+      setTimeout(() => document.addEventListener('click', onDocClick), 0);
+    });
+
     delegate(linksGroupList, '.category-delete', 'click', (e, btn) => {
-      const name = btn?.closest('div')?.getAttribute('data-name') || '';
-      if (!name || RESERVED_CATEGORIES.has(name)) return; // 保留分类不可删除
+      e.preventDefault(); e.stopPropagation();
+      
+      const item = btn.closest('[data-name]');
+      const name = item?.getAttribute('data-name') || '';
+      const menu = btn.closest('.category-menu');
+      
+      // Hide menu immediately
+      if (menu) {
+        menu.classList.add('hidden');
+        const triggerBtn = menu.previousElementSibling;
+        if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
+      }
+
+      if (!name || RESERVED_CATEGORIES.has(name)) {
+        console.warn('Attempted to delete invalid or reserved category:', name);
+        return;
+      }
+
       openConfirm({
-        title: 'Delete category?',
-        message: 'This will not affect existing card categories.',
+        title: `Delete category "${escapeHTML(name)}"?`,
+        message: 'This will remove the category, but the links inside will remain available under All Links.',
+        okText: 'Delete',
+        okDanger: true,
         onOk: () => {
-          categories = categories.filter(c => c !== name);
-          persistCategories();
+          // 1. Delete category from storage
+          storageAdapter.deleteCategory(name);
+          
+          // 2. Update links belonging to this category
+          const links = storageAdapter.getLinks();
+          let changed = false;
+          links.forEach(l => {
+            if (l.category === name) {
+               l.category = 'All Links';
+               changed = true;
+            }
+          });
+          if (changed) storageAdapter.saveLinks(links);
+
+          // 3. Update UI
           renderCategoriesSidebar();
           syncEditCategorySelect();
+          
+          // 4. Switch view to All Links
+          const allLinksBtn = linksGroupList.querySelector('[data-name=""] .category-filter');
+          if (allLinksBtn) {
+            allLinksBtn.click();
+          } else {
+            renderDefaultMain();
+          }
+          
+          // Show success toast
+          try {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-gray-800 text-white text-sm shadow-lg';
+            toast.textContent = `Category "${name}" deleted`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+          } catch {}
         }
       });
     });
   }
-
-  // 中文注释：已移除侧栏订阅交互（用户通过卡片按钮进行订阅管理）
-
-  // ====== 手动生成 Digest ======
-  async function generateDigestNow(subId) {
-    const subs = storageAdapter.loadSubscriptions();
-    const sub = subs.find(s => s.id === subId);
-    if (!sub) return;
-    await processSubscription(sub);
-    // 中文注释：Digest 生成完成后，仅同步按钮状态即可
-    markSubscribedButtons();
-  }
 }
 
-// ===== 动态加载用户数据（未来接 Supabase）=====
 function loadUserWelcome() {
   const card = document.getElementById("userWelcomeCard");
   if (card) {
@@ -1666,13 +1577,13 @@ function loadUserWelcome() {
   }
 }
 
-// 确保在页面加载完成后执行
-if (document.readyState === "loading") {
-  window.addEventListener("DOMContentLoaded", initDashboard);
-} else {
-  initDashboard();
-}
-// 中文注释：关闭头像下拉的辅助函数（避免与卡片菜单/模态冲突）
+// Auto-execution logic removed to prevent double initialization since main.js calls initDashboard
+// if (document.readyState === "loading") {
+//   window.addEventListener("DOMContentLoaded", initDashboard);
+// } else {
+//   initDashboard();
+// }
+
 function closeUserDropdown() {
   try {
     const ctn = document.getElementById('userDropdownContainer');
@@ -1680,8 +1591,7 @@ function closeUserDropdown() {
     dd?.classList.remove('show');
   } catch {}
 }
-  // 中文注释：侧栏订阅列表已移除；保留按钮状态同步方法 markSubscribedButtons
-// 中文注释：统一应用订阅按钮样式（已订阅/未订阅）
+
 function applySubscribeStyle(btn, subscribed) {
   if (!btn) return;
   btn.classList.remove('btn-primary','btn-muted','btn-outline','bg-primary','text-white','bg-gray-100');

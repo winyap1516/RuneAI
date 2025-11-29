@@ -58,3 +58,36 @@ QA Steps:
 
 Notes:
 - Historical digest entries remain on Unsubscribe; only Delete performs cleanup.
+
+P2.0 — Fix Sidebar Categories and Accordion (Updated)
+Date: 2025-11-29
+Branch: feature/sidebar-categories-fix
+
+Changes:
+1. Fix: Accordion & Menu Visibility
+   - Problem: Accordion click had no reaction due to double initialization (binding click listener twice). Menu was invisible because parent container had `overflow: hidden`.
+   - Fix 1: Removed auto-execution in `dashboard.js` to prevent double initialization (since `main.js` already calls `initDashboard`).
+   - Fix 2: Rewrote Accordion logic. When expanded, `overflow` is set to `visible` (allowing menus to pop out) and `max-height` to `none`. When collapsing, it temporarily sets `overflow: hidden` for animation.
+   
+2. Category Menu:
+   - Fixed three-dot menu to open reliably (fixed event delegation).
+   - Added "Rename Category" (disabled) and "Delete Category" (enabled) options.
+   - Added ARIA attributes for accessibility.
+   - Added debug logging (`console.log('menu click'...)`) to assist troubleshooting.
+
+3. Delete Category Workflow:
+   - Added confirmation dialog with specific English text.
+   - Deleting a category now removes it from the list and moves all its links to "All Links".
+   - Toast notification on success.
+
+QA Steps (Verified):
+1. Open dashboard.
+   - Verify "LINKS" section is expanded by default.
+   - Verify clicking "LINKS" header collapses the section (arrow down).
+   - Verify clicking again expands it (arrow up).
+2. Click three-dot menu on a category.
+   - Verify menu is visible (not cut off by parent container).
+   - Verify console logs "menu click ...".
+3. Click "Delete Category".
+   - Confirm dialog appears with correct English text.
+   - Verify deletion moves links to "All Links".
