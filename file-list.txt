@@ -27,6 +27,7 @@ js/utils/dom.js
 languages/en.json
 languages/ms.json
 languages/zh.json
+missing-files.log
 logo/ChatGPT_Image_2025年11月4日_10_47_19.png
 logo/ChatGPT_Image_2025年11月4日_10_47_27.png
 logo/logo_icon.png
