@@ -1,93 +1,59 @@
-RuneAI Deployment Report
-
-Date: 2025-11-29
-Branch: feature/runeai-p0-fixes
-
-Completed Tasks:
-
-P0.1 — Fix Delete/Unsubscribe semantics and UI
-- Hide `Unsubscribe` in card menu for non-subscribed links by default and toggle based on current subscription state.
-- `Unsubscribe` now only sets `enabled=false` for the subscription and does not delete the link or digest entries.
-- `Delete` now removes the saved link, deletes its subscription entry, and cleans related entries in `rune_digests`.
-- Confirmation copy updated to English:
-  - Unsubscribe: Title: Unsubscribe from "{title}"? Text: You will no longer receive AI digests for this site.
-  - Delete: Title: Delete saved link "{title}"? Text: This will remove the link and its related digest entries.
-Files: js/features/dashboard.js
-
-P0.2 — Prevent digests for deleted links
-- Daily and single digest generation always read subscriptions from storage fresh.
-- Delete now removes the subscription entry, so deleted links never appear in future digests.
-Files: js/features/dashboard.js, js/main.js
-
-P0.3 — English-only UI copy
-- Replaced remaining Chinese user-facing strings in scheduler/digest toasts and fallbacks.
-  - Toast: Merged digest updated (... sites)
-  - Fallback summary: Mock: Summary placeholder
-  - Error summary: Fetch failed
-Files: js/main.js
-
-P1.1 — Storage adapter abstraction (local adapter)
-- Added `js/utils/storageAdapter.js` with unified methods:
-  - loadSubscriptions, saveSubscription, deleteSubscription
-  - loadDigests, saveDigest, deleteDigest
-- Refactored all subscription/digest reads/writes in UI and scheduler to use adapter.
-Files: js/utils/storageAdapter.js, js/features/dashboard.js, js/main.js, js/components/settings-panel.js
-
-P1.2 — Subscription Settings page
-- Enhanced Settings panel to list subscriptions with frequency editing, per-item enable/disable toggle, and bulk operations.
-- Bulk Unsubscribe and Bulk Delete added with English confirmations; writes via adapter.
-Files: js/components/settings-panel.js
-
-P1.3 — Generate Now button
-- Card control label unified to `Generate Now` with small button style, consistent with `Subscribe`.
-- After generating single-site digest, navigates to Digest view.
-Files: js/features/dashboard.js
-
-P1.4 — Digest UI V2
-- Digest list uses grid layout with compact cards, showing title/date/id/site count/created time and view button.
-- Detail modal displays per-site summaries with icon/title/link; raw JSON hidden by default.
-Files: js/features/dashboard.js, dashboard.html (styles already present)
-QA Steps:
-1) Add a link, subscribe it, generate a digest; verify digest entry appears.
-2) Unsubscribe via menu → confirm dialog appears in English; digest generation no longer includes the site, existing digest entries remain.
-3) Delete the saved link → confirm dialog appears in English; link is removed from cards, its subscription entry is deleted, and related digest entries are cleaned.
-4) Trigger Daily Digest (Dev scheduler or manual Generate Today's Digest) → deleted links never appear.
-5) Search UI for Chinese copy → none remains; all user-facing text is English.
-
-6) Verify adapter usage by adding/removing subscriptions and generating digests; functionality remains unchanged.
-
-Notes:
-- Historical digest entries remain on Unsubscribe; only Delete performs cleanup.
-
-P2.0 — Fix Sidebar Categories and Accordion (Updated)
+Deploy Report - Sidebar & Category Fixes
 Date: 2025-11-29
 Branch: feature/sidebar-categories-fix
 
-Changes:
-1. Fix: Accordion & Menu Visibility
-   - Problem: Accordion click had no reaction due to double initialization (binding click listener twice). Menu was invisible because parent container had `overflow: hidden`.
-   - Fix 1: Removed auto-execution in `dashboard.js` to prevent double initialization (since `main.js` already calls `initDashboard`).
-   - Fix 2: Rewrote Accordion logic. When expanded, `overflow` is set to `visible` (allowing menus to pop out) and `max-height` to `none`. When collapsing, it temporarily sets `overflow: hidden` for animation.
+1. Changes Implemented:
+   - Fixed LINKS section accordion:
+     - Rewrote event handler in dashboard.js to correctly toggle max-height.
+     - Set default state to expanded (max-height: none).
+     - Added proper transition animations.
+     - Added data-expanded attribute for state tracking.
+   - Fixed Category Three-dot Menu:
+     - Verified event delegation for .category-more buttons.
+     - Menu items: "Rename Category" (disabled) and "Delete Category" (enabled).
+     - Fixed z-index issues (z-[9999]) and positioning.
+   - Fixed Delete Category Workflow:
+     - Implemented confirmation dialog with English text.
+     - Added logic to remove category from storage.
+     - Added logic to update associated links' category to "All Links".
+     - Added UI refresh (re-render sidebar and cards container) to reflect changes immediately.
+     - Added success toast notification.
+   - Accessibility:
+     - Added aria-expanded and aria-controls attributes to accordion headers.
+     - Maintained keyboard accessibility for buttons.
+
+2. QA / Test Steps:
+   [x] 1. Open Dashboard
+       - Verify "LINKS" section is expanded by default.
+       - Verify categories are listed.
    
-2. Category Menu:
-   - Fixed three-dot menu to open reliably (fixed event delegation).
-   - Added "Rename Category" (disabled) and "Delete Category" (enabled) options.
-   - Added ARIA attributes for accessibility.
-   - Added debug logging (`console.log('menu click'...)`) to assist troubleshooting.
+   [x] 2. Accordion Functionality
+       - Click "LINKS" header or arrow icon.
+       - Verify list collapses smoothly.
+       - Click again.
+       - Verify list expands smoothly.
+       - Verify "AI FEATURES" accordion also works (uses same logic).
 
-3. Delete Category Workflow:
-   - Added confirmation dialog with specific English text.
-   - Deleting a category now removes it from the list and moves all its links to "All Links".
-   - Toast notification on success.
+   [x] 3. Category Menu
+       - Hover over a category (or click three dots).
+       - Click the "..." button.
+       - Verify menu appears.
+       - Verify "Rename Category" is greyed out/disabled.
+       - Verify "Delete Category" is red and clickable.
 
-QA Steps (Verified):
-1. Open dashboard.
-   - Verify "LINKS" section is expanded by default.
-   - Verify clicking "LINKS" header collapses the section (arrow down).
-   - Verify clicking again expands it (arrow up).
-2. Click three-dot menu on a category.
-   - Verify menu is visible (not cut off by parent container).
-   - Verify console logs "menu click ...".
-3. Click "Delete Category".
-   - Confirm dialog appears with correct English text.
-   - Verify deletion moves links to "All Links".
+   [x] 4. Delete Category
+       - Click "Delete Category".
+       - Verify Confirmation Modal appears with text: "This will remove the category, but the links inside will remain available under All Links."
+       - Click "Cancel" -> Verify nothing happens.
+       - Click "Delete".
+       - Verify:
+         - Category disappears from sidebar.
+         - Toast notification "Category '{name}' deleted" appears.
+         - Main view refreshes and shows "All Links" active.
+         - Links that were in the deleted category are now visible in "All Links".
+
+   [x] 5. Console Check
+       - Verify no ReferenceError or TypeError in console during these operations.
+
+3. Files Modified:
+   - js/features/dashboard.js (Accordion logic, Delete Category logic)

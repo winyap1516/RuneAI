@@ -90,7 +90,6 @@ export function createCard(data = {}) {
   const tagsHtml = (Array.isArray(tags) ? tags : []).map((raw) => {
     const label = String(raw).trim();
     const colorCls = getTagClass(label);
-    // 确保样式符合要求：圆角 999px (rounded-full), 小字体 (text-xs), padding 4px 10px (px-2.5 py-1)
     return `<span class="rune-tag ${colorCls} rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">${escapeHTML(label)}</span>`;
   }).join("");
 
@@ -101,14 +100,7 @@ export function createCard(data = {}) {
           ${buildIconHTML({ title, url })}
           <div class="rune-card-title text-base font-bold">${escapeHTML(title)}</div>
         </div>
-        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark" title="More">more_horiz</button>
-        <div class="rune-card-menu absolute right-3 top-10 hidden rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 shadow-md z-50">
-          <ul class="min-w-[140px] p-2 text-sm">
-            <li><button class="menu-edit w-full text-left px-3 py-2">Edit</button></li>
-            <li><button class="menu-unsubscribe hidden w-full text-left px-3 py-2">Unsubscribe</button></li>
-            <li><button class="menu-delete w-full text-left px-3 py-2 text-red-600">Delete</button></li>
-          </ul>
-        </div>
+        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/10 rounded p-1 transition-colors" title="More">more_horiz</button>
       </div>
       <div class="rune-card-desc text-sm mt-2 text-text-secondary-light dark:text-text-secondary-dark">${escapeHTML(description)}</div>
       <div class="rune-card-divider my-3"></div>
@@ -246,7 +238,81 @@ async function loadCloudLinks() {
   }
 }
 
-function renderCategoriesSidebar() {
+// Helper to manage the single global floating menu
+let activeFloatingMenu = null;
+
+function closeFloatingMenu() {
+  if (activeFloatingMenu) {
+    const trigger = document.querySelector('[data-menu-trigger="1"]');
+    if (trigger) {
+      trigger.removeAttribute('data-menu-trigger');
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+    activeFloatingMenu.remove();
+    activeFloatingMenu = null;
+    document.removeEventListener('click', onGlobalClickForMenu);
+    try { delete document.body.dataset.menuOpen; } catch {}
+  }
+}
+
+const onGlobalClickForMenu = (e) => {
+  if (activeFloatingMenu && !activeFloatingMenu.contains(e.target) && !e.target.closest('[data-menu-trigger]')) {
+    closeFloatingMenu();
+  }
+};
+
+function createFloatingMenu(items, triggerEl) {
+  closeFloatingMenu(); // Close existing
+
+  const menu = document.createElement('div');
+  menu.className = 'floating-menu fixed z-[9999] min-w-[160px] bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 text-sm flex flex-col animate-in fade-in zoom-in-95 duration-100';
+  
+  items.forEach(item => {
+    if (item.hidden) return;
+    const btn = document.createElement('button');
+    btn.className = `w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${item.class || ''}`;
+    btn.textContent = item.label;
+    if (item.disabled) {
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      closeFloatingMenu();
+      if (typeof item.onClick === 'function') item.onClick(e);
+    };
+    menu.appendChild(btn);
+  });
+
+  document.body.appendChild(menu);
+  activeFloatingMenu = menu;
+
+  // Position
+  const rect = triggerEl.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  
+  let top = rect.bottom + 4;
+  let left = rect.right - menuRect.width; // Align right
+  
+  // Boundary checks (simple)
+  if (left < 4) left = rect.left;
+  if (top + menuRect.height > window.innerHeight) top = rect.top - menuRect.height - 4;
+
+  menu.style.top = `${top}px`;
+  menu.style.left = `${left}px`;
+
+  // Mark trigger
+  triggerEl.setAttribute('data-menu-trigger', '1');
+  triggerEl.setAttribute('aria-expanded', 'true');
+  try { document.body.dataset.menuOpen = '1'; } catch {}
+  
+  // Log for debug
+  console.log('Menu opened for:', triggerEl.dataset.cardId || triggerEl.dataset.category || triggerEl.id, 'Rect:', rect);
+
+  setTimeout(() => document.addEventListener('click', onGlobalClickForMenu), 0);
+}
+
+export function renderCategoriesSidebar() {
   const list = document.getElementById('linksGroupList');
   if (!list) return;
   list.innerHTML = '';
@@ -265,7 +331,6 @@ function renderCategoriesSidebar() {
     item.setAttribute('data-name', cat);
     
     const safeName = String(cat).replace(/\s+/g, '-').toLowerCase();
-    const menuId = `cat-menu-${safeName}`;
     const btnId = `cat-btn-${safeName}`;
     // Get first letter for avatar
     const initial = (cat || 'U').charAt(0).toUpperCase();
@@ -273,13 +338,9 @@ function renderCategoriesSidebar() {
     item.innerHTML = `
       <button class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}" data-initial="${escapeHTML(initial)}">${escapeHTML(cat)}</button>
       <div class="relative shrink-0">
-        <button id="${btnId}" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors" aria-haspopup="true" aria-expanded="false" aria-controls="${menuId}" aria-label="Options">
+        <button id="${btnId}" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors" aria-haspopup="true" aria-expanded="false" aria-label="Options" data-category="${escapeHTML(cat)}">
           <span class="material-symbols-outlined text-base">more_horiz</span>
         </button>
-        <div id="${menuId}" class="category-menu absolute right-0 top-8 hidden w-40 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 shadow-xl z-50 overflow-hidden flex flex-col py-1" role="menu" aria-labelledby="${btnId}">
-           <button class="w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed bg-gray-50 dark:bg-white/5" disabled role="menuitem">Rename Category</button>
-           <button class="category-delete w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20 focus:outline-none transition-colors" role="menuitem">Delete Category</button>
-        </div>
       </div>
     `;
     list.appendChild(item);
@@ -404,70 +465,75 @@ export function initDashboard() {
     { header: "aiGroupHeader", body: "aiGroupBody" },
   ];
 
-  navGroups.forEach(({ header, body }) => {
-    const h = document.getElementById(header);
-    const b = document.getElementById(body);
-    if (h && b) {
-      // Initialize as open and visible (so menus can pop out)
-      b.style.maxHeight = "none";
-      b.style.overflow = "visible";
-      
-      // Setup icon rotation
-      const icon = h.querySelector('.material-symbols-outlined');
-      if (icon) {
-         icon.style.transition = 'transform 0.2s ease';
-         icon.style.transform = 'rotate(180deg)'; // Open = 180deg
-      }
-      
-      // ARIA
-      h.setAttribute('role', 'button');
-      h.setAttribute('aria-expanded', 'true');
-      h.setAttribute('aria-controls', body);
-
-      h.addEventListener("click", (e) => {
-        e.preventDefault();
+    // Accordion functionality for sidebar groups
+    navGroups.forEach(({ header, body }) => {
+      const h = document.getElementById(header);
+      const b = document.getElementById(body);
+      if (h && b) {
+        const icon = h.querySelector('.material-symbols-outlined');
         
-        // Check current state based on maxHeight
-        // If maxHeight is 'none' or non-zero, it's open.
-        const isOpen = b.style.maxHeight !== '0px';
+        // Initialize state: Open by default
+        // We use a data attribute to track state for reliability
+        const isDefaultOpen = true;
         
-        if (isOpen) {
-          // Closing
-          // 1. Set explicit height for transition to work (from 'none' or 'auto')
-          b.style.maxHeight = b.scrollHeight + "px";
-          b.style.overflow = "hidden";
-          
-          // 2. Force reflow
-          b.offsetHeight; 
-          
-          // 3. Set to 0
-          b.style.transition = 'max-height 200ms ease-in-out';
-          b.style.maxHeight = "0px";
-          
-          if (icon) icon.style.transform = 'rotate(0deg)';
-          h.setAttribute('aria-expanded', 'false');
-        } else {
-          // Opening
-          b.style.overflow = "hidden";
-          b.style.transition = 'max-height 200ms ease-in-out';
-          b.style.maxHeight = b.scrollHeight + "px";
-          
-          if (icon) icon.style.transform = 'rotate(180deg)';
+        if (isDefaultOpen) {
+          b.style.maxHeight = "none";
+          b.style.overflow = "visible";
+          b.setAttribute('data-expanded', 'true');
           h.setAttribute('aria-expanded', 'true');
-          
-          // After transition, set overflow to visible so menus can show
-          const onEnd = () => {
-             if (b.style.maxHeight !== '0px') { // Still open
-                 b.style.maxHeight = "none";
-                 b.style.overflow = "visible";
-             }
-             b.removeEventListener('transitionend', onEnd);
-          };
-          b.addEventListener('transitionend', onEnd);
+          if (icon) icon.style.transform = 'rotate(180deg)';
+        } else {
+          b.style.maxHeight = "0px";
+          b.style.overflow = "hidden";
+          b.setAttribute('data-expanded', 'false');
+          h.setAttribute('aria-expanded', 'false');
+          if (icon) icon.style.transform = 'rotate(0deg)';
         }
-      });
-    }
-  });
+
+        h.addEventListener("click", (e) => {
+          e.preventDefault();
+          const isExpanded = b.getAttribute('data-expanded') === 'true';
+
+          if (isExpanded) {
+            // Collapse
+            // 1. Set fixed height to start transition
+            b.style.maxHeight = b.scrollHeight + "px";
+            b.style.overflow = "hidden";
+            
+            // 2. Force reflow
+            b.offsetHeight;
+            
+            // 3. Transition to 0
+            b.style.transition = "max-height 200ms ease-in-out";
+            b.style.maxHeight = "0px";
+            
+            b.setAttribute('data-expanded', 'false');
+            h.setAttribute('aria-expanded', 'false');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+          } else {
+            // Expand
+            b.style.display = ''; // Ensure visible
+            b.style.overflow = "hidden";
+            b.style.transition = "max-height 200ms ease-in-out";
+            b.style.maxHeight = b.scrollHeight + "px";
+            
+            b.setAttribute('data-expanded', 'true');
+            h.setAttribute('aria-expanded', 'true');
+            if (icon) icon.style.transform = 'rotate(180deg)';
+            
+            // Cleanup after transition
+            const onEnd = () => {
+              if (b.getAttribute('data-expanded') === 'true') {
+                b.style.maxHeight = "none";
+                b.style.overflow = "visible";
+              }
+              b.removeEventListener('transitionend', onEnd);
+            };
+            b.addEventListener('transitionend', onEnd, { once: true });
+          }
+        });
+      }
+    });
 
   const navItems = document.querySelectorAll(".nav-item");
   navItems.forEach((item) => {
@@ -1342,52 +1408,155 @@ export function initDashboard() {
         const container = document.getElementById('settingsModalContainer');
         if (!container) return;
         let panel = document.getElementById('settingsPanel');
+        
+        // Re-create panel every time to ensure clean state or just hide/show?
+        // Better to re-create or reset content to match new design structure if it doesn't exist.
+        // Since we are changing the structure completely, let's check if the existing panel matches new structure.
+        // For simplicity, if it exists but has old structure (simple div), we might want to replace it.
+        // But usually we just create it once. Let's assume we can recreate it if needed or just update innerHTML.
+        // To be safe and ensure new design loads, I will remove it if it exists and re-create, 
+        // OR just update innerHTML. Updating innerHTML is safer.
+        
         if (!panel) {
           panel = document.createElement('div');
           panel.id = 'settingsPanel';
-          panel.className = 'fixed inset-0 z-50 flex items-center justify-center';
-          panel.innerHTML = `
-            <div class="rounded-xl bg-white dark:bg-surface-dark shadow-xl p-5 w-full max-w-lg">
-              <h3 class="text-lg font-bold mb-3">Settings</h3>
-              <div class="grid grid-cols-1 gap-3">
-                <label class="text-sm">Theme
-                  <select class="form-select mt-1 w-full rounded-lg bg-gray-100 dark:bg-white/5 border-none">
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </label>
-                <label class="text-sm">Email notification
-                  <input type="checkbox" class="form-checkbox ml-2" />
-                </label>
-              </div>
-              <div class="mt-4">
-                <h4 class="text-base font-semibold mb-2">Subscription settings</h4>
-                <div id="subsSettingsList" class="space-y-2"></div>
-              </div>
-              <div class="mt-5 flex justify-end gap-3">
-                <button id="settingsCloseBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold">Close</button>
-              </div>
-            </div>`;
+          panel.className = 'fixed inset-0 z-50 flex items-center justify-center pointer-events-none'; // pointer-events-none for wrapper, auto for content
           container.appendChild(panel);
         }
+        
+        // Reset pointer events for the modal content
+        panel.innerHTML = `
+          <div class="pointer-events-auto relative w-[640px] h-[480px] bg-white dark:bg-surface-dark rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <!-- Left Sidebar -->
+            <div class="w-48 flex-shrink-0 bg-gray-50 dark:bg-black/20 border-r border-gray-100 dark:border-gray-700/50 flex flex-col">
+              <div class="p-4 pb-2">
+                <h2 class="text-sm font-bold text-text-primary-light dark:text-text-primary-dark px-2">Settings</h2>
+              </div>
+              <nav class="flex-1 px-2 py-2 space-y-0.5">
+                <button data-tab="general" class="settings-tab-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-gray-200 dark:bg-white/10 text-primary">
+                  General
+                </button>
+                <button data-tab="notifications" class="settings-tab-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                  Notifications
+                </button>
+                <button data-tab="subscriptions" class="settings-tab-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                  Subscriptions
+                </button>
+              </nav>
+              <div class="p-3 border-t border-gray-100 dark:border-gray-700/50">
+                 <button id="settingsCloseBtn" class="w-full py-1.5 rounded-lg text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">Close</button>
+              </div>
+            </div>
+            
+            <!-- Right Content -->
+            <div class="flex-1 flex flex-col h-full overflow-hidden bg-surface-light dark:bg-surface-dark">
+              <!-- Tab: General -->
+              <div id="tab-content-general" class="settings-tab-content flex-1 p-6 overflow-y-auto">
+                <h3 class="text-sm font-bold mb-4 text-text-primary-light dark:text-text-primary-dark">General</h3>
+                <div class="space-y-6">
+                  <!-- Appearance -->
+                  <div>
+                    <label class="block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark mb-2">Appearance</label>
+                    <div class="relative">
+                      <select id="themeSelect" class="w-full h-9 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-xs px-3 focus:ring-2 focus:ring-primary/50 outline-none appearance-none">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                      </select>
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">▼</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab: Notifications -->
+              <div id="tab-content-notifications" class="settings-tab-content flex-1 p-6 overflow-y-auto hidden">
+                <h3 class="text-sm font-bold mb-4 text-text-primary-light dark:text-text-primary-dark">Notifications</h3>
+                <div class="space-y-4">
+                  <label class="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-white/5 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                    <div>
+                      <div class="text-xs font-medium text-text-primary-light dark:text-text-primary-dark">Email Notifications</div>
+                      <div class="text-[10px] text-text-secondary-light dark:text-text-secondary-dark mt-0.5">Receive daily digests via email</div>
+                    </div>
+                    <div class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="emailNotifToggle" class="sr-only peer">
+                      <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Tab: Subscriptions -->
+              <div id="tab-content-subscriptions" class="settings-tab-content flex-1 p-0 flex flex-col h-full hidden">
+                <div class="p-6 pb-2 flex-shrink-0">
+                   <h3 class="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">Subscriptions</h3>
+                </div>
+                <div id="subsSettingsList" class="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 pt-2">
+                  <!-- Content injected by settings-panel.js -->
+                </div>
+              </div>
+            </div>
+          </div>`;
+        
         show(backdrop);
         show(panel);
-        try { if (typeof window.renderSubscriptionsSettings === 'function') window.renderSubscriptionsSettings(); } catch {}
+
+        // Initialize Theme Select
+        const themeSelect = document.getElementById('themeSelect');
+        const html = document.documentElement;
+        if (themeSelect) {
+            themeSelect.value = html.classList.contains('dark') ? 'dark' : 'light';
+            themeSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'dark') {
+                    html.classList.add('dark');
+                    html.classList.remove('light');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    html.classList.remove('dark');
+                    html.classList.add('light');
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+        }
+
+        // Tab Switching Logic
+        const tabs = panel.querySelectorAll('.settings-tab-btn');
+        const contents = panel.querySelectorAll('.settings-tab-content');
+        
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            // Reset all tabs styling
+            tabs.forEach(t => {
+              t.classList.remove('bg-gray-200', 'dark:bg-white/10', 'text-primary');
+              t.classList.add('text-text-secondary-light', 'dark:text-text-secondary-dark', 'hover:bg-gray-100', 'dark:hover:bg-white/5');
+            });
+            // Active tab styling
+            tab.classList.remove('text-text-secondary-light', 'dark:text-text-secondary-dark', 'hover:bg-gray-100', 'dark:hover:bg-white/5');
+            tab.classList.add('bg-gray-200', 'dark:bg-white/10', 'text-primary');
+            
+            // Show content
+            const target = tab.getAttribute('data-tab');
+            contents.forEach(c => c.classList.add('hidden'));
+            document.getElementById(`tab-content-${target}`).classList.remove('hidden');
+            
+            // If switching to subscriptions, render them (lazy load optional, but fine to call always)
+            if (target === 'subscriptions') {
+               try { if (typeof window.renderSubscriptionsSettings === 'function') window.renderSubscriptionsSettings(); } catch {}
+            }
+          });
+        });
+
+        // Initial Render of Subscriptions (in case user clicks tab, or if we want to preload)
+        // But since default tab is general, we wait.
+        
+        // Close handlers
         const closeBtn = document.getElementById('settingsCloseBtn');
         if (closeBtn) {
-           // Remove old listeners to avoid duplicates if any (simple replacement)
            const newBtn = closeBtn.cloneNode(true);
            closeBtn.parentNode.replaceChild(newBtn, closeBtn);
            on(newBtn, 'click', () => { hide(panel); hide(backdrop); });
         }
-        
-        // Also bind backdrop click if not bound (idempotent check hard here, just ensuring it works)
-        // The backdrop is shared, so maybe just bind once globally? 
-        // Existing code had: on(backdrop, 'click', ...). 
-        // Let's just add it here safely.
         const onBackdropClick = () => { hide(panel); hide(backdrop); };
-        backdrop.removeEventListener('click', onBackdropClick); // clean up just in case (won't work for anon function but okay)
-        // Actually we can just let it be, multiple listeners on backdrop closing same panel is fine.
+        backdrop.removeEventListener('click', onBackdropClick);
         on(backdrop, 'click', () => { hide(panel); hide(backdrop); });
       };
 
@@ -1454,81 +1623,21 @@ export function initDashboard() {
     });
     delegate(linksGroupList, '.category-more', 'click', (e, btn) => {
       e.preventDefault(); e.stopPropagation();
-      console.log('menu click', btn.id); // Debug log requested by user
+      const cat = btn.getAttribute('data-category') || '';
+      if (!cat) return;
       
-      const menu = btn.nextElementSibling;
-      if (!menu) {
-         console.error('Menu element not found for', btn);
-         return;
-      }
-
-      const isHidden = menu.classList.contains('hidden');
-      
-      // Close all other open menus
-      linksGroupList.querySelectorAll('.category-menu').forEach(m => {
-        if (m !== menu && !m.classList.contains('hidden')) {
-          m.classList.add('hidden');
-          // Update aria-expanded for others
-          const otherBtn = m.previousElementSibling;
-          if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+      createFloatingMenu([
+        { label: 'Rename Category', disabled: true },
+        { 
+          label: 'Delete Category', 
+          class: 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20',
+          onClick: () => handleDeleteCategory(cat) 
         }
-      });
-
-      // Toggle current menu
-      if (isHidden) {
-        menu.classList.remove('hidden');
-        btn.setAttribute('aria-expanded', 'true');
-        
-        // Position menu fixed if needed (e.g. sidebar collapsed or near edge)
-        // Reset style first
-        menu.style.position = ''; 
-        menu.style.top = '';
-        menu.style.left = '';
-        menu.style.width = '';
-
-        const sidebar = document.querySelector('.sidebar');
-        const isCollapsed = sidebar && sidebar.classList.contains('aside-collapsed');
-        
-        if (isCollapsed) {
-           const rect = btn.getBoundingClientRect();
-           menu.style.position = 'fixed';
-           menu.style.top = `${rect.top}px`;
-           menu.style.left = `${rect.right + 10}px`;
-           menu.style.width = '160px'; // w-40
-           menu.style.zIndex = '100'; // higher z-index
-        }
-      } else {
-        menu.classList.add('hidden');
-        btn.setAttribute('aria-expanded', 'false');
-      }
-
-      // Close on outside click
-      const onDocClick = (ev) => {
-        if (!btn.contains(ev.target) && !menu.contains(ev.target)) {
-          menu.classList.add('hidden');
-          btn.setAttribute('aria-expanded', 'false');
-          document.removeEventListener('click', onDocClick);
-        }
-      };
-      
-      // Use setTimeout to avoid immediate triggering
-      setTimeout(() => document.addEventListener('click', onDocClick), 0);
+      ], btn);
     });
-
-    delegate(linksGroupList, '.category-delete', 'click', (e, btn) => {
-      e.preventDefault(); e.stopPropagation();
-      
-      const item = btn.closest('[data-name]');
-      const name = item?.getAttribute('data-name') || '';
-      const menu = btn.closest('.category-menu');
-      
-      // Hide menu immediately
-      if (menu) {
-        menu.classList.add('hidden');
-        const triggerBtn = menu.previousElementSibling;
-        if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
-      }
-
+    
+    // Helper for Delete Category Logic
+    const handleDeleteCategory = (name) => {
       if (!name || RESERVED_CATEGORIES.has(name)) {
         console.warn('Attempted to delete invalid or reserved category:', name);
         return;
@@ -1558,25 +1667,51 @@ export function initDashboard() {
           renderCategoriesSidebar();
           syncEditCategorySelect();
           
-          // 4. Switch view to All Links
+          // 4. Re-render cards to reflect updated category in DOM
+          // We need to re-fetch from storage to get updated 'All Links' status
+          const container = document.getElementById('cardsContainer');
+          if (container) {
+             container.innerHTML = '';
+             const updatedLinks = storageAdapter.getLinks();
+             updatedLinks.forEach(c => {
+               const html = createCard(c);
+               container.insertAdjacentHTML('beforeend', html);
+             });
+             // Re-bind events since we wiped container
+             if (typeof markSubscribedButtons === 'function') markSubscribedButtons();
+          }
+
+          // 5. Switch view to All Links
+          // Since we just re-rendered, all cards are visible. 
+          // We just need to highlight "All Links" in sidebar.
           const allLinksBtn = linksGroupList.querySelector('[data-name=""] .category-filter');
-          if (allLinksBtn) {
-            allLinksBtn.click();
-          } else {
-            renderDefaultMain();
+          const allLinksItem = linksGroupList.querySelector('[data-name=""]');
+          
+          // Reset all active states
+          linksGroupList.querySelectorAll('.bg-gray-200, .dark:bg-white\\/10').forEach(el => {
+             el.classList.remove('bg-gray-200', 'dark:bg-white/10');
+             el.classList.add('bg-gray-50', 'dark:bg-white/5');
+          });
+          
+          if (allLinksItem) {
+             allLinksItem.classList.remove('bg-gray-50', 'dark:bg-white/5');
+             allLinksItem.classList.add('bg-gray-200', 'dark:bg-white/10');
           }
           
           // Show success toast
           try {
             const toast = document.createElement('div');
-            toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-gray-800 text-white text-sm shadow-lg';
+            toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-gray-800 text-white text-sm shadow-lg animate-in slide-in-from-bottom-4 fade-in duration-300';
             toast.textContent = `Category "${name}" deleted`;
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            setTimeout(() => {
+               toast.classList.add('fade-out', 'slide-out-to-bottom-4');
+               setTimeout(() => toast.remove(), 300);
+            }, 2000);
           } catch {}
         }
       });
-    });
+    };
   }
 }
 
