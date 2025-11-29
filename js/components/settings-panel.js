@@ -1,9 +1,7 @@
 // 中文注释：订阅设定页面交互脚本（集中管理抓取频率）
 // 中文注释：该模块提供 window.renderSubscriptionsSettings()，在设置面板打开后渲染订阅列表
 
-// 中文注释：安全读取/写入 localStorage（带默认值与异常兜底）
-function load(k, f = []) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : f; } catch { return f; } }
-function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+import storageAdapter from '../utils/storageAdapter.js';
 
 // 中文注释：频率选项映射（与 js/main.js 保持一致）
 const FREQ_OPTIONS = [
@@ -18,7 +16,7 @@ const FREQ_OPTIONS = [
 window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
   const wrap = document.getElementById('subsSettingsList');
   if (!wrap) return;
-  const subs = load('rune_subscriptions', []);
+  const subs = storageAdapter.loadSubscriptions();
   wrap.innerHTML = '';
   if (!Array.isArray(subs) || subs.length === 0) {
     const empty = document.createElement('div');
@@ -46,12 +44,10 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
     sel.value = String(sub.frequency || 'daily');
     sel.addEventListener('change', () => {
       const next = sel.value || 'daily';
-      const arr = load('rune_subscriptions', []);
+      const arr = storageAdapter.loadSubscriptions();
       const idx = arr.findIndex(s => String(s.id) === String(sub.id));
       if (idx !== -1) {
-        arr[idx].frequency = next;
-        arr[idx].lastChecked = arr[idx].lastChecked || 0;
-        save('rune_subscriptions', arr);
+        storageAdapter.saveSubscription({ ...arr[idx], frequency: next, lastChecked: arr[idx].lastChecked || 0 });
         try {
           const ok = document.createElement('div');
           ok.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';

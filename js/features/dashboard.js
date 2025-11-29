@@ -32,7 +32,7 @@ function normalizeForCompare(raw = '') {
 
 // Check if a URL is subscribed (enabled !== false)
 function isUrlSubscribed(url = '') {
-  const subs = loadFromStorage('rune_subscriptions', []);
+  const subs = storageAdapter.loadSubscriptions();
   const n = normalizeForCompare(url || '');
   return subs.some(s => s && s.enabled !== false && normalizeForCompare(s.url || '') === n);
 }
@@ -141,11 +141,11 @@ function saveToStorage(key, value) { try { localStorage.setItem(key, JSON.string
 
 // 中文注释：删除订阅并清理关联 Digest 条目（支持传入订阅 id 或 url）
 function deleteSubscriptionAndCleanup(subIdOrUrl) {
-  const subs = loadFromStorage('rune_subscriptions', []);
-  const digests = loadFromStorage('rune_digests', []);
+  const subs = storageAdapter.loadSubscriptions();
+  const digests = storageAdapter.loadDigests();
   const byIdOrUrl = (s) => String(s.id) === String(subIdOrUrl) || normalizeForCompare(s.url || '') === normalizeForCompare(subIdOrUrl || '');
   const leftSubs = subs.filter(s => !byIdOrUrl(s));
-  saveToStorage('rune_subscriptions', leftSubs);
+  storageAdapter.deleteSubscription(subIdOrUrl);
   const cleaned = digests.map(d => {
     if (!Array.isArray(d.entries)) return d;
     d.entries = d.entries.filter(e => {
@@ -156,7 +156,9 @@ function deleteSubscriptionAndCleanup(subIdOrUrl) {
     d.siteCount = Array.isArray(d.entries) ? d.entries.length : 0;
     return d;
   }).filter(d => !Array.isArray(d.entries) || d.entries.length > 0);
-  saveToStorage('rune_digests', cleaned);
+  const keepIds = new Set(cleaned.map(x => x.id));
+  digests.forEach(d => { if (!keepIds.has(d.id)) storageAdapter.deleteDigest(d.id); });
+  cleaned.forEach(c => storageAdapter.saveDigest(c));
   markSubscribedButtons();
 }
 
@@ -204,7 +206,7 @@ function ensureCategory(name) {
 // Mark subscription button states on cards based on current subscription data
   function markSubscribedButtons() {
   // Normalize both subscription and button URLs to avoid matching failures due to slashes/case differences
-  const subs = loadFromStorage('rune_subscriptions', []);
+  const subs = storageAdapter.loadSubscriptions();
   const urls = new Set(
     subs
       .filter(s => s.enabled !== false)
@@ -223,7 +225,7 @@ function ensureCategory(name) {
     const onceBtn = wrap.querySelector('.btn-generate-once');
     const card = b.closest('.rune-card');
     const menuUnsub = card?.querySelector('.menu-unsubscribe');
-    const subsAll = loadFromStorage('rune_subscriptions', []);
+    const subsAll = storageAdapter.loadSubscriptions();
     const sub = subsAll.find(s => s.enabled !== false && normalizeForCompare(s.url) === normalizeForCompare(url));
     const isOn = !!sub;
     if (controls) controls.style.display = isOn ? 'inline-flex' : 'none';
@@ -520,7 +522,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
       </section>
     `);
     // 中文注释：填充订阅下拉
-    const subs = loadFromStorage('rune_subscriptions', []);
+    const subs = storageAdapter.loadSubscriptions();
     const sel = document.getElementById('digestSub');
     if (sel) {
       sel.innerHTML = '<option value="">All Subscriptions</option>' + subs.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.title||s.url)}</option>`).join('');
@@ -533,7 +535,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
     const searchEl = document.getElementById('digestSearch');
     const render = () => {
       // 中文注释：仅渲染当日合并 Digest（merged=true），按日期过滤；未选日期则展示全部合并条目
-      const all = loadFromStorage('rune_digests', []);
+      const all = storageAdapter.loadDigests();
       const date = dateEl?.value || '';
       const siteId = sel?.value || '';
       const keyword = (searchEl?.value || '').trim().toLowerCase();
@@ -616,7 +618,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
     if (searchEl) on(searchEl, 'input', render);
     if (mockBtn) on(mockBtn, 'click', async () => {
       // 中文注释：生成当日合并 Digest（merged=true），只新增/更新一条当日卡片
-      const subsAll = loadFromStorage('rune_subscriptions', []).filter(s=>s.enabled!==false);
+      const subsAll = storageAdapter.loadSubscriptions().filter(s=>s.enabled!==false);
       const targetId = sel?.value || '';
       const targets = targetId ? subsAll.filter(s => s.id === targetId) : subsAll;
       if (!targets.length) {
@@ -625,7 +627,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
       }
       try {
         const dateStr = new Date().toISOString().slice(0,10);
-        const digests = loadFromStorage('rune_digests', []);
+        const digests = storageAdapter.loadDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         const newEntries = [];
         for (const s of targets) {
@@ -658,7 +660,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
           };
           digests.push(merged);
         }
-        saveToStorage('rune_digests', digests);
+        storageAdapter.saveDigest(merged);
         const toast = document.createElement('div');
         toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
         toast.textContent = `Merged digest generated (${merged.siteCount} sites)`;
@@ -681,9 +683,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
         title: 'Delete digest?',
         message: 'This action cannot be undone.',
         onOk: () => {
-          const all = loadFromStorage('rune_digests', []);
-          const left = all.filter(x => x.id !== id);
-          saveToStorage('rune_digests', left);
+          storageAdapter.deleteDigest(id);
           // 轻量提示
           try {
             const toast = document.createElement('div');
@@ -703,7 +703,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
       if (e.target.closest('button')) return;
       
       const id = card.getAttribute('data-digest-id');
-      const all = loadFromStorage('rune_digests', []);
+      const all = storageAdapter.loadDigests();
       const d = all.find(x => x.id === id);
       if (!d) return;
       
@@ -804,7 +804,7 @@ async function openTextPrompt({ title='Input', placeholder='' } = {}) {
     delegate(listEl, '.digest-view-btn', 'click', (e, btn) => {
       e.preventDefault(); e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const all = loadFromStorage('rune_digests', []);
+      const all = storageAdapter.loadDigests();
       const d = all.find(x => x.id === id);
       if (!d) return;
       // 复用卡片点击逻辑：触发卡片点击以打开详情
@@ -1180,15 +1180,14 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     if (!url) return;
     // 中文注释：按钮短暂 loading，提升交互反馈（不改变最终文案）
     setLoading(btn, true, 'Processing…');
-    const subs = loadFromStorage('rune_subscriptions', []);
+    const subs = storageAdapter.loadSubscriptions();
     // 中文注释：查找是否已有该 URL 的订阅记录（不区分 enabled 状态）
     let existed = subs.find(s => normalizeUrl(s.url) === url);
     if (existed) {
       // 中文注释：仅在未启用时执行启用；已订阅状态下不支持直接取消订阅（改用三点菜单）
       const wasEnabled = existed.enabled !== false;
       if (!wasEnabled) {
-        existed.enabled = true;
-        saveToStorage('rune_subscriptions', subs);
+        storageAdapter.saveSubscription({ ...existed, enabled: true });
       }
     } else {
       // 中文注释：创建新订阅记录（lastChecked 初始为 0）
@@ -1196,8 +1195,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       const titleEl = card?.querySelector('.rune-card-title');
       const titleText = titleEl?.textContent?.trim() || url.replace(/^https?:\/\//, '').split('/')[0];
       const sub = { id: generateId(), url, title: titleText, frequency: 'daily', enabled: true, lastChecked: 0 };
-      subs.push(sub);
-      saveToStorage('rune_subscriptions', subs);
+      storageAdapter.saveSubscription(sub);
     }
     // 中文注释：关闭 loading，再根据最新状态更新按钮文案与样式
     setLoading(btn, false);
@@ -1221,7 +1219,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     let __freqEditingSubId = null;
     function openFreqModal(subId) {
       __freqEditingSubId = subId;
-      const subs = loadFromStorage('rune_subscriptions', []);
+      const subs = storageAdapter.loadSubscriptions();
       const sub = subs.find(s => s.id === subId) || {};
       if (freqSelect) freqSelect.value = sub.frequency || 'daily';
       freqModal?.classList.remove('hidden');
@@ -1231,12 +1229,10 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     if (freqOk) freqOk.addEventListener('click', () => {
       if (!__freqEditingSubId) { closeFreqModal(); return; }
       const val = freqSelect?.value || 'daily';
-      const subs = loadFromStorage('rune_subscriptions', []);
+      const subs = storageAdapter.loadSubscriptions();
       const idx = subs.findIndex(s => s.id === __freqEditingSubId);
       if (idx !== -1) {
-        subs[idx].frequency = val;
-        subs[idx].lastChecked = subs[idx].lastChecked || 0;
-        saveToStorage('rune_subscriptions', subs);
+        storageAdapter.saveSubscription({ ...subs[idx], frequency: val, lastChecked: subs[idx].lastChecked || 0 });
       }
       markSubscribedButtons();
       closeFreqModal();
@@ -1246,7 +1242,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
     delegate(document, '.btn-generate-once', 'click', async (e, b) => {
       e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       const subId = b.getAttribute('data-sub-id') || '';
-      const subs = loadFromStorage('rune_subscriptions', []).filter(s=>s.enabled!==false);
+      const subs = storageAdapter.loadSubscriptions().filter(s=>s.enabled!==false);
       const target = subs.find(s => s.id === subId);
       if (!target) return;
       try {
@@ -1254,7 +1250,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         const ai = await mockAIFromUrlExternal(target.url);
         const eobj = { subscriptionId: target.id, url: normalizeUrl(target.url), title: ai.title || target.title || target.url, summary: ai.description || (site?.content||'').slice(0,500) || 'No summary', highlights: Array.isArray(ai.tags)?ai.tags:[], raw: { site, ai } };
         const dateStr = new Date().toISOString().slice(0,10);
-        const digests = loadFromStorage('rune_digests', []);
+        const digests = storageAdapter.loadDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         if (merged) {
           const exist = new Set((merged.entries||[]).map(x=>normalizeUrl(x.url)));
@@ -1265,7 +1261,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
           merged = { id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [eobj], created_at: Date.now() };
           digests.push(merged);
         }
-        saveToStorage('rune_digests', digests);
+        storageAdapter.saveDigest(merged);
         const t = document.createElement('div'); t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg'; t.textContent=`Merged digest generated (${merged.siteCount} sites)`; document.body.appendChild(t); setTimeout(()=>t.remove(),1600);
       } catch { alert('Generation failed'); }
     });
@@ -1496,11 +1492,10 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         okDanger: true,
         onOk: () => {
           if (subUrl) {
-            const subs = loadFromStorage('rune_subscriptions', []);
+            const subs = storageAdapter.loadSubscriptions();
             const idx = subs.findIndex(s => normalizeForCompare(s.url||'') === normalizeForCompare(subUrl));
             if (idx !== -1) {
-              subs[idx].enabled = false;
-              saveToStorage('rune_subscriptions', subs);
+              storageAdapter.saveSubscription({ ...subs[idx], enabled: false });
             }
           }
           const btnSub = cardEl?.querySelector('.btn-subscribe');
@@ -1641,7 +1636,7 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
 
   // ====== 手动生成 Digest ======
   async function generateDigestNow(subId) {
-    const subs = loadFromStorage('rune_subscriptions', []);
+    const subs = storageAdapter.loadSubscriptions();
     const sub = subs.find(s => s.id === subId);
     if (!sub) return;
     await processSubscription(sub);

@@ -1,5 +1,6 @@
 // main.js
 import { initDashboard } from './features/dashboard.js';
+import storageAdapter from './utils/storageAdapter.js';
 // 中文注释：引入本地 Mock 抓取与 AI 摘要（用于订阅与日报生成）
 import { mockFetchSiteContent, mockAIFromUrl } from '../mockFunctions.js';
 // 中文注释：引入订阅设定面板交互脚本（在设置面板打开时渲染订阅列表）
@@ -35,8 +36,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // =============================
   if (import.meta?.env?.DEV) {
     const STORAGE_KEYS = { subs: 'rune_subscriptions', digests: 'rune_digests' };
-    const load = (k, f=[]) => { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : f; } catch { return f; } };
-    const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
     function frequencyToMs(freq) {
       const f = String(freq || 'daily').toLowerCase();
@@ -64,7 +63,7 @@ window.addEventListener('DOMContentLoaded', () => {
     async function processSubscription(sub) {
       if (!sub?.enabled) return;
       if (sub?.inProgress) return;
-      sub.inProgress = true; sub.status = 'in_progress'; save(STORAGE_KEYS.subs, load(STORAGE_KEYS.subs, []).map(s => s.id===sub.id?sub:s));
+      sub.inProgress = true; sub.status = 'in_progress'; storageAdapter.saveSubscription(sub);
       const dateStr = new Date().toISOString().slice(0,10);
       try {
         let site = await tryFetchRealSite(sub.url);
@@ -76,9 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
           sub.lastChecked = Date.now();
           sub.inProgress = false;
           sub.status = 'ok';
-          const subs = load(STORAGE_KEYS.subs, []);
-          const idx = subs.findIndex(s => s.id === sub.id);
-          if (idx !== -1) { subs[idx] = sub; save(STORAGE_KEYS.subs, subs); }
+          storageAdapter.saveSubscription(sub);
           return;
         }
         const entry = {
@@ -89,7 +86,7 @@ window.addEventListener('DOMContentLoaded', () => {
           highlights: Array.isArray(ai.tags) ? ai.tags : [],
           raw: { site, ai }
         };
-        const digests = load(STORAGE_KEYS.digests, []);
+        const digests = storageAdapter.loadDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         if (merged) {
           const exist = new Set((merged.entries||[]).map(e=>normalizeUrl(e.url)));
@@ -108,14 +105,12 @@ window.addEventListener('DOMContentLoaded', () => {
           };
           digests.push(merged);
         }
-        save(STORAGE_KEYS.digests, digests);
+        storageAdapter.saveDigest(merged);
         sub.lastChecked = Date.now();
         sub.lastHash = currentHash;
         sub.inProgress = false;
         sub.status = 'ok';
-        const subs = load(STORAGE_KEYS.subs, []);
-        const idx = subs.findIndex(s => s.id === sub.id);
-        if (idx !== -1) { subs[idx] = sub; save(STORAGE_KEYS.subs, subs); }
+        storageAdapter.saveSubscription(sub);
         try {
           const toast = document.createElement('div');
           toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
@@ -124,19 +119,19 @@ window.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => toast.remove(), 1800);
         } catch {}
       } catch (e) {
-        const digests = load(STORAGE_KEYS.digests, []);
+        const digests = storageAdapter.loadDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         const entry = { subscriptionId: sub.id, url: sub.url, title: sub.title||sub.url, summary: 'Fetch failed', highlights: [], raw: { error: String(e?.message||e) } };
         if (merged) { (merged.entries||[]).push(entry); merged.entries = merged.entries||[]; merged.siteCount = merged.entries.length; merged.updated_at = Date.now(); }
         else { digests.push({ id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [entry], created_at: Date.now() }); }
-        save(STORAGE_KEYS.digests, digests);
+        storageAdapter.saveDigest(merged);
         sub.inProgress = false; sub.status = 'error'; sub.lastError = String(e?.message||e);
-        const subs = load(STORAGE_KEYS.subs, []); const idx = subs.findIndex(s => s.id === sub.id); if (idx!==-1) { subs[idx]=sub; save(STORAGE_KEYS.subs, subs);}        
+        storageAdapter.saveSubscription(sub);
       }
     }
 
     async function checkAllSubscriptions() {
-      const subs = load(STORAGE_KEYS.subs, []);
+      const subs = storageAdapter.loadSubscriptions();
       const now = Date.now();
       for (const sub of subs) {
         const interval = frequencyToMs(sub.frequency);

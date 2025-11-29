@@ -26,12 +26,21 @@ P0.3 — English-only UI copy
   - Error summary: Fetch failed
 Files: js/main.js
 
+P1.1 — Storage adapter abstraction (local adapter)
+- Added `js/utils/storageAdapter.js` with unified methods:
+  - loadSubscriptions, saveSubscription, deleteSubscription
+  - loadDigests, saveDigest, deleteDigest
+- Refactored all subscription/digest reads/writes in UI and scheduler to use adapter.
+Files: js/utils/storageAdapter.js, js/features/dashboard.js, js/main.js, js/components/settings-panel.js
+
 QA Steps:
 1) Add a link, subscribe it, generate a digest; verify digest entry appears.
 2) Unsubscribe via menu → confirm dialog appears in English; digest generation no longer includes the site, existing digest entries remain.
 3) Delete the saved link → confirm dialog appears in English; link is removed from cards, its subscription entry is deleted, and related digest entries are cleaned.
 4) Trigger Daily Digest (Dev scheduler or manual Generate Today's Digest) → deleted links never appear.
 5) Search UI for Chinese copy → none remains; all user-facing text is English.
+
+6) Verify adapter usage by adding/removing subscriptions and generating digests; functionality remains unchanged.
 
 Notes:
 - Historical digest entries remain on Unsubscribe; only Delete performs cleanup.
