@@ -85,7 +85,7 @@ window.addEventListener('DOMContentLoaded', () => {
           subscriptionId: sub.id,
           url: normalizeUrl(sub.url),
           title: ai.title || sub.title || sub.url,
-          summary: ai.description || (site?.content||'').slice(0,500) || 'Mock: 摘要占位',
+          summary: ai.description || (site?.content||'').slice(0,500) || 'Mock: Summary placeholder',
           highlights: Array.isArray(ai.tags) ? ai.tags : [],
           raw: { site, ai }
         };
@@ -119,14 +119,14 @@ window.addEventListener('DOMContentLoaded', () => {
         try {
           const toast = document.createElement('div');
           toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
-          toast.textContent = `已更新合并日报（${merged.siteCount} sites）`;
+          toast.textContent = `Merged digest updated (${merged.siteCount} sites)`;
           document.body.appendChild(toast);
           setTimeout(() => toast.remove(), 1800);
         } catch {}
       } catch (e) {
         const digests = load(STORAGE_KEYS.digests, []);
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
-        const entry = { subscriptionId: sub.id, url: sub.url, title: sub.title||sub.url, summary: '抓取失败', highlights: [], raw: { error: String(e?.message||e) } };
+        const entry = { subscriptionId: sub.id, url: sub.url, title: sub.title||sub.url, summary: 'Fetch failed', highlights: [], raw: { error: String(e?.message||e) } };
         if (merged) { (merged.entries||[]).push(entry); merged.entries = merged.entries||[]; merged.siteCount = merged.entries.length; merged.updated_at = Date.now(); }
         else { digests.push({ id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [entry], created_at: Date.now() }); }
         save(STORAGE_KEYS.digests, digests);

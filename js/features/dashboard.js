@@ -93,7 +93,7 @@ export function createCard(data = {}) {
         <div class="rune-card-menu absolute right-3 top-10 hidden rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-gray-700 shadow-md z-50">
           <ul class="min-w-[140px] p-2 text-sm">
             <li><button class="menu-edit w-full text-left px-3 py-2">Edit</button></li>
-            <li><button class="menu-unsubscribe w-full text-left px-3 py-2">Unsubscribe</button></li>
+            <li><button class="menu-unsubscribe hidden w-full text-left px-3 py-2">Unsubscribe</button></li>
             <li><button class="menu-delete w-full text-left px-3 py-2 text-red-600">Delete</button></li>
           </ul>
         </div>
@@ -1440,14 +1440,17 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       const data = cardsMap.get(id);
       const menu = cardEl.querySelector('.rune-card-menu');
       openConfirm({
-        title: 'Delete link?',
-        message: 'This action cannot be undone.',
+        title: `Delete saved link "${escapeHTML(data?.title || (data?.url||'').replace(/^https?:\/\//,''))}"?`,
+        message: 'This will remove the link and its related digest entries.',
         onOk: () => {
           // 淡出动画后移除
           cardEl.style.transition = 'opacity 160ms ease';
           cardEl.style.opacity = '0';
           setTimeout(() => { cardEl.remove(); }, 180);
           deleteCardFromStore(id);
+          if (data?.url) {
+            deleteSubscriptionAndCleanup(data.url);
+          }
 
           // 中文注释：云端模式下按 URL 删除（若存在 URL）
           if (useCloud && data?.url) {
@@ -1488,18 +1491,22 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
       const titleText = data?.title || (data?.url||'').replace(/^https?:\/\//,'');
       const subUrl = data?.url || '';
       openConfirm({
-        title: `Unsubscribe “${titleText}”?`,
-        message: 'You will stop receiving AI digests for this site.',
+        title: `Unsubscribe from "${escapeHTML(titleText)}"?`,
+        message: 'You will no longer receive AI digests for this site.',
         okDanger: true,
         onOk: () => {
-          // 中文注释：执行退订并清理 Digest 条目
-          if (subUrl) deleteSubscriptionAndCleanup(subUrl);
-          // 中文注释：更新当前卡片按钮与控件可见性
+          if (subUrl) {
+            const subs = loadFromStorage('rune_subscriptions', []);
+            const idx = subs.findIndex(s => normalizeForCompare(s.url||'') === normalizeForCompare(subUrl));
+            if (idx !== -1) {
+              subs[idx].enabled = false;
+              saveToStorage('rune_subscriptions', subs);
+            }
+          }
           const btnSub = cardEl?.querySelector('.btn-subscribe');
           applySubscribeStyle(btnSub, false);
           const controls = cardEl?.querySelector('.card-controls');
           if (controls) controls.style.display = 'none';
-          // 中文注释：关闭菜单
           const menu = cardEl?.querySelector('.rune-card-menu');
           if (menu) menu.classList.add('hidden');
         }
