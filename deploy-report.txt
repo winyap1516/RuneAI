@@ -33,6 +33,20 @@ P1.1 — Storage adapter abstraction (local adapter)
 - Refactored all subscription/digest reads/writes in UI and scheduler to use adapter.
 Files: js/utils/storageAdapter.js, js/features/dashboard.js, js/main.js, js/components/settings-panel.js
 
+P1.2 — Subscription Settings page
+- Enhanced Settings panel to list subscriptions with frequency editing, per-item enable/disable toggle, and bulk operations.
+- Bulk Unsubscribe and Bulk Delete added with English confirmations; writes via adapter.
+Files: js/components/settings-panel.js
+
+P1.3 — Generate Now button
+- Card control label unified to `Generate Now` with small button style, consistent with `Subscribe`.
+- After generating single-site digest, navigates to Digest view.
+Files: js/features/dashboard.js
+
+P1.4 — Digest UI V2
+- Digest list uses grid layout with compact cards, showing title/date/id/site count/created time and view button.
+- Detail modal displays per-site summaries with icon/title/link; raw JSON hidden by default.
+Files: js/features/dashboard.js, dashboard.html (styles already present)
 QA Steps:
 1) Add a link, subscribe it, generate a digest; verify digest entry appears.
 2) Unsubscribe via menu → confirm dialog appears in English; digest generation no longer includes the site, existing digest entries remain.

@@ -107,7 +107,7 @@ export function createCard(data = {}) {
       <div class="mt-3 card-actions flex items-center justify-end gap-2">
         ${(() => { const nurl = normalizeUrl(url); return `<button class\="btn-subscribe btn btn-small btn-muted\" data-url=\"${escapeHTML(nurl)}\">Subscribe</button>`; })()}
         <div class="card-controls" style="display:none;">
-          <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="">Generate Digest Now</button>
+          <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="">Generate Now</button>
         </div>
       </div>
     </div>
@@ -1263,6 +1263,8 @@ function openConfirm({ title = 'Confirm action?', message = 'This action cannot 
         }
         storageAdapter.saveDigest(merged);
         const t = document.createElement('div'); t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg'; t.textContent=`Merged digest generated (${merged.siteCount} sites)`; document.body.appendChild(t); setTimeout(()=>t.remove(),1600);
+        const navDigest = document.getElementById('navDigest');
+        if (navDigest) navDigest.click();
       } catch { alert('Generation failed'); }
     });
   }

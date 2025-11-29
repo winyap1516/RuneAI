@@ -18,6 +18,24 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
   if (!wrap) return;
   const subs = storageAdapter.loadSubscriptions();
   wrap.innerHTML = '';
+  // 批量操作工具栏
+  const toolbar = document.createElement('div');
+  toolbar.className = 'flex items-center justify-between mb-2';
+  toolbar.innerHTML = `
+    <div class="text-sm font-semibold">Subscription Settings</div>
+    <div class="flex items-center gap-2">
+      <button id="bulkUnsubBtn" class="px-3 py-1.5 text-sm rounded-lg bg-gray-100 dark:bg-white/10" disabled>Bulk Unsubscribe</button>
+      <button id="bulkDeleteBtn" class="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white" disabled>Bulk Delete</button>
+    </div>`;
+  wrap.appendChild(toolbar);
+  const selected = new Set();
+  const refreshToolbar = () => {
+    const dis = selected.size === 0;
+    const unsubBtn = document.getElementById('bulkUnsubBtn');
+    const delBtn = document.getElementById('bulkDeleteBtn');
+    if (unsubBtn) unsubBtn.disabled = dis;
+    if (delBtn) delBtn.disabled = dis;
+  };
   if (!Array.isArray(subs) || subs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'text-sm text-text-secondary-light dark:text-text-secondary-dark';
@@ -29,10 +47,17 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between p-3 border rounded-lg';
     const left = document.createElement('div');
-    left.innerHTML = `
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'mr-2';
+    chk.addEventListener('change', () => { if (chk.checked) selected.add(sub.id); else selected.delete(sub.id); refreshToolbar(); });
+    left.appendChild(chk);
+    const info = document.createElement('div');
+    info.innerHTML = `
       <div class="text-sm font-medium">${(sub.title||sub.url||'').toString()}</div>
       <div class="text-xs text-gray-500">${(sub.url||'').toString()}</div>
     `;
+    left.appendChild(info);
     const right = document.createElement('div');
     const sel = document.createElement('select');
     sel.className = 'px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -57,9 +82,59 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
         } catch {}
       }
     });
+    // 订阅启用开关
+    const toggle = document.createElement('button');
+    toggle.className = 'ml-2 px-3 py-1.5 text-sm rounded-lg ' + (sub.enabled!==false ? 'bg-primary text-white' : 'bg-gray-100');
+    toggle.textContent = sub.enabled!==false ? 'Enabled' : 'Disabled';
+    toggle.addEventListener('click', () => {
+      const arr = storageAdapter.loadSubscriptions();
+      const idx = arr.findIndex(s => String(s.id) === String(sub.id));
+      if (idx !== -1) {
+        const nextEn = !(arr[idx].enabled!==false);
+        storageAdapter.saveSubscription({ ...arr[idx], enabled: nextEn });
+        toggle.className = 'ml-2 px-3 py-1.5 text-sm rounded-lg ' + (nextEn ? 'bg-primary text-white' : 'bg-gray-100');
+        toggle.textContent = nextEn ? 'Enabled' : 'Disabled';
+      }
+    });
     right.appendChild(sel);
+    right.appendChild(toggle);
     row.appendChild(left);
     row.appendChild(right);
     wrap.appendChild(row);
+  });
+  // 批量操作绑定
+  const bulkUnsub = document.getElementById('bulkUnsubBtn');
+  const bulkDelete = document.getElementById('bulkDeleteBtn');
+  if (bulkUnsub) bulkUnsub.addEventListener('click', () => {
+    const arr = storageAdapter.loadSubscriptions();
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!confirm(`Unsubscribe ${ids.length} selected sites?`)) return;
+    ids.forEach(id => {
+      const idx = arr.findIndex(s => String(s.id) === String(id));
+      if (idx !== -1) storageAdapter.saveSubscription({ ...arr[idx], enabled: false });
+    });
+    window.renderSubscriptionsSettings();
+  });
+  if (bulkDelete) bulkDelete.addEventListener('click', () => {
+    const arr = storageAdapter.loadSubscriptions();
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} saved links? This will remove related digest entries.`)) return;
+    ids.forEach(id => {
+      const s = arr.find(x => String(x.id) === String(id));
+      if (s) {
+        storageAdapter.deleteSubscription(id);
+        // 清理相关 digest 条目（与 P0 删除一致）
+        const digests = storageAdapter.loadDigests();
+        const keep = [];
+        for (const d of digests) {
+          const next = Array.isArray(d.entries) ? d.entries.filter(e => String(e.subscriptionId) !== String(id)) : [];
+          if (next.length > 0) { storageAdapter.saveDigest({ ...d, entries: next, siteCount: next.length }); keep.push(d.id); }
+          else { storageAdapter.deleteDigest(d.id); }
+        }
+      }
+    });
+    window.renderSubscriptionsSettings();
   });
 };
