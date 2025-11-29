@@ -1,0 +1,60 @@
+RuneAI Deployment Report
+
+Date: 2025-11-29
+Branch: feature/runeai-p0-fixes
+
+Completed Tasks:
+
+P0.1 — Fix Delete/Unsubscribe semantics and UI
+- Hide `Unsubscribe` in card menu for non-subscribed links by default and toggle based on current subscription state.
+- `Unsubscribe` now only sets `enabled=false` for the subscription and does not delete the link or digest entries.
+- `Delete` now removes the saved link, deletes its subscription entry, and cleans related entries in `rune_digests`.
+- Confirmation copy updated to English:
+  - Unsubscribe: Title: Unsubscribe from "{title}"? Text: You will no longer receive AI digests for this site.
+  - Delete: Title: Delete saved link "{title}"? Text: This will remove the link and its related digest entries.
+Files: js/features/dashboard.js
+
+P0.2 — Prevent digests for deleted links
+- Daily and single digest generation always read subscriptions from storage fresh.
+- Delete now removes the subscription entry, so deleted links never appear in future digests.
+Files: js/features/dashboard.js, js/main.js
+
+P0.3 — English-only UI copy
+- Replaced remaining Chinese user-facing strings in scheduler/digest toasts and fallbacks.
+  - Toast: Merged digest updated (... sites)
+  - Fallback summary: Mock: Summary placeholder
+  - Error summary: Fetch failed
+Files: js/main.js
+
+P1.1 — Storage adapter abstraction (local adapter)
+- Added `js/utils/storageAdapter.js` with unified methods:
+  - loadSubscriptions, saveSubscription, deleteSubscription
+  - loadDigests, saveDigest, deleteDigest
+- Refactored all subscription/digest reads/writes in UI and scheduler to use adapter.
+Files: js/utils/storageAdapter.js, js/features/dashboard.js, js/main.js, js/components/settings-panel.js
+
+P1.2 — Subscription Settings page
+- Enhanced Settings panel to list subscriptions with frequency editing, per-item enable/disable toggle, and bulk operations.
+- Bulk Unsubscribe and Bulk Delete added with English confirmations; writes via adapter.
+Files: js/components/settings-panel.js
+
+P1.3 — Generate Now button
+- Card control label unified to `Generate Now` with small button style, consistent with `Subscribe`.
+- After generating single-site digest, navigates to Digest view.
+Files: js/features/dashboard.js
+
+P1.4 — Digest UI V2
+- Digest list uses grid layout with compact cards, showing title/date/id/site count/created time and view button.
+- Detail modal displays per-site summaries with icon/title/link; raw JSON hidden by default.
+Files: js/features/dashboard.js, dashboard.html (styles already present)
+QA Steps:
+1) Add a link, subscribe it, generate a digest; verify digest entry appears.
+2) Unsubscribe via menu → confirm dialog appears in English; digest generation no longer includes the site, existing digest entries remain.
+3) Delete the saved link → confirm dialog appears in English; link is removed from cards, its subscription entry is deleted, and related digest entries are cleaned.
+4) Trigger Daily Digest (Dev scheduler or manual Generate Today's Digest) → deleted links never appear.
+5) Search UI for Chinese copy → none remains; all user-facing text is English.
+
+6) Verify adapter usage by adding/removing subscriptions and generating digests; functionality remains unchanged.
+
+Notes:
+- Historical digest entries remain on Unsubscribe; only Delete performs cleanup.
