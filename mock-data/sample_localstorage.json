@@ -1,56 +1,39 @@
 {
-  "subscriptions": [
+  "rune_subscriptions": [
     {
-      "id": "sub_abc123",
-      "url": "https://figma.com/",
-      "title": "Figma — Design tool",
+      "id": "sub_yt001",
+      "title": "Youtube com",
+      "url": "youtube.com",
+      "domain": "youtube.com",
+      "tags": ["bookmark"],
+      "subscribed": true,
       "frequency": "daily",
-      "enabled": true,
-      "lastChecked": 0,
-      "created_at": 1730000000000
+      "createdAt": 1746538000
     },
     {
-      "id": "sub_def456",
-      "url": "https://openai.com/",
-      "title": "OpenAI — GPT Models",
-      "frequency": "daily",
-      "enabled": true,
-      "lastChecked": 0,
-      "created_at": 1730000000000
+      "id": "sub_google001",
+      "title": "Google com",
+      "url": "google.com.my",
+      "domain": "google.com.my",
+      "tags": ["bookmark"],
+      "subscribed": false,
+      "createdAt": 1746538100
     }
   ],
-  "digests": [
+  "rune_digests": [
     {
-      "id": "digest_abc",
+      "id": "digest_mock001",
       "date": "2025-11-29",
-      "merged": true,
-      "title": "AI Digest · 2025-11-29",
-      "siteCount": 2,
-      "entries": [
+      "createdAt": 1746538200,
+      "sites": [
         {
-          "subscriptionId": "sub_abc123",
-          "url": "https://figma.com/",
-          "title": "Figma — Design tool",
-          "summary": "Short summary of the site content or AI-generated description.",
-          "highlights": ["Design", "Collaboration"],
-          "raw": {
-            "site": { "content": "..." },
-            "ai": { "title": "Figma — Design tool", "description": "...", "tags": ["Design"] }
-          }
-        },
-        {
-          "subscriptionId": "sub_def456",
-          "url": "https://openai.com/",
-          "title": "OpenAI — GPT Models",
-          "summary": "Short summary of the site content or AI-generated description.",
-          "highlights": ["AI", "Research"],
-          "raw": {
-            "site": { "content": "..." },
-            "ai": { "title": "OpenAI — GPT Models", "description": "...", "tags": ["AI"] }
-          }
+          "id": "sub_yt001",
+          "title": "Youtube com",
+          "url": "youtube.com",
+          "ai_summary": "Mock: 自动生成的摘要，基于 URL 特征与本地模式。来源域名：youtube.com",
+          "tags": ["bookmark"]
         }
-      ],
-      "created_at": 1730000000000
+      ]
     }
   ]
 }

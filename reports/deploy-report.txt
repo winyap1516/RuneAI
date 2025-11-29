@@ -1,0 +1,69 @@
+# RuneAI — Deploy Report (Template)
+
+Date: 2025-11-29  
+Environment: Local / Static HTML + Mock  
+
+---
+
+## 1. Repo Information
+Branch pushed: chore/bootstrap-upload  
+Latest commit SHA: (填写 commit id)  
+
+---
+
+## 2. File List (auto-generated or manually listed)
+请列出：
+- index.html
+- dashboard.html
+- signup.html
+- /js/*
+- /public/*
+- /mock-data/sample_localstorage.json
+- /docs/rune-spec.md
+- package.json
+- vite.config.js
+- .gitignore
+- .env.example
+
+(IDE 可自动生成 file-list.txt)
+
+---
+
+## 3. Missing files created by assistant
+请列出 IDE 自动创建的：
+- .env.example
+- docs/rune-spec.md
+- mock-data/sample_localstorage.json
+- missing-files.log
+
+---
+
+## 4. Local Browser Test
+执行：
+
+### A. 本地起服务器
+
+或直接 VSCode LiveServer 打开：
+
+
+
+### B. 检查 Console / Network
+- [ ] 无 404 错误  
+- [ ] 无 Uncaught ReferenceError  
+- [ ] JS 正常加载  
+- [ ] localStorage 读写成功  
+
+### C. Digest 测试
+- [ ] 点击 “Generate Daily Digest” 成功生成  
+- [ ] Digest list 正常显示  
+- [ ] 点击进入 Digest Detail 正常显示  
+- [ ] Raw JSON 默认隐藏  
+
+---
+
+## 5. Conclusion
+可写：
+- “项目已能在本地完整运行”
+- “无重大错误”
+- “可进一步进行 UI 优化 / API 迁移”
+
