@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+
+<!-- 中文注释：signup.html 独立注册页面。
+  - 使用 Tailwind CDN（JIT）与内联类名。
+  - 复用 auth.js 的 mockSignup 方法进行本地注册模拟。
+  - 注册成功后跳转到 `dashboard.html`。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rune AI – 注册</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script>
+      // 中文注释：轻量 Tailwind 配置
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6e57e0",
+              "background-light": "#f6f6f8",
+              "background-dark": "#141220",
+            },
+            fontFamily: { display: ["Inter", "sans-serif"] },
+            borderRadius: { DEFAULT: "0.5rem", lg: "1rem", xl: "1.5rem", full: "9999px" },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* 中文注释：Material 图标基础样式 */
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        font-size: 24px;
+      }
+    </style>
+  </head>
+  <body class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- 顶部导航：返回首页与跳转登录 -->
+    <header class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-10 py-4 bg-white/80 dark:bg-black/20 backdrop-blur">
+      <a href="index.html" class="flex items-center gap-3">
+        <img src="logo/logo_icon.png" alt="Rune AI" class="w-8 h-8 rounded-full" />
+        <span class="text-base font-semibold">Rune AI</span>
+      </a>
+      <nav class="flex items-center gap-3">
+        <a href="dashboard.html" class="px-4 h-10 flex items-center rounded-lg bg-primary text-white text-sm font-bold">登录</a>
+      </nav>
+    </header>
+
+    <!-- 主内容：注册表单卡片 -->
+    <main class="flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <h1 class="text-2xl font-bold mb-1">注册账户</h1>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">创建你的 Rune AI 账户，开始管理你的知识库。</p>
+
+        <!-- 错误提示 -->
+        <div id="signupError" class="hidden mb-3 p-2 rounded-md bg-red-50 text-red-600 text-sm"></div>
+
+        <!-- 表单 -->
+        <form id="signupForm" class="space-y-4">
+          <div>
+            <label for="signupEmail" class="block text-sm font-medium mb-1">邮箱</label>
+            <input id="signupEmail" type="email" required placeholder="user@example.com"
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary" />
+          </div>
+          <div>
+            <label for="signupPassword" class="block text-sm font-medium mb-1">密码</label>
+            <input id="signupPassword" type="password" required minlength="6" placeholder="••••••••"
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary" />
+            <p class="text-xs text-gray-500 mt-1">至少 6 位字符</p>
+          </div>
+          <div>
+            <label for="signupConfirmPassword" class="block text-sm font-medium mb-1">确认密码</label>
+            <input id="signupConfirmPassword" type="password" required minlength="6" placeholder="••••••••"
+                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary" />
+          </div>
+
+          <div class="flex items-start">
+            <input id="signupTerms" type="checkbox" required class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary mt-0.5" />
+            <label for="signupTerms" class="ml-2 text-sm text-gray-600 dark:text-gray-400">
+              我同意 <a href="#" class="text-primary hover:underline">用户协议</a> 与 <a href="#" class="text-primary hover:underline">隐私政策</a>
+            </label>
+          </div>
+
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium">注册</button>
+        </form>
+
+        <div class="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          已有账号？
+          <a href="dashboard.html" class="text-primary hover:underline">直接登录</a>
+        </div>
+      </div>
+    </main>
+
+    <!-- 逻辑脚本：注册处理与跳转 -->
+    <script type="module" src="js/main.js"></script>
+  </body>
+  </html>

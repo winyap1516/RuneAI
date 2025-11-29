@@ -1,0 +1,60 @@
+{
+  "version": "v0.3.3-plan",
+  "summary": "文件迁移与重命名清单（职责归位：features / utils / components）",
+  "items": [
+    {
+      "from": "js/auth.js",
+      "to": "js/utils/auth.js",
+      "role": "utils",
+      "status": "planned",
+      "notes": "会话/用户存取、localStorage 持久化与 mock 登录注册，纯逻辑；UI 禁止写在 utils。"
+    },
+    {
+      "from": "js/dashboard.js",
+      "to": "js/features/dashboard.js",
+      "role": "features",
+      "status": "planned",
+      "notes": "页面/交互模块（欢迎卡片、统计展示等），导出 mount/unmount 并由入口路由挂载。"
+    },
+    {
+      "from": "js/settings.js",
+      "to": "js/features/settings.js",
+      "role": "features",
+      "status": "planned",
+      "notes": "设置页面交互与自动登出定时器逻辑，转为特性模块并提供挂载/卸载。"
+    },
+    {
+      "from": "js/profile.js",
+      "to": "js/features/profile.js",
+      "role": "features",
+      "status": "planned",
+      "notes": "个人资料页面交互，统一由入口路由挂载。"
+    },
+    {
+      "from": "js/features/auth.js",
+      "to": "js/features/auth_ui.js",
+      "role": "features",
+      "status": "planned",
+      "notes": "登录/注册弹窗交互（UI 层），内部改为调用 utils/auth 或 utils/api 的 mock。"
+    },
+    {
+      "from": "js/features/profile_form.js",
+      "to": "js/components/profile-form.js",
+      "role": "components",
+      "status": "planned",
+      "notes": "表单组件交互（可作为独立组件挂载），保持无页面路由职责。"
+    },
+    {
+      "from": "js/features/settings_panel.js",
+      "to": "js/components/settings-panel.js",
+      "role": "components",
+      "status": "planned",
+      "notes": "设置面板 UI 组件，交互逻辑保持在组件层。"
+    },
+    {
+      "from": "js/features/user_dropdown.js",
+      "to": "js/components/user-dropdown.js",
+      "role": "components",
+      "status": "planned",
+      "notes": "顶部用户头像下拉组件，统一通过组件导出进行挂载。"   
+    },

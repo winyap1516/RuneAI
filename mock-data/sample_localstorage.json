@@ -1,0 +1,56 @@
+{
+  "subscriptions": [
+    {
+      "id": "sub_abc123",
+      "url": "https://figma.com/",
+      "title": "Figma — Design tool",
+      "frequency": "daily",
+      "enabled": true,
+      "lastChecked": 0,
+      "created_at": 1730000000000
+    },
+    {
+      "id": "sub_def456",
+      "url": "https://openai.com/",
+      "title": "OpenAI — GPT Models",
+      "frequency": "daily",
+      "enabled": true,
+      "lastChecked": 0,
+      "created_at": 1730000000000
+    }
+  ],
+  "digests": [
+    {
+      "id": "digest_abc",
+      "date": "2025-11-29",
+      "merged": true,
+      "title": "AI Digest · 2025-11-29",
+      "siteCount": 2,
+      "entries": [
+        {
+          "subscriptionId": "sub_abc123",
+          "url": "https://figma.com/",
+          "title": "Figma — Design tool",
+          "summary": "Short summary of the site content or AI-generated description.",
+          "highlights": ["Design", "Collaboration"],
+          "raw": {
+            "site": { "content": "..." },
+            "ai": { "title": "Figma — Design tool", "description": "...", "tags": ["Design"] }
+          }
+        },
+        {
+          "subscriptionId": "sub_def456",
+          "url": "https://openai.com/",
+          "title": "OpenAI — GPT Models",
+          "summary": "Short summary of the site content or AI-generated description.",
+          "highlights": ["AI", "Research"],
+          "raw": {
+            "site": { "content": "..." },
+            "ai": { "title": "OpenAI — GPT Models", "description": "...", "tags": ["AI"] }
+          }
+        }
+      ],
+      "created_at": 1730000000000
+    }
+  ]
+}

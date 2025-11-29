@@ -1,0 +1,14 @@
+{
+  "name": "yinGAN-collector",
+  "version": "0.2.4",
+  "private": true,
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint:paths": "node scripts/check_static_paths.js"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}

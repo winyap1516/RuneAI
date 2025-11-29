@@ -1,0 +1,49 @@
+{
+  "login": "登录",
+  "logout": "登出",
+  "register": "注册",
+  "email": "邮箱",
+  "password": "密码",
+  "confirmPassword": "确认密码",
+  "forgotPassword": "忘记密码？",
+  "rememberMe": "记住我",
+  "welcome": "欢迎回来",
+  "welcomeMorning": "早安，{name} 🌅",
+  "welcomeAfternoon": "午安，{name} 🌞",
+  "welcomeEvening": "晚安，{name} 🌙",
+  "lastLogin": "上次登录：{time}",
+  "aiStyle": "AI 助手模式：{style}",
+  "profile": "个人资料",
+  "settings": "设置",
+  "language": "语言",
+  "theme": "主题",
+  "aiPersonality": "AI 语气风格",
+  "security": "安全",
+  "save": "保存",
+  "cancel": "取消",
+  "nickname": "昵称",
+  "bio": "个人简介",
+  "avatar": "头像",
+  "uploadAvatar": "上传头像",
+  "light": "浅色",
+  "dark": "深色",
+  "auto": "自动",
+  "formal": "正式模式",
+  "casual": "轻松模式",
+  "creative": "创意模式",
+  "deleteAccount": "删除账号",
+  "confirmDelete": "确认删除账号",
+  "logoutConfirm": "确定要登出吗？",
+  "loginSuccess": "登录成功",
+  "registerSuccess": "注册成功",
+  "logoutSuccess": "已登出",
+  "saveSuccess": "设置已保存"
+  , "singleDigestNow": "立即生成简报（Single Digest）"
+  , "unsubscribe": "取消订阅"
+  , "unsubscribeConfirmTitle": "确定要取消订阅「{name}」吗？"
+  , "unsubscribeConfirmMessage": "取消后，你将不会再收到该网站的 AI 简报。"
+  , "subscriptionsSettings": "订阅设定"
+  , "frequency": "抓取频率"
+  , "viewSummary": "查看摘要"
+  , "generatedAt": "生成时间"
+}

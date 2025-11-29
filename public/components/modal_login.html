@@ -1,0 +1,81 @@
+<!-- modal_login.html -->
+<!-- 登录弹窗组件（纯 HTML，无脚本） -->
+<!-- 中文注释：
+  - 该组件仅包含结构与样式，交互逻辑由 js/features/auth_ui.js 统一初始化与绑定；
+  - 兼容组件内的全局方法调用（如 onsubmit="handleLoginSubmit(event)"）；
+  - 放置于 public 目录，作为静态资源提供，绕过 Vite 对 HTML 片段的 parse5 解析，避免 500 错误。
+-->
+
+<div id="loginModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 p-6 relative">
+    <!-- 关闭按钮 -->
+    <button onclick="closeLoginModal()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+
+    <!-- 标题 -->
+    <h2 class="text-xl font-semibold text-gray-800 mb-4" data-i18n="login">登录</h2>
+
+    <!-- 表单 -->
+    <form id="loginForm" class="space-y-4" onsubmit="handleLoginSubmit(event)">
+      <!-- 邮箱 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="email">邮箱</label>
+        <input
+          type="email"
+          id="loginEmail"
+          required
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="user@example.com"
+        />
+      </div>
+
+      <!-- 密码 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="password">密码</label>
+        <input
+          type="password"
+          id="loginPassword"
+          required
+          minlength="6"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="••••••••"
+        />
+      </div>
+
+      <!-- 记住我（规范属性分行，避免不可见字符影响解析） -->
+      <div class="flex items-center">
+        <input
+          type="checkbox"
+          id="loginRemember"
+          class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+        <label for="loginRemember" class="ml-2 text-sm text-gray-600" data-i18n="rememberMe">记住我</label>
+      </div>
+
+      <!-- 错误提示 -->
+      <div id="loginError" class="text-sm text-red-600 hidden"></div>
+
+      <!-- 提交按钮 -->
+      <button
+        type="submit"
+        class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        data-i18n="login"
+      >登录</button>
+    </form>
+
+    <!-- 底部链接 -->
+    <div class="mt-4 text-center text-sm text-gray-600">
+      <a href="#" class="text-blue-600 hover:underline" data-i18n="forgotPassword">忘记密码？</a>
+      <span class="mx-2">·</span>
+      <a href="#" onclick="switchToSignupModal()" class="text-blue-600 hover:underline" data-i18n="register">注册新账号</a>
+    </div>
+  </div>
+  </div>
+
+<!-- 中文注释：组件为纯 HTML；
+  - 交互入口在 js/features/auth_ui.js（initAuthModals/mount/unmount）；
+  - 页面入口 js/main.js 负责通过 loadComponent 注入本片段；
+  - 组件内不嵌入任何 <script>，统一由外部模块绑定事件与路由行为。 -->

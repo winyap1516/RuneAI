@@ -1,0 +1,133 @@
+{
+  "project": "RuneAI",
+  "date": "2025-11-08",
+  "questions": [
+    {
+      "question_id": "Q2025-11-07-10",
+      "step": "ERR_ABORTED 诊断与路径策略确认",
+      "question": "当前 `modal_signup.html` 已为纯 HTML，但仍在个别环境出现 `html-proxy` 报错，是否存在旧缓存或入口未统一？",
+      "possible_reason": "开发服务器缓存未清、页面未通过 main.js 的 loadComponent 统一加载、或组件内仍残留内联 <script> 导致路径解析为 components/js/...",
+      "suggested_solution": "清理缓存并重启；确保仅通过 `js/main.js` 的 loadComponent 加载；移除组件内联脚本或统一使用 `../js/...` 导入；如需强制规范，迁移剩余组件脚本到特性模块。"
+    },
+    {
+      "question_id": "Q2025-11-08-02",
+      "step": "页面职责与组件加载统一（v0.3.6）",
+      "question": "是否同意组件 HTML 纯静态（不含 <script>），所有初始化逻辑集中在入口 main.js？",
+      "possible_reason": "innerHTML 注入的 <script> 不会自动执行；集中入口更易于路径与依赖统一、避免 html-proxy 与部署前缀差异导致 404。",
+      "suggested_solution": "入口仅引入 ./js/main.js；main.js 负责 fetch('./components/*.html') 挂载与初始化；禁止 '/js/...' 绝对路径；建议入口设置 <base href=\"./\">。"
+    },
+    {
+      "question_id": "Q2025-11-08-01",
+      "step": "统一组件加载路径与脚本导入策略（v0.3.3）",
+      "question": "是否所有组件内的脚本导入都应统一为相对路径（如 'js/auth.js'、'js/language.js'），并在页面入口仅通过 './components/' 加载？",
+      "possible_reason": "使用绝对路径 '/js/...' 在子路径或静态部署场景下会指向站点根导致 404；统一相对路径更稳健，且入口只负责组件加载，避免双重职责与路径混乱。",
+      "suggested_solution": "保持入口脚本与组件加载分离：页面引用 'main.js'，组件通过 './components/' 相对路径加载；组件内部脚本采用相对 'js/...'; 在构建阶段加入静态校验禁止 '/js/' 绝对路径。"
+    },
+    {
+      "question_id": "Q2025-11-06-01",
+      "step": "建立 /solo 结构",
+      "question": "是否需要在 /solo/ 下复制一份 solo_rules.md，或仅保留 .trae/rules/solo_rules.md？",
+      "possible_reason": "文档示意结构中将 solo_rules.md 放在 /solo/ 内；当前项目实际位于 .trae/rules。",
+      "suggested_solution": "建议保留 .trae/rules/solo_rules.md 为规则源，并在 /solo/ 目录创建一个引用说明文件或软链接；请确认偏好。"
+    },
+    {
+      "question_id": "Q2025-11-06-02",
+      "step": "规则版本追踪机制设计",
+      "question": "solo_rules.md 的版本化检测应采用哈希还是时间戳？检测结果应写入何处并如何触发重载提示？",
+      "possible_reason": "需要明确实现细节与持久化位置（/solo/ 记录或 localStorage），以保证跨会话可追踪。",
+      "suggested_solution": "建议在运行时计算文件哈希并与上次记录对比，若变更则在 /solo/ 追加提示并在 UI 弹出提醒；请确认最终方案。"
+    },
+    {
+      "question_id": "Q2025-11-07-01",
+      "step": "修复用户系统模块导入错误",
+      "question": "是否统一采用命名空间导入方式使用 auth.js（import * as auth），并在 README 说明？",
+      "possible_reason": "auth.js 仅导出具名函数，之前误写为 { auth } 导入，导致 SyntaxError。",
+      "suggested_solution": "统一改为命名空间导入，并在文档中明确导出与导入约定；若后续需要对象式 API，再在 auth.js 提供默认导出包装。"
+    },
+    {
+      "question_id": "Q2025-11-07-02",
+      "step": "修复 i18n 导入错误",
+      "question": "language.js 是否保持默认导出单例 i18n？是否需要同时导出类以便单元测试？",
+      "possible_reason": "部分模块错误使用具名导入 { i18n }，与默认导出不一致。",
+      "suggested_solution": "保持默认导出单例以简化使用；如需测试可额外导出 I18n 类（非破坏性）。"
+    },
+    {
+      "question_id": "Q2025-11-07-03",
+      "step": "修复 index.html 脚本路径",
+      "question": "前端脚本路径是否统一放在根目录或 js/ 目录？是否需要构建时自动校正路径？",
+      "possible_reason": "main.js 实际位于根目录，而 index.html 中引用了 js/main.js，导致 404。",
+      "suggested_solution": "统一路径约定并在 README 标注；若采用 Vite 构建，考虑使用 import.meta.glob 管理入口并在构建脚本校验。"
+    },
+    {
+      "question_id": "Q2025-11-07-04",
+      "step": "统一组件加载与页面职责",
+      "question": "index.html 仍包含内联 fetch 组件加载，而 js/main.js 已新增统一加载；是否需要移除 index.html 的内联脚本并仅在 dashboard.html 加载组件？",
+      "possible_reason": "双重加载可能导致重复渲染或时间序列竞争；同时 landing 页面不应加载完整用户系统组件。",
+      "suggested_solution": "建议将组件加载限定在 dashboard.html（由 js/main.js 负责），并移除 index.html 的内联加载；保留 landing 页面为简化版。请确认。"
+    },
+    {
+      "question_id": "Q2025-11-07-05",
+      "step": "组件样式与路径统一（v0.3.2）",
+      "question": "是否将所有组件内的脚本导入统一为相对路径（如 'js/auth.js'），而非绝对路径 '/js/auth.js'？",
+      "possible_reason": "当前组件使用 '/js/...’ 绝对路径在某些构建/部署环境下可能解析为站点根，导致生产环境 404；统一相对路径更利于静态站点与子路径部署。",
+      "suggested_solution": "建议统一组件脚本导入为相对路径，并在构建阶段加入静态校验（禁止 '/js/' 绝对路径）；请确认是否接受此策略。"
+    },
+    {
+      "question_id": "Q2025-11-07-06",
+      "step": "恢复导入/导出入口位置",
+      "question": "PRD v0.1 要求导入/导出 JSON，是否同意在 Settings → 数据管理恢复而不回摆到顶部导航？",
+      "possible_reason": "v0.2.2 版本移除了顶部数据管理，保持 UI 简洁；但 PRD v0.1 仍要求导入/导出以便离线/迁移。",
+      "suggested_solution": "在 Settings 面板新增导入/导出区块，导出合并 linkData/categories；导入进行解析、合并去重并回写。"
+    },
+    {
+      "question_id": "Q2025-11-07-07",
+      "step": "语言包加载路径策略",
+      "question": "language.js 使用绝对路径 fetch('/languages/...')，是否需要改为相对或基路径以支持子路径部署？",
+      "possible_reason": "绝对路径在带部署前缀的环境会指向站点根导致 404；PRD 要求多语言覆盖稳定。",
+      "suggested_solution": "引入基路径变量或使用相对路径（基于入口位置）；或在构建时注入 BASE_PATH。"
+    },
+    {
+      "question_id": "Q2025-11-07-08",
+      "step": "AI Digest 展现形态",
+      "question": "Digest 采用独立页还是弹窗？是否需要支持保存为符文卡片（localStorage.runes）？",
+      "possible_reason": "现有仅有侧栏入口与绿色指示点，缺少实际展现；保存逻辑与 v0.3 关联。",
+      "suggested_solution": "先实现最小弹窗或独立页展示 Mock 摘要，并提供占位的“保存为符文卡片”按钮。"
+    },
+    {
+      "question_id": "Q2025-11-07-09",
+      "step": "自动登出触发条件",
+      "question": "autoLogout 的实现是固定时长后登出，还是需检测空闲（mousemove/keydown）？",
+      "possible_reason": "Settings 有相关配置与描述，但目前仅提示，需明确实现细节。",
+      "suggested_solution": "实现空闲检测（计时器 + 事件重置），到达设定分钟后弹提示并执行 logout。"
+    },
+    {
+      "question_id": "Q2025-11-08-11",
+      "step": "语言包加载路径前缀支持与相对化",
+      "question": "language.js 目前使用绝对路径 fetch('/languages/...')，在子路径部署下可能 404，是否需要改为相对或引入 BASE_PATH？",
+      "possible_reason": "绝对路径会指向站点根；PRD v0.1 要求多语言稳定覆盖（≥20 词条巡检）。",
+      "suggested_solution": "改为相对路径基于入口位置，或在构建时注入 BASE_PATH；同时增加词条覆盖巡检脚本。"
+    },
+    {
+      "question_id": "Q2025-11-08-12",
+      "step": "组件脚本外置迁移范围确认",
+      "question": "settings_panel.html 与 profile_form.html 仍保留 <script type=\"module\">，是否同意迁移至 js/features 下并由入口统一初始化？",
+      "possible_reason": "保持组件纯 HTML 可彻底规避 html-proxy 与 innerHTML 脚本不执行问题，路径更稳健。",
+      "suggested_solution": "创建 settings_panel.js 与 profile_form.js 特性模块，在 main.js 组件挂载后调用 init() 完成事件绑定。"
+    }
+  ],
+  "reflection": {
+    "summary": "已修复 auth 命名导入错误、i18n 默认导入不一致、index.html main.js 路径 404；预览无 SyntaxError，功能正常。新增 dashboard.html 并统一组件加载。",
+    "unresolved": [
+      "是否在 /solo/ 保留规则文件副本",
+      "auth 是否需要提供默认导出对象以兼容旧代码",
+      "language.js 是否需要导出 I18n 类以辅助单元测试",
+      "是否移除 index.html 的内联组件加载脚本，避免与 main.js 重复"
+    ],
+    "improvements": [
+      "在构建阶段加入脚本路径校验（CI 检查 index.html / dashboard.html 的脚本路径是否存在）",
+      "提供 lint 规则或脚本，统一导入风格（默认导出 vs 命名空间导入）",
+      "为 auth/language 模块补充最小单元测试以防回归",
+      "为组件加载增加错误上报与用户提示（如 toast）"
+    ]
+  }
+}

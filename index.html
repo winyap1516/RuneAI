@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+
+<!-- 中文注释：index.html 现作为 Landing 首页。
+  - 使用 Tailwind CDN（JIT）与内联类名，避免外部 CSS/@apply 冲突。
+  - 顶部导航提供“登录”按钮跳转到 `dashboard.html`。
+  - Hero 区域“开始使用”跳转到 `signup.html`。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rune AI – Landing</title>
+    <!-- 中文注释：设置 base 以稳定相对路径解析（子路径部署更可靠） -->
+    <base href="./">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script>
+      // 中文注释：Landing 的 Tailwind 配置，轻量配色避免与 Dashboard 冲突
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6e57e0",
+              "background-light": "#f6f6f8",
+              "background-dark": "#141220",
+            },
+            fontFamily: { display: ["Inter", "sans-serif"] },
+            borderRadius: { DEFAULT: "0.5rem", lg: "1rem", xl: "1.5rem", full: "9999px" },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* 中文注释：Material 图标基础样式 */
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        font-size: 24px;
+      }
+    </style>
+  </head>
+  <body class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100">
+    <div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+      <div class="flex h-full grow flex-col">
+        <div class="px-4 sm:px-6 lg:px-8 flex flex-1 justify-center py-5">
+          <div class="flex flex-col w-full max-w-5xl flex-1">
+            <!-- 顶部导航 -->
+            <header class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-10 py-4">
+              <div class="flex items-center gap-4 text-gray-900 dark:text-white">
+                <div class="size-6 text-primary">
+                  <!-- 中文注释：品牌图标 -->
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+                    <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+                  </svg>
+                </div>
+                <h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">Rune AI</h2>
+              </div>
+              <div class="hidden md:flex flex-1 justify-end gap-8">
+                <div class="flex items-center gap-9">
+                  <a href="#" class="text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-primary dark:hover:text-primary">文档</a>
+                  <a href="#" class="text-sm font-medium text-gray-800 dark:text-gray-200 hover:text-primary dark:hover:text-primary">关于</a>
+                </div>
+                <!-- FE.AUTH_FIX: 调试阶段暂时禁用登录按钮，避免误触真实登录。
+                     TODO: 恢复登录逻辑后删除此屏蔽并还原按钮。 -->
+                <!--
+                <a href="dashboard.html" class="flex min-w-[84px] items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity">
+                  <span class="truncate">登录</span>
+                </a>
+                -->
+              </div>
+              <div class="md:hidden">
+                <button class="p-2 rounded-md text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="打开菜单">
+                  <span class="material-symbols-outlined">menu</span>
+                </button>
+              </div>
+            </header>
+
+            <!-- Hero 区域 -->
+            <main class="flex-grow">
+              <div class="@container">
+                <div class="flex flex-col gap-6 px-4 py-16 sm:py-20 text-center items-center">
+                  <div class="flex flex-col gap-6 max-w-2xl">
+                    <div class="flex flex-col gap-4 text-center">
+                      <h1 class="text-gray-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] sm:text-5xl md:text-6xl">
+                        Rune AI – Your Intelligent Memory
+                      </h1>
+                      <h2 class="text-gray-700 dark:text-gray-300 text-base sm:text-lg">
+                        轻松收集、总结并组织网页内容，打造你的 AI 第二大脑。
+                      </h2>
+                    </div>
+                    <div class="flex justify-center">
+                      <!-- FE.AUTH_FIX: 调试阶段暂时禁用“开始使用”（注册）入口，避免误触真实注册。
+                           TODO: 恢复登录逻辑后删除此屏蔽并还原按钮。 -->
+                      <!--
+                      <a href="signup.html" class="flex min-w-[84px] items-center justify-center rounded-lg h-12 px-6 bg-primary text-white text-base font-bold hover:opacity-90 transition-opacity">
+                        <span class="truncate">开始使用</span>
+                      </a>
+                      -->
+                    </div>
+                  </div>
+                  <!-- 中文注释：示意图背景块 -->
+                  <div class="w-full max-w-3xl mt-12 bg-center bg-no-repeat aspect-video bg-cover rounded-xl shadow-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCN_FIsXHrpNDBN66oGtq6Wbf9wUV0swCNzpexV6UzvsBC3E0QMuWxhbLJG_j82aFJlpsmleaA1Ai-0TNtpOcXoioV4_hmypchWRXmySHuu7czTA8RPQ-Rc-2887AKy5oNJVMOP0uUussaB-6yYgbIoARuEkgk8Wo_tQI_z35ewgN8fjJVVRWNAdtmfTCldSJgzzWlWtHc9lVAwmvKuEETldz0Kb8sjs0kTAf8jXvkp0IQuUNYFDboKxD7iSoI2zgZEf8xDMtGiD2A");'></div>
+                </div>
+              </div>
+
+              <!-- 功能介绍 -->
+              <div class="flex flex-col gap-10 px-4 py-16 sm:py-20 @container">
+                <div class="flex flex-col gap-4 text-center items-center">
+                  <h1 class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight sm:text-4xl max-w-2xl">
+                    解锁你的数字大脑
+                  </h1>
+                  <p class="text-gray-700 dark:text-gray-300 text-base max-w-2xl">
+                    Rune AI 提供强大的工具来管理信息过载，将内容转化为可行动的知识。
+                  </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div class="flex gap-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark/50 p-6 flex-col shadow-sm">
+                    <div class="text-primary">
+                      <span class="material-symbols-outlined !text-3xl">auto_awesome</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                      <h2 class="text-gray-900 dark:text-white text-lg font-bold">AI 总结</h2>
+                      <p class="text-gray-600 dark:text-gray-400 text-sm">从任意 URL 生成精炼准确的摘要，节省阅读时间。</p>
+                    </div>
+                  </div>
+                  <div class="flex gap-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark/50 p-6 flex-col shadow-sm">
+                    <div class="text-primary">
+                      <span class="material-symbols-outlined !text-3xl">track_changes</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                      <h2 class="text-gray-900 dark:text-white text-lg font-bold">智能追踪</h2>
+                      <p class="text-gray-600 dark:text-gray-400 text-sm">监控关键网页变化，自动通知重要更新。</p>
+                    </div>
+                  </div>
+                  <div class="flex gap-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark/50 p-6 flex-col shadow-sm">
+                    <div class="text-primary">
+                      <span class="material-symbols-outlined !text-3xl">inventory_2</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                      <h2 class="text-gray-900 dark:text-white text-lg font-bold">有序库</h2>
+                      <p class="text-gray-600 dark:text-gray-400 text-sm">为所有保存内容与洞察构建集中可检索的知识库。</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+
+            <!-- 页脚 -->
+            <footer class="flex flex-col gap-6 px-5 py-10 text-center border-t border-gray-200 dark:border-gray-800 mt-10">
+              <div class="flex flex-wrap items-center justify-center gap-6"></div>
+              <div class="flex flex-wrap justify-center gap-6">
+                <a href="#" class="text-gray-500 dark:text-gray-400 hover:text-primary transition-colors" aria-label="Twitter">
+                  <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.71v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg>
+                </a>
+                <a href="#" class="text-gray-500 dark:text-gray-400 hover:text-primary transition-colors" aria-label="LinkedIn">
+                  <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clip-rule="evenodd"></path></svg>
+                </a>
+              </div>
+              <p class="text-gray-500 dark:text-gray-400 text-sm">© 2024 Rune AI. All rights reserved.</p>
+            </footer>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 中文注释：用户系统弹窗容器（登录/注册仅在 Landing 页） -->
+    <div id="modalBackdrop" class="fixed inset-0 bg-black/50 z-40 hidden"></div>
+    <div id="userModalsContainer">
+      <div id="loginModalContainer"></div>
+      <div id="signupModalContainer"></div>
+    </div>
+
+    <!-- 中文注释：入口脚本与组件加载逻辑（仅加载存在的容器对应组件） -->
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

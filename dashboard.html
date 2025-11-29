@@ -133,6 +133,11 @@
       .sidebar.aside-collapsed .nav-item { 
         justify-content: center !important; 
       }
+      /* 中文注释：折叠时缩小 Logo 尺寸，避免侧栏溢出 */
+      .sidebar.aside-collapsed .sidebar-header img { 
+        width: 2rem !important; 
+        height: 2rem !important; 
+      }
       
       /* 中文注释：折叠时图标稍微放大，提高可识别度 */
       .sidebar.aside-collapsed .material-symbols-outlined { 
@@ -171,6 +176,7 @@
          Rune Card UI 辅助样式
          中文注释：配合统一模板的卡片结构，补充摘要截断、分隔线与标签基础样式
          ============================= */
+      .rune-card { position: relative; }
       .rune-card-desc {
         display: -webkit-box; /* 采用弹性盒模型实现截断 */
         -webkit-line-clamp: 3; /* 最多显示 3 行 */
@@ -193,6 +199,34 @@
         font-weight: 600; /* font-semibold */
         border-radius: 9999px; /* rounded-full */
       }
+    </style>
+    <style>
+      /* 中文注释：统一按钮与 Digest 样式，提升一致性与现代感 */
+      .btn { display:inline-flex; align-items:center; gap:.5rem; padding:.45rem .75rem; border-radius:.6rem; font-weight:600; font-size:.9rem; border:1px solid transparent; cursor:pointer; transition: transform .12s ease, box-shadow .12s ease; }
+      .btn:active { transform: translateY(1px); }
+      .btn-small { padding:.25rem .5rem; font-size:.78rem; border-radius:.5rem; }
+      .btn-muted { background:#f3f4f6; color:#374151; border-color:#e6e7ea; }
+      .btn-primary { background:linear-gradient(90deg,#4A69FF,#8A4FFF); color:#fff; box-shadow:0 6px 18px rgba(74,105,255,0.12); }
+      .btn-outline { background:transparent; border:1px solid rgba(74,105,255,0.12); color:#334155; }
+      .btn .spinner { width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,0.35); border-top-color:#fff; animation:spin .9s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .rune-tag { padding:.18rem .5rem; border-radius:999px; font-size:.78rem; font-weight:600; display:inline-flex; align-items:center; gap:.4rem; }
+      .digest-card { border-radius:1rem; padding:1rem; background:#fff; border:1px solid #eef2ff; box-shadow:0 6px 24px rgba(17,24,39,0.04); }
+      .rune-card { border:1px solid #eef2ff; box-shadow:0 6px 24px rgba(17,24,39,0.04); }
+      .digest-entries { display:grid; gap:.6rem; margin-top:.6rem; }
+      .entry { background:#fbfdff; border-radius:.6rem; padding:.8rem; border:1px solid #f1f5f9; }
+      .entry-title { font-weight:700; margin-bottom:.25rem; }
+      .entry-meta { font-size:.85rem; color:#6b7280; margin-bottom:.5rem; }
+      .small-muted { font-size:.8rem; color:#9CA3AF; }
+      @media (max-width:900px) { .rune-tag { font-size:.72rem; } .btn { font-size:.85rem; } }
+      /* 中文注释：Digest 网格容器（自适应列，最小宽度 280px） */
+      .digest-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+      /* 中文注释：卡片悬浮轻微浮起动画，风格与 All Links 保持一致 */
+      .digest-card { transition: transform .12s ease, box-shadow .12s ease; }
+      .digest-card:hover { transform: translateY(-2px); box-shadow:0 10px 28px rgba(17,24,39,0.06); }
+      /* 中文注释：网站首字母图标列表（紧凑排布） */
+      .site-icon { width:28px; height:28px; border-radius:8px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+      .site-icons { display:flex; gap:6px; flex-wrap:wrap; }
     </style>
   </head>
   <body class="bg-background-light dark:bg-background-dark font-display text-text-primary-light dark:text-text-primary-dark">
@@ -222,6 +256,7 @@
                 <button id="addCategoryBtn" class="mt-2 h-9 px-3 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20 soft-hover" title="New Category">+ New Category</button>
               </div>
             </div>
+            <!-- 中文注释：按需求移除 SUBSCRIPTIONS 侧栏块；订阅功能改由卡片按钮呈现 -->
             <!-- AI FEATURES 组：Digest/Chat -->
             <div class="rounded-lg">
               <button id="aiGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="AI FEATURES">
@@ -312,7 +347,7 @@
           <label class="text-sm">URL
             <input id="inpUrl" class="mt-1 w-full form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none focus:ring-2 focus:ring-primary/50" placeholder="https://example.com" />
           </label>
-          <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">只需粘贴链接，其它信息将由 AI 自动生成。</p>
+          <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Just paste the URL; AI auto-generates other info.</p>
         </div>
         <div class="mt-5 flex justify-end gap-3">
           <button id="cancelAddLinkBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold">Cancel</button>
@@ -371,11 +406,31 @@
     <div id="confirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
       <div class="absolute inset-0 bg-black/40"></div>
       <div class="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-sm w-full">
-        <h3 id="confirmTitle" class="text-lg font-bold mb-4 text-text-primary-light dark:text-text-primary-dark">确认删除？</h3>
-        <p id="confirmMessage" class="text-sm text-text-secondary-light dark:text-text-secondary-dark mb-6">此操作无法撤销。</p>
+        <h3 id="confirmTitle" class="text-lg font-bold mb-4 text-text-primary-light dark:text-text-primary-dark">Delete item?</h3>
+        <p id="confirmMessage" class="text-sm text-text-secondary-light dark:text-text-secondary-dark mb-6">This action cannot be undone.</p>
         <div class="flex justify-end gap-3">
-          <button id="confirmCancel" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20">取消</button>
-          <button id="confirmOk" class="h-10 px-4 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600">删除</button>
+          <button id="confirmCancel" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20">Cancel</button>
+          <button id="confirmOk" class="h-10 px-4 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frequency Modal：设置订阅更新频率（替代 prompt） -->
+    <div id="freqModal" class="hidden fixed inset-0 z-60 flex items-center justify-center">
+      <div class="modal-backdrop fixed inset-0 bg-black/40"></div>
+      <div class="relative bg-white dark:bg-surface-dark rounded-xl shadow-xl w-full max-w-md p-5 z-70">
+        <h3 class="text-lg font-semibold mb-3">Set frequency</h3>
+        <label class="text-sm text-gray-600 dark:text-text-secondary-dark">Choose subscription update frequency</label>
+        <select id="freqSelect" class="form-select mt-2 w-full rounded-lg bg-gray-100 dark:bg-white/5 border-none text-sm p-2">
+          <option value="manual">Manual</option>
+          <option value="every_1m">Every 1 minute (dev)</option>
+          <option value="hourly">Hourly</option>
+          <option value="every_6h">Every 6 hours</option>
+          <option value="daily">Daily</option>
+        </select>
+        <div class="mt-4 flex justify-end gap-3">
+          <button id="freqCancel" class="btn btn-small btn-muted">Cancel</button>
+          <button id="freqOk" class="btn btn-small btn-primary">OK</button>
         </div>
       </div>
     </div>
@@ -393,5 +448,16 @@
 
     <!-- ✅ 脚本引用：入口唯一，统一由 js/main.js 控制路由与挂载 -->
     <script type="module" src="js/main.js"></script>
+    <!-- 中文注释：通用文本输入模态，用于替代 prompt()，防止浏览器禁用导致交互失败 -->
+    <div id="textPromptModal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:60;">
+      <div style="width:100%;max-width:560px;background:#fff;border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.12);">
+        <h3 id="textPromptTitle" style="margin:0 0 8px;font-size:16px;font-weight:700"></h3>
+        <input id="textPromptInput" type="text" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e6e9" />
+        <div style="margin-top:12px;text-align:right">
+          <button id="textPromptCancel" class="btn btn-small btn-muted">Cancel</button>
+          <button id="textPromptOk" class="btn btn-small btn-primary">OK</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

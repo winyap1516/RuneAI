@@ -1,0 +1,237 @@
+<!-- settings_panel.html -->
+<!-- 鍋忓ソ璁剧疆闈㈡澘缁勪欢 -->
+<!-- 浣跨敤璇存槑锛?  1. 鍦ㄩ〉闈腑寮曞叆鏈枃浠?  2. 璋冪敤 showSettingsPanel() 鏄剧ず璁剧疆闈㈡澘
+  3. 鐩戝惉 settingsUpdated 浜嬩欢澶勭悊璁剧疆鏇存柊
+-->
+
+<div id="settingsPanelModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 p-6 relative max-h-[90vh] overflow-y-auto">
+    <!-- 鍏抽棴鎸夐挳 -->
+    <button onclick="closeSettingsPanel()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+
+    <!-- 鏍囬 -->
+    <h2 class="text-xl font-semibold text-gray-800 mb-6" data-i18n="settings">Settings</h2>
+
+    <!-- 璁剧疆鍐呭 -->
+    <div class="space-y-8">
+      <!-- 璇█璁剧疆 -->
+      <section>
+        <h3 class="text-lg font-medium text-gray-900 mb-4" data-i18n="language">Language</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="language"
+              value="zh"
+              class="text-blue-600 focus:ring-blue-500"
+              onchange="handleLanguageChange('zh')"
+            />
+            <span class="ml-3 text-sm font-medium">Chinese</span>
+          </label>
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="language"
+              value="en"
+              class="text-blue-600 focus:ring-blue-500"
+              onchange="handleLanguageChange('en')"
+            />
+            <span class="ml-3 text-sm font-medium">English</span>
+          </label>
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="language"
+              value="ms"
+              class="text-blue-600 focus:ring-blue-500"
+              onchange="handleLanguageChange('ms')"
+            />
+            <span class="ml-3 text-sm font-medium">Bahasa Melayu</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 订阅设定 -->
+      <section>
+        <h3 class="text-lg font-medium text-gray-900 mb-4" data-i18n="subscriptionsSettings">Subscription settings</h3>
+        <!-- 中文注释：此处渲染订阅列表（名称/URL/频率选择），由 js/components/settings-panel.js 动态生成 -->
+        <div id="subsSettingsList" class="space-y-2">
+          <!-- 动态列表占位：初始为空，由脚本渲染 -->
+        </div>
+      </section>
+
+      <!-- 涓婚璁剧疆 -->
+      <section>
+        <h3 class="text-lg font-medium text-gray-900 mb-4" data-i18n="theme">Theme</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="theme"
+              value="light"
+              class="text-blue-600 focus:ring-blue-500"
+              onchange="handleThemeChange('light')"
+            />
+            <span class="ml-3 text-sm font-medium" data-i18n="lightTheme">Light</span>
+          </label>
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="theme"
+              value="dark"
+              class="text-blue-600 focus:ring-blue-500"
+              onchange="handleThemeChange('dark')"
+            />
+            <span class="ml-3 text-sm font-medium" data-i18n="darkTheme">Dark</span>
+          </label>
+          <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="theme"
+              value="auto"
+              class="text-blue-600 focus:ring-blue-500"
+              onchange="handleThemeChange('auto')"
+            />
+            <span class="ml-3 text-sm font-medium" data-i18n="autoTheme">Auto</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- AI 椋庢牸璁剧疆 -->
+      <section>
+        <h3 class="text-lg font-medium text-gray-900 mb-4" data-i18n="aiStyle">AI Style</h3>
+        <div class="space-y-3">
+          <label class="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="aiStyle"
+              value="professional"
+              class="mt-1 text-blue-600 focus:ring-blue-500"
+              onchange="handleAiStyleChange('professional')"
+            />
+            <div class="ml-3">
+              <div class="text-sm font-medium" data-i18n="professionalStyle">Professional</div>
+              <div class="text-xs text-gray-500" data-i18n="professionalStyleDesc">Formal, accurate, detailed</div>
+            </div>
+          </label>
+          <label class="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="aiStyle"
+              value="casual"
+              class="mt-1 text-blue-600 focus:ring-blue-500"
+              onchange="handleAiStyleChange('casual')"
+            />
+            <div class="ml-3">
+              <div class="text-sm font-medium" data-i18n="casualStyle">Casual</div>
+              <div class="text-xs text-gray-500" data-i18n="casualStyleDesc">Friendly, approachable, informal</div>
+            </div>
+          </label>
+          <label class="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="aiStyle"
+              value="creative"
+              class="mt-1 text-blue-600 focus:ring-blue-500"
+              onchange="handleAiStyleChange('creative')"
+            />
+            <div class="ml-3">
+              <div class="text-sm font-medium" data-i18n="creativeStyle">Creative</div>
+              <div class="text-xs text-gray-500" data-i18n="creativeStyleDesc">Imaginative, expressive, playful</div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- 瀹夊叏璁剧疆 -->
+      <section>
+        <h3 class="text-lg font-medium text-gray-900 mb-4" data-i18n="security">Security</h3>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <div class="text-sm font-medium" data-i18n="rememberMe">Remember me</div>
+              <div class="text-xs text-gray-500" data-i18n="rememberMeDesc">Sign in automatically next visit</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="rememberMeToggle"
+                class="sr-only peer"
+                onchange="handleRememberMeChange(this.checked)"
+              />
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <div class="text-sm font-medium" data-i18n="autoLogout">Auto logout</div>
+              <div class="text-xs text-gray-500" data-i18n="autoLogoutDesc">Log out after inactivity</div>
+            </div>
+            <select
+              id="autoLogoutSelect"
+              class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onchange="handleAutoLogoutChange(this.value)"
+            >
+              <option value="0" data-i18n="never">Never</option>
+              <option value="30" data-i18n="30Minutes">30 minutes</option>
+              <option value="60" data-i18n="1Hour">1 hour</option>
+              <option value="120" data-i18n="2Hours">2 hours</option>
+              <option value="240" data-i18n="4Hours">4 hours</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- 鏁版嵁绠＄悊 -->
+      <section>
+        <h3 class="text-lg font-medium text-gray-900 mb-4" data-i18n="dataManagement">Data management</h3>
+        <div class="space-y-3">
+          <button
+            onclick="exportUserData()"
+            class="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            data-i18n="exportData"
+          >
+            Export user data
+          </button>
+          <button
+            onclick="clearUserData()"
+            class="w-full sm:w-auto px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            data-i18n="clearData"
+          >
+            Clear user data
+          </button>
+        </div>
+      </section>
+
+      <!-- 鎻愮ず淇℃伅 -->
+      <div id="settingsError" class="text-sm text-red-600 hidden"></div>
+      <div id="settingsSuccess" class="text-sm text-green-600 hidden" data-i18n="settingsUpdateSuccess">Settings updated successfully</div>
+    </div>
+
+    <!-- 搴曢儴鎸夐挳 -->
+    <div class="flex justify-end space-x-3 pt-6 mt-6 border-t">
+      <button
+        onclick="closeSettingsPanel()"
+        class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        data-i18n="close"
+      >
+        Close
+      </button>
+      <button
+        onclick="saveAllSettings()"
+        class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        data-i18n="save"
+      >
+        Save settings
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 中文注释：组件内脚本已移除，交互逻辑由外部 JS 模块统一绑定。 -->
+
