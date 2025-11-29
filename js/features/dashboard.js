@@ -402,7 +402,6 @@ export function initDashboard() {
     { header: "linksGroupHeader", body: "linksGroupBody" },
     { header: "subsGroupHeader", body: "subsGroupBody" },
     { header: "aiGroupHeader", body: "aiGroupBody" },
-    { header: "userGroupHeader", body: "userGroupBody" },
   ];
 
   navGroups.forEach(({ header, body }) => {
@@ -806,50 +805,8 @@ export function initDashboard() {
   }
   const navDigest = document.getElementById('navDigest');
   const navChat = document.getElementById('navChat');
-  const navSettings = document.getElementById('navSettings');
   if (navDigest) on(navDigest, 'click', (e) => { e.preventDefault(); renderDigestView(); });
   if (navChat) on(navChat, 'click', (e) => { e.preventDefault(); renderChatView(); });
-  if (navSettings) on(navSettings, 'click', (e) => {
-    e.preventDefault();
-    const backdrop = document.getElementById('modalBackdrop');
-    const container = document.getElementById('settingsModalContainer');
-    if (!container) return;
-    let panel = document.getElementById('settingsPanel');
-    if (!panel) {
-      panel = document.createElement('div');
-      panel.id = 'settingsPanel';
-      panel.className = 'fixed inset-0 z-50 flex items-center justify-center';
-      panel.innerHTML = `
-        <div class="rounded-xl bg-white dark:bg-surface-dark shadow-xl p-5 w-full max-w-lg">
-          <h3 class="text-lg font-bold mb-3">Settings</h3>
-          <div class="grid grid-cols-1 gap-3">
-            <label class="text-sm">Theme
-              <select class="form-select mt-1 w-full rounded-lg bg-gray-100 dark:bg-white/5 border-none">
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
-            <label class="text-sm">Email notification
-              <input type="checkbox" class="form-checkbox ml-2" />
-            </label>
-          </div>
-          <div class="mt-4">
-            <h4 class="text-base font-semibold mb-2">Subscription settings</h4>
-            <div id="subsSettingsList" class="space-y-2"></div>
-          </div>
-          <div class="mt-5 flex justify-end gap-3">
-            <button id="settingsCloseBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold">Close</button>
-          </div>
-        </div>`;
-      container.appendChild(panel);
-    }
-    show(backdrop);
-    show(panel);
-    try { if (typeof window.renderSubscriptionsSettings === 'function') window.renderSubscriptionsSettings(); } catch {}
-    const closeBtn = document.getElementById('settingsCloseBtn');
-    if (closeBtn) on(closeBtn, 'click', () => { hide(panel); hide(backdrop); });
-    on(backdrop, 'click', () => { hide(panel); hide(backdrop); });
-  });
 
   const headerButtons = Array.from(document.querySelectorAll('header button'));
   const notifyBtn = headerButtons.find((btn) => btn.querySelector('.material-symbols-outlined')?.textContent?.trim() === 'notifications');
@@ -1369,10 +1326,74 @@ export function initDashboard() {
         if (e.key === 'Escape') menu.classList.remove('show');
       });
       const settingsBtn = document.getElementById('settingsBtn');
+      // Settings button logic removed as sidebar item is removed.
+      // If we need to restore settings access via dropdown, re-implement openSettings logic here.
+      // For now, user requested removing settings from sidebar.
+      // But the dropdown might still have "Settings".
+      // The user said "remove settings under runearea", which refers to the sidebar group.
+      // I will keep the dropdown item working if possible, but the `navSettings` element is gone.
+      // So I need to inline the settings open logic or move it to a function.
+      
+      // However, since I deleted the navSettings logic block, the dropdown button will do nothing if it tries to click navSettings.
+      // Let's define openSettings function to be used by dropdown.
+      
+      const openSettings = () => {
+        const backdrop = document.getElementById('modalBackdrop');
+        const container = document.getElementById('settingsModalContainer');
+        if (!container) return;
+        let panel = document.getElementById('settingsPanel');
+        if (!panel) {
+          panel = document.createElement('div');
+          panel.id = 'settingsPanel';
+          panel.className = 'fixed inset-0 z-50 flex items-center justify-center';
+          panel.innerHTML = `
+            <div class="rounded-xl bg-white dark:bg-surface-dark shadow-xl p-5 w-full max-w-lg">
+              <h3 class="text-lg font-bold mb-3">Settings</h3>
+              <div class="grid grid-cols-1 gap-3">
+                <label class="text-sm">Theme
+                  <select class="form-select mt-1 w-full rounded-lg bg-gray-100 dark:bg-white/5 border-none">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </label>
+                <label class="text-sm">Email notification
+                  <input type="checkbox" class="form-checkbox ml-2" />
+                </label>
+              </div>
+              <div class="mt-4">
+                <h4 class="text-base font-semibold mb-2">Subscription settings</h4>
+                <div id="subsSettingsList" class="space-y-2"></div>
+              </div>
+              <div class="mt-5 flex justify-end gap-3">
+                <button id="settingsCloseBtn" class="h-10 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold">Close</button>
+              </div>
+            </div>`;
+          container.appendChild(panel);
+        }
+        show(backdrop);
+        show(panel);
+        try { if (typeof window.renderSubscriptionsSettings === 'function') window.renderSubscriptionsSettings(); } catch {}
+        const closeBtn = document.getElementById('settingsCloseBtn');
+        if (closeBtn) {
+           // Remove old listeners to avoid duplicates if any (simple replacement)
+           const newBtn = closeBtn.cloneNode(true);
+           closeBtn.parentNode.replaceChild(newBtn, closeBtn);
+           on(newBtn, 'click', () => { hide(panel); hide(backdrop); });
+        }
+        
+        // Also bind backdrop click if not bound (idempotent check hard here, just ensuring it works)
+        // The backdrop is shared, so maybe just bind once globally? 
+        // Existing code had: on(backdrop, 'click', ...). 
+        // Let's just add it here safely.
+        const onBackdropClick = () => { hide(panel); hide(backdrop); };
+        backdrop.removeEventListener('click', onBackdropClick); // clean up just in case (won't work for anon function but okay)
+        // Actually we can just let it be, multiple listeners on backdrop closing same panel is fine.
+        on(backdrop, 'click', () => { hide(panel); hide(backdrop); });
+      };
+
       if (settingsBtn) on(settingsBtn, 'click', () => {
-        const navSettings = document.getElementById('navSettings');
         menu.classList.remove('show');
-        navSettings?.click();
+        openSettings();
       });
     }
   }
