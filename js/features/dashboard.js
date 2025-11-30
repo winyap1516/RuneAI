@@ -72,6 +72,9 @@ export function initDashboard() {
     // Init Views
     linksView.initLinksView({ ...context, containerEl: document.getElementById('cardsContainer') });
     digestView.initDigestView({ ...context, containerEl: mainEl }); // Digest view mounts to mainEl
+    
+    // Phase 3: Partial Update - Inject View into Controller
+    linkController.setView(linksView);
 
     // Initial Render
     renderDefaultMain();
@@ -178,6 +181,7 @@ export function initDashboard() {
           templates: { createCard, createDigestCard },
           utils: { dom: {$,$$,fadeIn,slideToggle,on,openModal,closeModal,show,hide,mountHTML,delegate,openConfirm,openTextPrompt,openInfoModal}, storageAdapter }
       });
+      linkController.setView(linksView);
       linksView.renderLinks();
       linksView.bindLinksEvents();
     }

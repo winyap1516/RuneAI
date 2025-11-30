@@ -1,6 +1,6 @@
 import { USER_ID, DIGEST_TYPE, LIMITS, COOLDOWN } from "../config/constants.js";
 import { normalizeUrl } from "../utils/url.js";
-import { escapeHTML } from "../utils/ui-helpers.js";
+import { escapeHTML, buildIconHTML, getTagClass } from "../utils/ui-helpers.js";
 
 let _containerEl = null;
 let _controllers = null;
@@ -45,11 +45,149 @@ export async function renderLinks(links = null) {
 }
 
 export function updateSingleCardUI(id, data) {
+    if (!_containerEl) return;
     const card = _containerEl.querySelector(`.rune-card[data-card-id="${id}"]`);
-    if (card && data) {
-        const newHtml = _templates.createCard(data);
-        card.outerHTML = newHtml;
-        updateUIStates();
+    
+    if (!card) {
+        console.warn(`Card ${id} not found for partial update. Falling back to renderLinks.`);
+        renderLinks();
+        return;
+    }
+
+    if (!data) return;
+
+    // 1. Update Title
+    if (data.title !== undefined) {
+        const el = card.querySelector('.rune-card-title');
+        if (el) el.textContent = data.title;
+    }
+
+    // 2. Update Description
+    if (data.description !== undefined) {
+        const el = card.querySelector('.rune-card-desc');
+        if (el) el.textContent = data.description;
+    }
+
+    // 3. Update Category (Attribute & Sidebar check)
+    if (data.category !== undefined) {
+        const oldCat = card.getAttribute('data-category');
+        if (oldCat !== data.category) {
+            card.setAttribute('data-category', data.category);
+            renderCategoriesSidebar();
+            syncEditCategorySelect();
+        }
+    }
+
+    // 4. Update URL & Icon
+    if (data.url !== undefined) {
+        const nurl = normalizeUrl(data.url);
+        // Update icon (Icon depends on Title too, so we use data.title or existing title)
+        const currentTitle = data.title || card.querySelector('.rune-card-title')?.textContent || '';
+        
+        // Replace Icon HTML
+        const iconContainer = card.querySelector('.rune-card-head .flex.items-center.gap-3');
+        if (iconContainer) {
+             // The icon is the first child usually
+             const oldIcon = iconContainer.querySelector('.rune-card-icon') || iconContainer.firstElementChild;
+             if (oldIcon) oldIcon.outerHTML = buildIconHTML({ title: currentTitle, url: data.url });
+        }
+
+        // Update Subscribe Button Data
+        const subBtn = card.querySelector('.btn-subscribe');
+        if (subBtn) subBtn.setAttribute('data-url', nurl);
+    } else if (data.title !== undefined) {
+         // If only title changed, icon letter might change
+         const currentUrl = card.querySelector('.btn-subscribe')?.getAttribute('data-url') || '';
+         const iconContainer = card.querySelector('.rune-card-head .flex.items-center.gap-3');
+         if (iconContainer) {
+             const oldIcon = iconContainer.querySelector('.rune-card-icon') || iconContainer.firstElementChild;
+             if (oldIcon) oldIcon.outerHTML = buildIconHTML({ title: data.title, url: currentUrl });
+         }
+    }
+
+    // 5. Update Tags
+    if (data.tags !== undefined && Array.isArray(data.tags)) {
+        const tagsContainer = card.querySelector('.rune-card-tags');
+        if (tagsContainer) {
+            const tagsHtml = data.tags.map((raw) => {
+                const label = String(raw).trim();
+                const colorCls = getTagClass(label);
+                return `<span class="rune-tag ${colorCls} rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">${escapeHTML(label)}</span>`;
+            }).join("");
+            tagsContainer.innerHTML = tagsHtml;
+        }
+    }
+
+    // 6. Update Subscription Status
+    if (data.subscribed !== undefined) {
+        const btn = card.querySelector('.btn-subscribe');
+        const controls = card.querySelector('.card-controls');
+        
+        if (btn && controls) {
+            if (data.subscribed) {
+                btn.classList.add('hidden');
+                controls.classList.remove('hidden');
+                controls.classList.add('flex');
+                // Update Generate Now button data
+                const onceBtn = controls.querySelector('.btn-generate-once');
+                if (onceBtn) {
+                    onceBtn.disabled = false;
+                    onceBtn.dataset.subId = data.subscriptionId || ''; 
+                    onceBtn.dataset.linkId = id;
+                }
+            } else {
+                btn.classList.remove('hidden');
+                btn.textContent = 'Subscribe';
+                btn.disabled = false;
+                btn.classList.remove('btn-outline', 'text-primary');
+                btn.classList.add('btn-muted');
+                
+                controls.classList.add('hidden');
+                controls.classList.remove('flex');
+                
+                const onceBtn = controls.querySelector('.btn-generate-once');
+                if (onceBtn) {
+                    onceBtn.disabled = true;
+                    onceBtn.dataset.subId = '';
+                }
+            }
+        }
+    }
+    
+    updateDailyLimitUI();
+}
+
+export function addSingleCardUI(data) {
+    if (!_containerEl) return;
+    // Remove empty state if exists
+    const empty = _containerEl.querySelector('.col-span-full.text-center'); 
+    if (empty && empty.textContent === "No links found.") {
+        empty.remove();
+    }
+    
+    const html = _templates.createCard(data);
+    _containerEl.insertAdjacentHTML('afterbegin', html);
+    
+    renderCategoriesSidebar();
+    syncEditCategorySelect();
+    updateDailyLimitUI();
+}
+
+export function removeSingleCardUI(id) {
+    if (!_containerEl) return;
+    const card = _containerEl.querySelector(`.rune-card[data-card-id="${id}"]`);
+    if (card) {
+        card.remove();
+        // Check if empty
+        if (_containerEl.children.length === 0 || (_containerEl.children.length === 1 && _containerEl.children[0].id === 'emptyState')) {
+             // If truly empty (ignoring hidden emptyState for search)
+             // Re-render to show clean empty state
+             renderLinks([]);
+        }
+        renderCategoriesSidebar();
+        syncEditCategorySelect();
+    } else {
+        console.warn(`Card ${id} not found for removal.`);
     }
 }
 

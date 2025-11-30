@@ -310,7 +310,7 @@ export const storageAdapter = {
     }))
   },
 
-  async addLink(link) {
+  async addLink(link, options = {}) {
     // 简单查重：url+user 唯一
     const existed = await Websites.getByUrl(link.url)
     if (existed) throw new Error('Link already exists')
@@ -323,7 +323,7 @@ export const storageAdapter = {
     })
     // 分类维护
     if (record.category) this.ensureCategory(record.category)
-    this.notify({ type: 'links_changed' })
+    if (!options.silent) this.notify({ type: 'links_changed' })
     return {
       id: record.website_id,
       website_id: record.website_id,
@@ -331,7 +331,7 @@ export const storageAdapter = {
     }
   },
 
-  async updateLink(id, patch) {
+  async updateLink(id, patch, options = {}) {
     const existing = await Websites.getById(id)
     if (!existing) return null
     const updated = await Websites.update(id, {
@@ -346,19 +346,21 @@ export const storageAdapter = {
       })()
     })
     if (patch.category) this.ensureCategory(patch.category)
-    this.notify({ type: 'links_changed' })
+    if (!options.silent) this.notify({ type: 'links_changed' })
     return { id, website_id: id, ...updated }
   },
 
-  async deleteLink(id) {
+  async deleteLink(id, options = {}) {
     // 删除网站并级联清理订阅与摘要
     await Websites.delete(id)
     await Subs.deleteByWebsite(id)
     await Digests.deleteByWebsite(id)
-    this.notify({ type: 'links_changed' })
-    this.notify({ type: 'subscriptions_changed' })
-    this.notify({ type: 'digests_changed' })
-    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    if (!options.silent) {
+      this.notify({ type: 'links_changed' })
+      this.notify({ type: 'subscriptions_changed' })
+      this.notify({ type: 'digests_changed' })
+      try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    }
     return true
   },
 
@@ -389,7 +391,7 @@ export const storageAdapter = {
   },
 
   // 根据 Link ID 开启订阅
-  async subscribeToLink(linkId) {
+  async subscribeToLink(linkId, options = {}) {
     console.log('[Storage] subscribeToLink start', linkId);
     // 修复：将字符串linkId转换为数字类型，与数据库中的website_id匹配
     const numericLinkId = typeof linkId === 'string' ? parseInt(linkId, 10) : linkId;
@@ -408,8 +410,10 @@ export const storageAdapter = {
       enabled: true,
       user_id: (this.getUser()?.id) || 'local-dev',
     })
-    this.notify({ type: 'subscriptions_changed' })
-    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    if (!options.silent) {
+      this.notify({ type: 'subscriptions_changed' })
+      try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    }
     return {
       id: sub.subscription_id,
       linkId: sub.website_id,
@@ -422,18 +426,20 @@ export const storageAdapter = {
   },
 
   // 根据 Link ID 取消订阅 (仅 disable，不删除)
-  async unsubscribeFromLink(linkId) {
+  async unsubscribeFromLink(linkId, options = {}) {
     console.log('[Storage] unsubscribeFromLink start', linkId);
     // 修复：将字符串linkId转换为数字类型，与数据库中的website_id匹配
     const numericLinkId = typeof linkId === 'string' ? parseInt(linkId, 10) : linkId;
     await Subs.deleteByWebsite(numericLinkId)
-    this.notify({ type: 'subscriptions_changed' });
-    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    if (!options.silent) {
+      this.notify({ type: 'subscriptions_changed' });
+      try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    }
     return true
   },
 
   // 更新单个订阅
-  async updateSubscription(sub) {
+  async updateSubscription(sub, options = {}) {
     // 兼容旧行为：按 subscription_id 更新，若仅需要禁用则写入 enabled=false
     const currentList = await this.getSubscriptions()
     const current = currentList.find(s => s.id === sub.id || s.subscription_id === sub.id)
@@ -447,7 +453,7 @@ export const storageAdapter = {
       enabled: sub.enabled ?? current.enabled,
       user_id: (this.getUser()?.id) || 'local-dev',
     })
-    this.notify({ type: 'subscriptions_changed' })
+    if (!options.silent) this.notify({ type: 'subscriptions_changed' })
     return true
   },
 

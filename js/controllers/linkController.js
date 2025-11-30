@@ -64,6 +64,16 @@ async function loadCloudLinks() {
 // =============================
 
 export const linkController = {
+  _view: null,
+  
+  /**
+   * Set the view for partial updates
+   * @param {object} view 
+   */
+  setView(view) {
+    this._view = view;
+  },
+
   /**
    * Get all links with subscription status
    * @returns {Promise<Array>} Links array with 'subscribed' boolean
@@ -114,7 +124,12 @@ export const linkController = {
    * @param {number|string} linkId 
    */
   async subscribe(linkId) {
-    return await storageAdapter.subscribeToLink(linkId);
+    const silent = !!this._view;
+    const sub = await storageAdapter.subscribeToLink(linkId, { silent });
+    if (this._view) {
+        this._view.updateSingleCardUI(linkId, { subscribed: true, subscriptionId: sub.id });
+    }
+    return sub;
   },
 
   /**
@@ -130,7 +145,11 @@ export const linkController = {
     const sub = subs.find(s => String(s.id) === String(subId));
     if (sub) {
         sub.enabled = false; // Soft delete/disable
-        await storageAdapter.updateSubscription(sub);
+        const silent = !!this._view;
+        await storageAdapter.updateSubscription(sub, { silent });
+        if (this._view) {
+             this._view.updateSingleCardUI(sub.linkId, { subscribed: false });
+        }
     }
   },
 
@@ -184,7 +203,11 @@ export const linkController = {
       url: normalized,
     };
 
-    const added = await storageAdapter.addLink(data);
+    const silent = !!this._view;
+    const added = await storageAdapter.addLink(data, { silent });
+    if (this._view) {
+        this._view.addSingleCardUI(added);
+    }
     return added;
   },
 
@@ -207,7 +230,8 @@ export const linkController = {
         }
     }
 
-    await storageAdapter.updateLink(id, { title, url, description, tags, category });
+    const silent = !!this._view;
+    await storageAdapter.updateLink(id, { title, url, description, tags, category }, { silent });
 
     // Sync to Cloud (Fire and Forget or Await?)
     // Dashboard code awaited it but caught errors.
@@ -226,6 +250,11 @@ export const linkController = {
 
     const updated = (await storageAdapter.getLinks()).find(c => String(c.id) === String(id));
     if (!updated) throw new Error('Link not found after update');
+    
+    if (this._view) {
+        this._view.updateSingleCardUI(id, updated);
+    }
+
     return updated;
   },
 
@@ -237,7 +266,12 @@ export const linkController = {
     const links = await storageAdapter.getLinks();
     const data = links.find(c => String(c.id) === String(id));
     
-    await storageAdapter.deleteLink(id);
+    const silent = !!this._view;
+    await storageAdapter.deleteLink(id, { silent });
+
+    if (this._view) {
+        this._view.removeSingleCardUI(id);
+    }
 
     if (useCloud && data?.url) {
         try {
