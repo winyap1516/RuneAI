@@ -43,20 +43,38 @@ js/
 
 为了避免 "Big Bang" 重构导致的系统瘫痪，建议分 4 个步骤（PR）进行迁移。
 
-### Phase 1: 提取模板 (Templates Extraction)
+### Phase 1: 提取模板 (Templates Extraction) ✅ **已完成**
 *   **目标**: 将 `dashboard.js` 中所有 `createCard`, `renderDigestView` 中的 HTML 拼接逻辑移出。
 *   **文件**:
-    *   创建 `js/templates/card.js`
-    *   创建 `js/templates/digestCard.js`
+    *   创建 `js/templates/card.js` ✅
+    *   创建 `js/templates/digestCard.js` ✅
+    *   创建 `js/utils/ui-helpers.js` ✅
 *   **PR Scope**: 仅移动函数，保持逻辑不变，`dashboard.js` 引入并调用新模板。
 *   **验收**: 界面渲染无变化。
+*   **完成时间**: 2025年11月30日
+*   **审查状态**: ✅ Arch: PASS
 
-### Phase 2: 提取服务逻辑 (Service Logic Extraction)
-*   **目标**: 消除 `dashboard.js` 中的 AI 生成、数据库读写逻辑。
-*   **任务**:
-    *   确保 `js/services/ai.js` 包含完整的 `createDigestForWebsite` 逻辑（含错误处理、日志）。
-    *   `dashboard.js` 中的 `Generate Now` 和 `Generate Daily` 改为调用 Service。
-*   **PR Scope**: 重构业务逻辑，不涉及 UI 变动。
+### Phase 2: 提取服务逻辑 (Service Logic Extraction) 🔄 **进行中**
+*   **目标**: 消除 `dashboard.js` 中的 AI 生成、数据库读写逻辑，建立清晰的Service层。
+*   **核心任务**:
+  1. **创建 AI 服务** (`js/services/ai.js`):
+     *   封装 `createDigestForWebsite()` 完整逻辑
+     *   包含错误处理、重试机制、日志记录
+     *   提供统一的AI调用接口
+  2. **创建存储服务** (`js/services/storage.js`):
+     *   抽象存储操作（CRUD、查询、订阅管理）
+     *   提供数据转换和验证
+     *   处理本地缓存与云端同步
+  3. **重构业务调用**:
+     *   `Generate Now` 按钮 → 调用 `aiService.generateSingle()`
+     *   `Generate Daily` 功能 → 调用 `aiService.generateBatch()`
+     *   所有存储操作 → 通过 `storageService` 进行
+*   **验收标准**:
+  *   dashboard.js 中无直接AI调用代码
+  *   所有存储操作通过Service层
+  *   功能行为与拆分前完全一致
+  *   新增Service函数有完整JSDoc文档
+*   **PR Scope**: 仅重构业务逻辑，不涉及UI变动，保持事件委托机制
 
 ### Phase 3: 拆分视图与控制器 (View & Controller Split)
 *   **目标**: 拆解 `dashboard.js` 主体。
@@ -71,7 +89,101 @@ js/
     *   将 `initDashboard` 瘦身或重命名为 `app.js`。
     *   完善新模块的 JSDoc 注释。
 
-## 4. 接口定义示例
+## 4. Phase 2 实施指南 (Phase 2 Implementation Guide)
+
+### 4.1 Service 层设计原则
+
+**AI Service (`js/services/ai.js`)**
+```javascript
+/**
+ * AI摘要生成服务
+ * 提供统一的AI调用接口，包含错误处理和重试机制
+ */
+export const aiService = {
+  /**
+   * 为单个网站生成摘要
+   * @param {Object} params - 生成参数
+   * @param {string} params.url - 网站URL
+   * @param {string} params.userId - 用户ID
+   * @param {number} params.linkId - 链接ID
+   * @returns {Promise<Object>} 摘要结果
+   */
+  async generateSingle({ url, userId, linkId }) {
+    // 实现逻辑：调用外部AI服务，处理错误，记录日志
+  },
+
+  /**
+   * 批量生成摘要（每日定时任务）
+   * @param {Array} subscriptions - 订阅列表
+   * @returns {Promise<Array>} 生成结果数组
+   */
+  async generateBatch(subscriptions) {
+    // 实现逻辑：批量处理，失败重试，结果汇总
+  }
+};
+```
+
+**Storage Service (`js/services/storage.js`)**
+```javascript
+/**
+ * 存储服务
+ * 抽象所有存储操作，提供统一的数据访问接口
+ */
+export const storageService = {
+  // 链接管理
+  async getLinks(filters = {}) { ... },
+  async createLink(linkData) { ... },
+  async updateLink(id, updates) { ... },
+  async deleteLink(id) { ... },
+  
+  // 订阅管理
+  async getSubscriptions() { ... },
+  async createSubscription(subData) { ... },
+  async updateSubscription(id, updates) { ... },
+  async deleteSubscription(id) { ... },
+  
+  // 摘要管理
+  async getDigests(options = {}) { ... },
+  async createDigest(digestData) { ... },
+  async updateDigest(id, updates) { ... },
+  async deleteDigest(id) { ... }
+};
+```
+
+### 4.2 重构步骤 (Refactoring Steps)
+
+1. **创建 Service 文件** (1-2小时)
+   - 新建 `js/services/ai.js` 和 `js/services/storage.js`
+   - 从 `dashboard.js` 中提取相关函数
+   - 添加完整的 JSDoc 注释
+
+2. **重构 AI 调用逻辑** (2-3小时)
+   - 找到所有 `mockAIFromUrl` 和 `createDigestForWebsite` 调用
+   - 替换为 `aiService.generateSingle()` 调用
+   - 确保错误处理逻辑完整
+
+3. **重构存储操作** (3-4小时)
+   - 替换所有 `storageAdapter` 直接调用
+   - 通过 `storageService` 进行数据操作
+   - 保持数据转换和验证逻辑
+
+4. **测试验证** (1-2小时)
+   - 手动测试所有功能：添加链接、生成摘要、订阅管理
+   - 验证错误处理是否正常工作
+   - 检查控制台是否有异常
+
+### 4.3 验收检查清单 (Acceptance Checklist)
+
+- [ ] `dashboard.js` 中无直接AI调用代码
+- [ ] 所有存储操作通过Service层进行
+- [ ] Service函数有完整的JSDoc文档
+- [ ] 错误处理机制正常工作
+- [ ] 功能行为与拆分前完全一致
+- [ ] 控制台无新的警告或错误
+
+---
+
+## 5. 接口定义示例
 
 ### `templates/card.js`
 ```javascript

@@ -34,14 +34,28 @@ graph TD
 
 ## 3. 模块划分 (Module Breakdown)
 
-### 3.1 前端表现层 (Presentation Layer)
+### 3.1 前端表现层 (Presentation Layer) - Yang 层
+
+**✅ 已完成模块 (Phase 1)**
+*   **Templates**: 纯函数组件，返回 HTML 字符串
+    *   ✅ `templates/card.js`: 链接卡片模板 (已完成)
+    *   ✅ `templates/digestCard.js`: 摘要卡片模板 (已完成)
+    *   ✅ `templates/ui-helpers.js`: UI 辅助函数 (已完成)
+
+**🔄 待拆分模块 (Phase 2-3)**
 *   **Entry**: `main.js` (应用引导，路由分发)
-*   **Views**: 负责 DOM 渲染与事件绑定（拆分自 `dashboard.js`）。
-    *   `views/linksView.js`: 链接卡片列表、筛选、搜索。
-    *   `views/digestView.js`: 摘要日报视图、详情弹窗。
-*   **Templates**: 纯函数组件，返回 HTML 字符串。
-    *   `templates/card.js`: 链接卡片模板。
-    *   `templates/digestCard.js`: 摘要卡片模板。
+*   **Views**: 负责 DOM 渲染与事件绑定（拆分自 `dashboard.js`）
+    *   🔄 `views/linksView.js`: 链接卡片列表、筛选、搜索
+    *   🔄 `views/digestView.js`: 摘要日报视图、详情弹窗
+    *   🔄 `views/modalView.js`: 模态框管理
+    *   🔄 `views/sidebarView.js`: 侧边栏状态管理
+
+**📋 设计原则 (Yang 层原则)**
+*   **纯函数优先**: Templates 必须是纯函数（无副作用）
+*   **事件委托**: Views 使用事件委托，避免直接 DOM 操作
+*   **状态最小化**: 尽量将状态提升到 Controller 层
+*   **响应式**: 支持主题切换、响应式布局
+*   **动画流畅**: 使用 CSS 过渡，避免 JS 动画阻塞
 
 ### 3.2 业务逻辑层 (Logic Layer)
 *   **Controllers**: 处理用户输入，协调 Model 与 View。
@@ -84,7 +98,7 @@ graph TD
 | **P0** | **FIX-002** | 持久化冷却状态 (Cooldown Persistence) | Solo | ✅ Done |
 | **P1** | **FEAT-001** | 明确区分 Manual vs Daily 摘要生成逻辑 | Solo | ✅ Done |
 | **P1** | **REFACTOR-001** | 提取 `constants.js` 并消除硬编码字符串 | Solo | ✅ Done |
-| **P2** | **REFACTOR-002** | **将摘要生成逻辑统一迁移至 `ai.js`** (消除 Dashboard 重复代码) | Solo | To Do |
-| **P2** | **ARCH-001** | **拆分 `dashboard.js` - 第一阶段 (提取 Templates)** | Solo | To Do |
-| **P2** | **ARCH-002** | **拆分 `dashboard.js` - 第二阶段 (提取 Controllers)** | Solo | To Do |
+| **P2** | **REFACTOR-002** | **将摘要生成逻辑统一迁移至 `ai.js`** (消除 Dashboard 重复代码) | Solo | 🔄 In Progress |
+| **P2** | **ARCH-001** | **拆分 `dashboard.js` - 第一阶段 (提取 Templates)** | Solo | ✅ **Completed** |
+| **P2** | **ARCH-002** | **拆分 `dashboard.js` - 第二阶段 (提取 Controllers)** | Solo | 📋 Ready |
 | **P3** | **PERF-001** | 为 Links 列表实现分页加载 (IndexedDB 游标) | Solo | To Do |
