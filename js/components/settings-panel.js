@@ -35,14 +35,25 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
   
   // 2. 获取所有卡片链接，用于识别孤儿订阅
   const links = storageAdapter.getLinks();
-  const linkedUrls = new Set(links.map(l => normalizeUrl(l.url)));
+  // P0: Subscription ID-first logic
+  // We match by ID if available.
+  const linkIdSet = new Set(links.map(l => l.id));
+  const linkUrlSet = new Set(links.map(l => normalizeUrl(l.url)));
 
   // 3. 分类：正常订阅 vs 孤儿订阅
   const linkedSubs = [];
   const orphanSubs = [];
 
   allSubs.forEach(sub => {
-    if (linkedUrls.has(normalizeUrl(sub.url))) {
+    let isLinked = false;
+    if (sub.linkId && linkIdSet.has(sub.linkId)) {
+        isLinked = true;
+    } else if (!sub.linkId && linkUrlSet.has(normalizeUrl(sub.url))) {
+        // Fallback for legacy or partial migration
+        isLinked = true;
+    }
+    
+    if (isLinked) {
       linkedSubs.push(sub);
     } else {
       orphanSubs.push(sub);

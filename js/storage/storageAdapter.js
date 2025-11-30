@@ -59,6 +59,58 @@ export const storageAdapter = {
   },
 
   // =========================
+  // Migration
+  // =========================
+  migrateToIdBased() {
+    // 1. Migrate Links to ID-first
+    const links = this.getLinks();
+    let linksChanged = false;
+    const linkMap = new Map();
+
+    links.forEach(link => {
+      if (!link.id) {
+        link.id = generateId();
+        linksChanged = true;
+      }
+      // Ensure internal fields
+      if (!link.previousUrls) link.previousUrls = [];
+      
+      linkMap.set(normalizeUrl(link.url), link.id);
+      // Also map raw url just in case
+      if (link.url) linkMap.set(link.url, link.id);
+    });
+
+    if (linksChanged) {
+      this.saveLinks(links);
+      console.log('Migration: Links updated with IDs');
+    }
+
+    // 2. Migrate Subscriptions to use linkId
+    const subs = this.getSubscriptions();
+    let subsChanged = false;
+
+    subs.forEach(sub => {
+      if (!sub.linkId) {
+        // Try to find matching link
+        const linkId = linkMap.get(normalizeUrl(sub.url)) || linkMap.get(sub.url);
+        if (linkId) {
+          sub.linkId = linkId;
+          subsChanged = true;
+        } else {
+          // Orphan subscription, keep as is but flag it?
+          // User requirement says: "store subscription { linkId, frequency, ... }"
+          // If no link, we can't store linkId. We leave it null.
+        }
+      }
+    });
+
+    if (subsChanged) {
+      this.saveSubscriptions(subs);
+      console.log('Migration: Subscriptions updated with linkIds');
+    }
+  },
+
+  // =========================
   // Links (Cards) Operations
   // =========================
 
@@ -82,6 +134,7 @@ export const storageAdapter = {
     const newLink = {
       id: link.id || generateId(),
       created_at: Date.now(),
+      previousUrls: [],
       ...link
     };
     links.unshift(newLink); // 新增在头部
@@ -100,7 +153,18 @@ export const storageAdapter = {
     const idx = links.findIndex(l => l.id === id);
     if (idx === -1) return null;
 
-    const updated = { ...links[idx], ...patch, updated_at: Date.now() };
+    const existing = links[idx];
+    const updated = { ...existing, ...patch, updated_at: Date.now() };
+
+    // Handle URL change logic (P1 requirement)
+    if (patch.url && patch.url !== existing.url) {
+        if (!updated.previousUrls) updated.previousUrls = [];
+        // Avoid duplicates in history
+        if (!updated.previousUrls.includes(existing.url)) {
+            updated.previousUrls.push(existing.url);
+        }
+    }
+
     links[idx] = updated;
     this.saveLinks(links); // triggers notify
 
@@ -122,20 +186,12 @@ export const storageAdapter = {
     this.saveLinks(newLinks); // triggers notify
 
     // 2. 删除关联 Subscription (如果有)
-    // 需要通过 URL 匹配
-    // 注意：这里可能需要通知，但 deleteSubscriptionByUrl 会负责通知
-    if (target.url) {
-      // 默认行为：删除卡片时不自动删除订阅，除非调用者明确要求
-      // 但此处原逻辑是自动删除。根据用户需求：
-      // "如果删除卡片也要同时删除对应订阅...或至少弹提醒"
-      // 为了保持 API 行为一致，我们这里先保留原逻辑（彻底清理），或者改为保留订阅（孤儿）。
-      // 用户需求中提到“建议首发改为手动列出并可一键 Unsubscribe”，暗示孤儿是可以存在的。
-      // 但为了保持数据清洁，如果用户是在 Dashboard 点 Delete，通常期望全删。
-      // 不过为了安全，我们这里只删卡片。调用者（Dashboard UI）应该负责询问用户并调用 unsubscribe。
-      // 修改：不再自动调用 deleteSubscriptionByUrl(target.url);
-      // 让 UI 层决定是否调用 unsubscribe。
-    }
-
+    // Now based on ID logic, but user said:
+    // "delete/unsubscribe operate on link.id"
+    // We assume explicit unsubscribe is required by UI, but if link is gone,
+    // the subscription becomes an orphan.
+    // The UI handles the choice.
+    
     return true;
   },
 
@@ -155,25 +211,33 @@ export const storageAdapter = {
   // 根据 Link ID 开启订阅
   subscribeToLink(linkId) {
     const link = this.getLinks().find(l => l.id === linkId);
-    if (!link || !link.url) throw new Error('Link not found or invalid URL');
+    if (!link) throw new Error('Link not found');
 
     const subs = this.getSubscriptions();
-    const nUrl = normalizeUrl(link.url);
     
-    let sub = subs.find(s => normalizeUrl(s.url) === nUrl);
+    // Find by linkId first
+    let sub = subs.find(s => s.linkId === linkId);
     
+    // Fallback: check by URL if migration missed something or dual state
+    if (!sub && link.url) {
+        const nUrl = normalizeUrl(link.url);
+        sub = subs.find(s => !s.linkId && normalizeUrl(s.url) === nUrl);
+        if (sub) {
+            // Fix it now
+            sub.linkId = linkId;
+        }
+    }
+
     if (sub) {
       // 已存在，启用
       sub.enabled = true;
       sub.title = link.title || sub.title; // 更新标题
+      sub.url = link.url; // Update URL in case it changed
     } else {
       // 不存在，创建
       sub = {
         id: generateId(),
-        url: normalizeUrl(link.url), // Store normalized or raw? Better store raw if available, but for matching we use normalized.
-        // Actually, let's store the raw url from link for display, but matching uses normalized.
-        // Wait, if we normalize here, we lose the original casing for display.
-        // Let's store link.url (raw) but ensure we can match it later.
+        linkId: link.id,
         url: link.url, 
         title: link.title || link.url,
         frequency: 'daily',
@@ -189,12 +253,8 @@ export const storageAdapter = {
 
   // 根据 Link ID 取消订阅 (仅 disable，不删除)
   unsubscribeFromLink(linkId) {
-    const link = this.getLinks().find(l => l.id === linkId);
-    if (!link || !link.url) return false;
-
     const subs = this.getSubscriptions();
-    const nUrl = normalizeUrl(link.url);
-    const sub = subs.find(s => normalizeUrl(s.url) === nUrl);
+    const sub = subs.find(s => s.linkId === linkId);
 
     if (sub) {
       sub.enabled = false;
@@ -216,8 +276,18 @@ export const storageAdapter = {
     return false;
   },
 
-  // 彻底删除订阅
+  // 彻底删除订阅 (ID based)
+  deleteSubscription(subId) {
+    const subs = this.getSubscriptions();
+    const newSubs = subs.filter(s => s.id !== subId);
+    if (newSubs.length !== subs.length) {
+        this.saveSubscriptions(newSubs);
+    }
+  },
+  
+  // Deprecated but kept for compatibility if needed, now redirects to ID logic if possible
   deleteSubscriptionByUrl(url) {
+      // Legacy support or orphan cleanup
     const subs = this.getSubscriptions();
     const nUrl = normalizeUrl(url);
     const leftSubs = subs.filter(s => normalizeUrl(s.url) !== nUrl);
@@ -245,6 +315,10 @@ export const storageAdapter = {
 
   addDigest(digest) {
     const digests = this.getDigests();
+    // P0: Digest generated successfully behavior
+    // If digest has an ID, we assume it's ready.
+    // The new requirement says: { id, type: 'single', siteIds: [link.id], summaries: {...}, createdAt }
+    
     if (digest.merged && digest.date) {
       const existingIdx = digests.findIndex(d => d.merged === true && d.date === digest.date);
       if (existingIdx !== -1) {
@@ -310,10 +384,20 @@ export const storageAdapter = {
   // =========================
   // Helper for Subscription Status
   // =========================
-  isSubscribed(linkUrl) {
+  isSubscribed(identifier) {
+    // Identifier can be linkId (preferred) or url (legacy fallback)
     const subs = this.getSubscriptions();
-    const nUrl = normalizeUrl(linkUrl);
-    return subs.some(s => s.enabled !== false && normalizeUrl(s.url) === nUrl);
+    
+    // Check by ID
+    if (subs.some(s => s.enabled !== false && s.linkId === identifier)) return true;
+    
+    // Check by URL (Legacy)
+    const nUrl = normalizeUrl(identifier);
+    if (nUrl) {
+        return subs.some(s => s.enabled !== false && normalizeUrl(s.url) === nUrl);
+    }
+    
+    return false;
   },
 
   // =========================
