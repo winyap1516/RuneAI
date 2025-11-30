@@ -1,7 +1,11 @@
-import { $, $$, fadeIn, slideToggle, on, openModal, closeModal, show, hide, mountHTML, delegate, openConfirm, openTextPrompt } from "../utils/dom.js";
+import { $, $$, fadeIn, slideToggle, on, openModal, closeModal, show, hide, mountHTML, delegate, openConfirm, openTextPrompt, openInfoModal } from "../utils/dom.js";
 import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from "../../mockFunctions.js";
 import storageAdapter from "../storage/storageAdapter.js";
 import { normalizeUrl } from "../utils/url.js";
+import { USER_ID, DIGEST_TYPE, LIMITS, COOLDOWN } from "../config/constants.js";
+import { createCard } from "../templates/card.js";
+import { createDigestCard } from "../templates/digestCard.js";
+import { escapeHTML, getTagClass, buildIconHTML } from "../utils/ui-helpers.js";
 
 // Listen for storage events to update UI
 storageAdapter.subscribe((event) => {
@@ -14,46 +18,9 @@ storageAdapter.subscribe((event) => {
 // 🎴 统一卡片模板与辅助函数
 // =============================
 
-// Safely escape HTML to prevent malicious script injection
-function escapeHTML(str = "") {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 // Check if a URL is subscribed
-function isUrlSubscribed(url = '') {
+async function isUrlSubscribed(url = '') {
   return storageAdapter.isSubscribed(url);
-}
-
-// Get Tailwind color classes based on tag keywords (Auto-color system)
-function getTagClass(tag = "") {
-  const t = tag.toLowerCase().trim();
-  if (!t) return "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300";
-  
-  const colors = [
-    "bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300",
-    "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
-    "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-300",
-    "bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-300",
-    "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300",
-    "bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300",
-    "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300",
-    "bg-teal-100 text-teal-600 dark:bg-teal-500/20 dark:text-teal-300",
-    "bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300",
-    "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300"
-  ];
-
-  // Simple hash function for consistent color mapping
-  let hash = 0;
-  for (let i = 0; i < t.length; i++) {
-    hash = t.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
 }
 
 // Unified button loading state toggle
@@ -69,64 +36,7 @@ function setLoading(btn, on, text = 'Processing…') {
   }
 }
 
-// Build card icon
-function buildIconHTML({ title = "", url = "" } = {}) {
-  const initial = (title || url || "U").trim().charAt(0).toUpperCase() || "U";
-  return `
-    <div class="rune-card-icon w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center text-base font-bold">
-      ${escapeHTML(initial)}
-    </div>
-  `;
-}
-
-// Unified card template
-export function createCard(data = {}) {
-  const { id = "", title = "Untitled", description = "AI-generated summary placeholder…", category = "", tags = [], url = "" } = data;
-  const tagsHtml = (Array.isArray(tags) ? tags : []).map((raw) => {
-    const label = String(raw).trim();
-    const colorCls = getTagClass(label);
-    return `<span class="rune-tag ${colorCls} rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">${escapeHTML(label)}</span>`;
-  }).join("");
-
-  return `
-    <div class="rune-card group relative rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all" data-card-id="${escapeHTML(id)}" data-category="${escapeHTML(category)}">
-      <div class="rune-card-head flex items-start justify-between gap-3">
-        <div class="flex items-center gap-3">
-          ${buildIconHTML({ title, url })}
-          <div class="rune-card-title text-base font-bold">${escapeHTML(title)}</div>
-        </div>
-        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/10 rounded p-1 transition-colors z-10" title="More">more_horiz</button>
-      </div>
-      
-      <!-- Internal Menu -->
-      <div class="rune-card-menu hidden absolute top-10 right-2 z-[9999] w-32 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 text-sm flex flex-col animate-in fade-in zoom-in-95 duration-100">
-        <button class="menu-edit w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2">
-          <span class="material-symbols-outlined text-base">edit</span> Edit
-        </button>
-        <button class="menu-delete w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
-          <span class="material-symbols-outlined text-base">delete</span> Delete
-        </button>
-      </div>
-
-      <div class="rune-card-desc text-sm mt-2 text-text-secondary-light dark:text-text-secondary-dark">${escapeHTML(description)}</div>
-      <div class="rune-card-divider my-3"></div>
-      <div class="rune-card-tags flex flex-wrap gap-2">
-        ${tagsHtml}
-      </div>
-      <div class="mt-3 card-actions flex items-center justify-end gap-2">
-        ${(() => { 
-           const nurl = normalizeUrl(url); 
-           // We start with Subscribe button. The state will be updated by markSubscribedButtons
-           return `<button class="btn-subscribe btn btn-small btn-muted" data-url="${escapeHTML(nurl)}">Subscribe</button>`; 
-        })()}
-        <div class="card-controls hidden items-center gap-2">
-           <span class="text-sm font-bold text-primary px-2">Subscribed</span>
-           <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="">Generate Now</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
+export { createCard };
 
 // =============================
 // 💾 本地存储与数据模型（适配器模式）
@@ -135,8 +45,8 @@ export function createCard(data = {}) {
 const RESERVED_CATEGORIES = new Set(['All Links']);
 
 // Mark subscription button states
-function markSubscribedButtons() {
-  const subs = storageAdapter.getSubscriptions();
+async function markSubscribedButtons() {
+  const subs = await storageAdapter.getSubscriptions();
   // P0: Subscription ID-first mapping
   // We prefer matching by linkId. Fallback to URL.
   
@@ -144,7 +54,7 @@ function markSubscribedButtons() {
   if (!container) return;
   
   const btns = Array.from(container.querySelectorAll('.btn-subscribe'));
-  btns.forEach((b) => {
+  for (const b of btns) {
     const cardEl = b.closest('.rune-card');
     const cardId = cardEl?.getAttribute('data-card-id');
     
@@ -161,9 +71,8 @@ function markSubscribedButtons() {
     if (!isSubbed) {
         const rawUrl = b.getAttribute('data-url') || '';
         if (rawUrl) {
-            isSubbed = storageAdapter.isSubscribed(rawUrl);
+            isSubbed = await storageAdapter.isSubscribed(rawUrl);
             if (isSubbed) {
-                // Find the sub object for data-sub-id
                 const nUrl = normalizeUrl(rawUrl);
                 sub = subs.find(s => s.enabled !== false && normalizeUrl(s.url) === nUrl);
             }
@@ -204,7 +113,7 @@ function markSubscribedButtons() {
       onceBtn.dataset.subId = sub?.id || '';
       onceBtn.dataset.linkId = cardId || ''; // Pass linkId for Generate Now
     }
-  });
+  }
 }
 
 // Expose for external updates (e.g. from Settings)
@@ -214,10 +123,10 @@ function syncCardControlsVisibility() {
   markSubscribedButtons(); // Re-use the main logic
 }
 
-function findCardByUrl(url = '') {
+async function findCardByUrl(url = '') {
   const target = String(url).trim();
   if (!target) return null;
-  const cards = storageAdapter.getLinks();
+  const cards = await storageAdapter.getLinks();
   return cards.find(c => String(c.url).trim() === target) || null;
 }
 
@@ -384,6 +293,112 @@ function syncEditCategorySelect() {
   if (!sel) return;
   const categories = storageAdapter.getCategories();
   sel.innerHTML = '<option value="">Select Category</option>' + categories.filter(c => c !== 'All Links').map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('') + '<option value="__new__">+ New category…</option>';
+}
+
+// Configuration
+const DAILY_LIMIT_SINGLE = LIMITS.SINGLE_GENERATE;
+const DAILY_LIMIT_DAILY = LIMITS.DAILY_GENERATE;
+const COOLDOWN_MS = COOLDOWN.DURATION_MS;
+
+// Helper: Check and update button state
+function checkAndApplyCooldown(btn, type, linkId = null) {
+  if (!btn) return;
+  const userId = storageAdapter.getUser()?.id || USER_ID.GUEST;
+  // 开发者账号(local-dev)拥有999次额度
+  const isDev = userId === USER_ID.DEFAULT;
+  const baseLimit = (type === 'single' || type === DIGEST_TYPE.MANUAL) ? DAILY_LIMIT_SINGLE : DAILY_LIMIT_DAILY;
+  const limit = isDev ? LIMITS.DEV_LIMIT : baseLimit;
+  
+  // 1. Check Daily Limit
+  const todayCount = storageAdapter.getDailyUsageCount(userId, type); 
+  const remaining = Math.max(0, limit - todayCount);
+  
+  // Update Today Left Label if it exists next to button or update tooltip
+  // Strategy: find or create a sibling element for text
+  let label = btn.parentNode.querySelector('.limit-label');
+  if (!label && btn.id === 'digestMockGenerate') {
+       // Special case for digest button
+       label = document.getElementById('digestLimitLabel');
+  } else if (!label && btn.classList.contains('btn-generate-once')) {
+      // For card buttons, maybe tooltip is better or small text below?
+      // User said: "In the card... Display 'Today left: X / Y' next to each button."
+      // Let's add it if missing
+      label = btn.parentNode.querySelector('.limit-text');
+      if (!label) {
+          label = document.createElement('span');
+          label.className = 'limit-text text-[10px] text-text-secondary-light dark:text-text-secondary-dark ml-2';
+          btn.parentNode.appendChild(label);
+      }
+  }
+  
+  if (label) {
+      label.textContent = `Today left: ${remaining}/${limit}`;
+  }
+
+  if (todayCount >= limit) {
+    btn.disabled = true;
+    btn.textContent = 'Limit Reached';
+    btn.title = `Daily limit of ${limit} reached.`;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    return;
+  }
+
+  // 2. Check Cooldown
+  const lastTime = storageAdapter.getLastGenerationTime(linkId, type);
+  const now = Date.now();
+  if (now - lastTime < COOLDOWN_MS) {
+    const remainingTime = Math.ceil((COOLDOWN_MS - (now - lastTime)) / 1000);
+    btn.disabled = true;
+    btn.textContent = `Retry in ${remainingTime}s`;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    // Start countdown
+    if (!btn.dataset.timer) {
+      btn.dataset.timer = '1';
+      const interval = setInterval(() => {
+        const n = Date.now();
+        if (n - lastTime >= COOLDOWN_MS) {
+          clearInterval(interval);
+          delete btn.dataset.timer;
+          // Re-check
+          checkAndApplyCooldown(btn, type, linkId);
+        } else {
+          const r = Math.ceil((COOLDOWN_MS - (n - lastTime)) / 1000);
+          btn.textContent = `Retry in ${r}s`;
+        }
+      }, 1000);
+    }
+  } else {
+    // Reset if not loading
+    if (btn.dataset.loading !== '1') {
+        btn.disabled = false;
+        btn.textContent = (type === 'single' || type === DIGEST_TYPE.MANUAL) ? 'Generate Now' : "Generate Today's Digest";
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        delete btn.dataset.timer;
+    }
+  }
+}
+
+function updateDailyLimitUI() {
+  const userId = storageAdapter.getUser()?.id || USER_ID.GUEST;
+  
+  // Update Digest UI
+  const digestBtn = document.getElementById('digestMockGenerate');
+  if (digestBtn) {
+      checkAndApplyCooldown(digestBtn, DIGEST_TYPE.DAILY);
+  }
+  
+  // Update all single buttons
+  const container = document.getElementById('cardsContainer');
+  if (container) {
+      const btns = container.querySelectorAll('.btn-generate-once');
+      btns.forEach(b => {
+          const linkId = b.getAttribute('data-link-id');
+          // 修复：确保linkId为数字类型，以便正确查询历史记录
+          const numericLinkId = linkId ? (typeof linkId === 'string' ? parseInt(linkId, 10) : linkId) : null;
+          checkAndApplyCooldown(b, DIGEST_TYPE.MANUAL, numericLinkId);
+      });
+  }
 }
 
 export function initDashboard() {
@@ -586,12 +601,12 @@ export function initDashboard() {
   function renderDefaultMain() {
     if (mainEl) {
       mainEl.innerHTML = defaultMainHTML;
-      try { seedDemoCards(); } catch {}
-      markSubscribedButtons();
+      try { loadAndRenderLinks(); } catch {}
+
     }
   }
 
-  function renderDigestView() {
+async function renderDigestView() {
     if (!mainEl) return;
     mountHTML(mainEl, `
       <section class="p-6">
@@ -611,7 +626,7 @@ export function initDashboard() {
         <div id="digestList" class="digest-grid"></div>
       </section>
     `);
-    const subs = storageAdapter.getSubscriptions();
+    const subs = await storageAdapter.getSubscriptions();
     const sel = document.getElementById('digestSub');
     if (sel) {
       sel.innerHTML = '<option value="">All Subscriptions</option>' + subs.map(s => `<option value="${escapeHTML(s.id)}">${escapeHTML(s.title||s.url)}</option>`).join('');
@@ -620,15 +635,64 @@ export function initDashboard() {
     const dateEl = document.getElementById('digestDate');
     const mockBtn = document.getElementById('digestMockGenerate');
     const searchEl = document.getElementById('digestSearch');
-    const render = () => {
-      const all = storageAdapter.getDigests();
+    const render = async () => {
+      const rawDigests = await storageAdapter.getDigests();
+      const links = await storageAdapter.getLinks();
+      const linkMap = new Map(links.map(l => [l.id, l]));
+      
+      // 聚合逻辑：将 IndexedDB 的扁平记录聚合为 UI 需要的 Daily/Single 格式
+      const groups = {}; // key: date_type, value: mergedObject
+      
+      rawDigests.forEach(d => {
+         const link = linkMap.get(d.website_id);
+         if (!link) return; // Skip if link deleted
+         
+         const dateStr = new Date(d.created_at || Date.now()).toISOString().slice(0,10);
+         const type = d.type || DIGEST_TYPE.DAILY;
+         // 对于 Daily，按日期聚合；对于 Single，每条独立（或者按 digest_id 如果有）
+         // 这里简单起见：Daily 按日期聚合，Single 独立展示
+         
+         let groupKey;
+         if (type === DIGEST_TYPE.DAILY) {
+             groupKey = `daily_${dateStr}`;
+         } else {
+             groupKey = `single_${d.digest_id || d.created_at}_${d.website_id}`;
+         }
+         
+         if (!groups[groupKey]) {
+             groups[groupKey] = {
+                 id: groupKey,
+                 date: dateStr,
+                 merged: type === DIGEST_TYPE.DAILY,
+                 type: type,
+                 title: type === DIGEST_TYPE.DAILY ? `AI Digest · ${dateStr}` : (link.title || 'Single Digest'),
+                 created_at: d.created_at,
+                 updated_at: d.created_at,
+                 entries: [],
+                 meta: { trigger: 'user' } // Default
+             };
+         }
+         
+         groups[groupKey].entries.push({
+             subscriptionId: link.id,
+             url: normalizeUrl(link.url),
+             title: link.title || link.url,
+             summary: d.summary || '',
+             website_id: d.website_id,
+             raw_digest_id: d.digest_id
+         });
+      });
+      
+      const all = Object.values(groups);
+
       const date = dateEl?.value || '';
       const siteId = sel?.value || '';
       const keyword = (searchEl?.value || '').trim().toLowerCase();
-      const merged = all.filter(d => d && d.merged === true && (!date || d.date === date)).filter(d => {
+      
+      const merged = all.filter(d => (!date || d.date === date)).filter(d => {
         if (!siteId && !keyword) return true;
         const entries = Array.isArray(d.entries) ? d.entries : [];
-        const bySite = !siteId || entries.some(e => e.subscriptionId === siteId);
+        const bySite = !siteId || entries.some(e => String(e.subscriptionId) === String(siteId));
         const byText = !keyword || entries.some(e => (e.title||'').toLowerCase().includes(keyword) || (e.summary||'').toLowerCase().includes(keyword));
         return bySite && byText;
       }).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
@@ -636,117 +700,101 @@ export function initDashboard() {
       listEl.innerHTML = merged.length ? '' : '<div class="col-span-full text-sm text-text-secondary-light dark:text-text-secondary-dark">No digests yet</div>';
       
       merged.forEach(d => {
-        const siteCount = Number(d.siteCount || (Array.isArray(d.entries)?d.entries.length:0));
-        const entries = Array.isArray(d.entries) ? d.entries : [];
-        const ts = d.updated_at || d.created_at || Date.now();
-        const tsText = new Date(ts).toLocaleString();
-        const card = document.createElement('div');
-        card.className = 'digest-card bg-surface-light dark:bg-surface-dark rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer relative group flex flex-col h-full';
-        card.setAttribute('data-digest-id', d.id);
-        
-        const maxSites = 5;
-        const shownEntries = entries.slice(0, maxSites);
-        const moreCount = entries.length > maxSites ? entries.length - maxSites : 0;
-
-        card.innerHTML = `
-          <div class="flex justify-between items-start mb-3">
-            <div>
-               <div class="font-bold text-lg text-text-primary-light dark:text-text-primary-dark mb-1">${escapeHTML(d.title)}</div>
-               <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">${escapeHTML(d.date)} · 1 day</div>
-            </div>
-            <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute top-3 right-3">
-               <button class="digest-delete p-1.5 rounded-full bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-600" data-id="${escapeHTML(d.id)}" title="Delete">
-                 <span class="material-symbols-outlined text-lg">delete</span>
-               </button>
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between mb-4">
-             <div class="text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark bg-gray-100 dark:bg-white/5 px-2 py-1 rounded">ID: ${escapeHTML(d.id).slice(0, 8)}...</div>
-             <div class="text-xs font-semibold text-primary">${siteCount} sites</div>
-          </div>
-
-          <div class="flex-1 flex flex-col gap-2">
-             ${shownEntries.map(e => {
-               const initial = (e.title || e.url || 'U').charAt(0).toUpperCase();
-               return `
-                <div class="flex items-center gap-2 p-1 rounded hover:bg-gray-50 dark:hover:bg-white/5">
-                   <div class="w-6 h-6 shrink-0 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold border border-indigo-100 dark:border-indigo-800">
-                     ${escapeHTML(initial)}
-                   </div>
-                   <div class="text-xs truncate text-text-secondary-light dark:text-text-secondary-dark flex-1" title="${escapeHTML(e.title||e.url)}">
-                     ${escapeHTML(e.title||e.url)}
-                   </div>
-                </div>
-               `;
-             }).join('')}
-             ${moreCount > 0 ? `<div class="text-xs text-text-secondary-light dark:text-text-secondary-dark pl-9">+${moreCount} more sites...</div>` : ''}
-          </div>
-          <div class="mt-3 flex items-center justify-end gap-3">
-            <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Generated at: ${escapeHTML(tsText)}</div>
-            <button class="digest-view-btn btn btn-small btn-outline" data-id="${escapeHTML(d.id)}">
-              <span class="material-symbols-outlined text-base">chevron_right</span> View Summary
-            </button>
-          </div>
-        `;
-        listEl.appendChild(card);
+        listEl.insertAdjacentHTML('beforeend', createDigestCard(d));
       });
     };
     render();
+    // 修复：监听摘要变化事件，自动刷新UI
+    storageAdapter.subscribe((e) => {
+        if (e.type === 'digests_changed') render();
+    });
+    
     if (dateEl) on(dateEl, 'change', render);
     if (sel) on(sel, 'change', render);
     if (searchEl) on(searchEl, 'input', render);
     if (mockBtn) on(mockBtn, 'click', async () => {
-      const subsAll = storageAdapter.getSubscriptions().filter(s=>s.enabled!==false);
+      // P0: Check Limits
+      const userId = storageAdapter.getUser()?.id || USER_ID.GUEST;
+      const isDev = userId === USER_ID.DEFAULT;
+      const limit = isDev ? LIMITS.DEV_LIMIT : DAILY_LIMIT_DAILY;
+      
+      if (storageAdapter.getDailyUsageCount(userId, DIGEST_TYPE.DAILY) >= limit) {
+          openInfoModal({ title: 'Limit Reached', message: `You have reached the daily limit of ${limit} daily digests.` });
+          return;
+      }
+      
+      const lastTime = storageAdapter.getLastGenerationTime(null, DIGEST_TYPE.DAILY);
+      if (Date.now() - lastTime < COOLDOWN_MS) {
+          const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastTime))/1000);
+          openInfoModal({ title: 'Cooldown', message: `Please wait ${wait}s before generating again.` });
+          return;
+      }
+
+      const subsAll = (await storageAdapter.getSubscriptions()).filter(s=>s.enabled!==false);
       const targetId = sel?.value || '';
       const targets = targetId ? subsAll.filter(s => s.id === targetId) : subsAll;
       if (!targets.length) {
-        openTextPrompt({ title: 'Error', placeholder: 'No active subscriptions' });
+        openInfoModal({ title: 'No Subscriptions', message: 'No active subscriptions found to generate digest.' });
         return;
       }
+      
+      mockBtn.dataset.loading = '1';
+      setLoading(mockBtn, true, 'Generating…');
+      
       try {
-        const dateStr = new Date().toISOString().slice(0,10);
-        const digests = storageAdapter.getDigests();
-        let merged = digests.find(d => d.date === dateStr && d.merged === true);
-        const newEntries = [];
+        let successCount = 0;
         for (const s of targets) {
-          const site = await mockFetchSiteContentExternal(s.url);
-          const ai = await mockAIFromUrlExternal(s.url);
-          newEntries.push({
-            subscriptionId: s.id,
-            url: normalizeUrl(s.url),
-            title: ai.title || s.title || s.url,
-            summary: ai.description || (site?.content||'').slice(0,500) || 'No summary',
-            highlights: Array.isArray(ai.tags) ? ai.tags : [],
-            raw: { site, ai }
-          });
+          try {
+            const site = await mockFetchSiteContentExternal(s.url);
+            const ai = await mockAIFromUrlExternal(s.url);
+            
+            // Create individual digest record for each subscription
+            // type="daily" implies it's part of the daily batch
+            await storageAdapter.addDigest({
+                website_id: s.linkId, // Use linkId as website_id
+                summary: ai.description || (site?.content||'').slice(0,500) || 'No summary',
+                type: DIGEST_TYPE.DAILY
+            });
+            successCount++;
+          } catch (innerErr) {
+             console.warn('Skipping failed source:', s.url, innerErr);
+          }
         }
-        if (merged) {
-          const exist = new Set((merged.entries||[]).map(e=>normalizeUrl(e.url)));
-          for (const e of newEntries) { if (!exist.has(normalizeUrl(e.url))) (merged.entries||[]).push(e); }
-          merged.entries = merged.entries || [];
-          merged.siteCount = merged.entries.length;
-          merged.updated_at = Date.now();
-        } else {
-          merged = {
-            id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`,
-            date: dateStr,
-            merged: true,
-            title: `AI Digest · ${dateStr}`,
-            siteCount: newEntries.length,
-            entries: newEntries,
-            created_at: Date.now()
-          };
+        
+        if (successCount === 0) {
+           throw new Error('Failed to generate any summaries from subscriptions.');
         }
-        storageAdapter.addDigest(merged);
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg';
-        toast.textContent = `Merged digest generated (${merged.siteCount} sites)`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 1600);
+
+        // Log Success (Trigger Cooldown)
+        storageAdapter.addGenerationLog({
+            userId: userId,
+            type: DIGEST_TYPE.DAILY,
+            linkId: null, // Daily digest is global/batch, not tied to single linkId for cooldown
+            status: 'success'
+        });
+
+        const toast = document.createElement('div'); 
+        toast.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-4'; 
+        toast.textContent=`Generated digests for ${successCount} sites!`; 
+        document.body.appendChild(toast); 
+        setTimeout(()=>toast.remove(),1600);
+        
+        // Refresh UI immediately
         render();
-      } catch (e) { console.error(e); }
+        updateDailyLimitUI(); 
+        
+      } catch (err) { 
+          console.error('Generation failed', err); 
+          openTextPrompt({ title: 'Generation Failed', placeholder: err.message || 'Failed to generate digests.' });
+      } finally {
+        delete mockBtn.dataset.loading;
+        setLoading(mockBtn, false);
+        updateDailyLimitUI();
+      }
     });
+    
+    // Initialize cooldown state on view load
+    updateDailyLimitUI();
     
     delegate(listEl, '.digest-delete', 'click', (e, btn) => {
       e.preventDefault();
@@ -771,11 +819,11 @@ export function initDashboard() {
       });
     });
     
-    delegate(listEl, '.digest-card', 'click', (e, card) => {
+    delegate(listEl, '.digest-card', 'click', async (e, card) => {
       if (e.target.closest('button')) return;
       
       const id = card.getAttribute('data-digest-id');
-      const all = storageAdapter.getDigests();
+      const all = await storageAdapter.getDigests();
       const d = all.find(x => x.id === id);
       if (!d) return;
       
@@ -862,10 +910,10 @@ export function initDashboard() {
       };
     });
 
-    delegate(listEl, '.digest-view-btn', 'click', (e, btn) => {
+    delegate(listEl, '.digest-view-btn', 'click', async (e, btn) => {
       e.preventDefault(); e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const all = storageAdapter.getDigests();
+      const all = await storageAdapter.getDigests();
       const d = all.find(x => x.id === id);
       if (!d) return;
       const card = btn.closest('.digest-card');
@@ -951,13 +999,30 @@ export function initDashboard() {
     });
   }
 
+  // 获取当前用户信息
+  const user = storageAdapter.getUser();
+  const userName = user?.nickname || 'Developer';
+  const userId = user?.id || 'local-dev';
+  
   const card = document.getElementById("userWelcomeCard");
   if (card) {
     card.innerHTML = `
       <div class="user-welcome-card">
-        <h2 class="text-lg font-bold mb-1">Good evening, <span class="text-primary">SoloDev</span> 👋</h2>
+        <h2 class="text-lg font-bold mb-1">Good evening, <span class="text-primary">${userName}</span> 👋</h2>
         <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">A night full of inspiration.</p>
+        <div class="mt-2">
+          <span class="text-xs text-primary font-medium">Developer Mode • User: ${userId}</span>
+        </div>
       </div>`;
+  }
+
+  // 更新头像容器
+  const avatarContainer = document.getElementById("userDropdownContainer");
+  if (avatarContainer) {
+    const userAvatar = user?.avatar || 'https://i.pravatar.cc/100?img=12';
+    avatarContainer.innerHTML = `
+      <img src="${userAvatar}" alt="User Avatar"
+        class="user-avatar" title="${userName}" />`;
   }
 
   const addLinkBtn = document.getElementById('addLinkBtn');
@@ -989,7 +1054,7 @@ export function initDashboard() {
         openTextPrompt({ title: 'Error', placeholder: 'Please enter a valid URL' });
         return;
       }
-      const exists = findCardByUrl(normalized);
+      const exists = await findCardByUrl(normalized);
       if (exists) {
         openTextPrompt({ title: 'Notice', placeholder: 'This link already exists.' });
         return;
@@ -1007,7 +1072,7 @@ export function initDashboard() {
         tags: Array.isArray(mock?.tags) && mock.tags.length ? mock.tags : ['bookmark'],
         url: normalized,
       };
-      const added = storageAdapter.addLink(data);
+      const added = await storageAdapter.addLink(data);
       const html = createCard(added);
       cardsContainer.insertAdjacentHTML('afterbegin', html);
       markSubscribedButtons();
@@ -1048,105 +1113,153 @@ export function initDashboard() {
 
   loadUserWelcome();
 
-  function seedDemoCards() {
+  async function loadAndRenderLinks() {
+    console.log('[Dashboard] loadAndRenderLinks start');
     const container = document.getElementById('cardsContainer');
     if (!container) return;
-    const cards = storageAdapter.getLinks();
-    if (cards.length > 0) {
-      container.innerHTML = '';
-      cards.forEach(c => {
-        const html = createCard(c);
-        container.insertAdjacentHTML('beforeend', html);
-      });
-      renderCategoriesSidebar();
-      syncEditCategorySelect();
-      return;
-    }
-    if (useCloud) {
-      (async () => {
-        const cloud = await loadCloudLinks();
-      if (cloud.length > 0) {
-        container.innerHTML = '';
-        cloud.forEach(c => {
-          const html = createCard(c);
-          container.insertAdjacentHTML('beforeend', html);
-          if (!findCardByUrl(c.url)) storageAdapter.addLink(c);
-          storageAdapter.ensureCategory(c.category);
-        });
-        renderCategoriesSidebar();
-        syncEditCategorySelect();
-        markSubscribedButtons();
+    
+    // 1. Read Links
+    let links = await storageAdapter.getLinks();
+    
+    // 2. Read Subscriptions
+    const subs = await storageAdapter.getSubscriptions();
+    
+    // 3. Merge/Map (Update in-memory link objects with correct subscription status from subs)
+    const subMap = new Set(subs.filter(s => s.enabled !== false).map(s => String(s.linkId)));
+    
+    links = links.map(link => ({
+        ...link,
+        subscribed: subMap.has(String(link.id))
+    }));
+    
+    console.log(`[Dashboard] Loaded ${links.length} links, ${subs.length} subs`);
+  
+    // Check empty / cloud logic
+    if (links.length === 0) {
+      if (useCloud) {
+        (async () => {
+          const cloud = await loadCloudLinks();
+          if (cloud.length > 0) {
+            container.innerHTML = '';
+          cloud.forEach(async c => {
+               if (!(await findCardByUrl(c.url))) await storageAdapter.addLink(c);
+               storageAdapter.ensureCategory(c.category);
+               const html = createCard(c);
+               container.insertAdjacentHTML('beforeend', html);
+          });
+            renderCategoriesSidebar();
+            syncEditCategorySelect();
+            markSubscribedButtons();
+            // 修复：页面加载后恢复冷却状态
+            updateDailyLimitUI();
+            return;
+          }
+          injectSamples(container);
+        })();
         return;
       }
-        injectSamples();
-      })();
+      injectSamples(container);
       return;
     }
-    injectSamples();
-    function injectSamples() {
-      const samples = [
-      {
-        title: 'Figma — Design tool',
-        description: 'AI Summary: Figma is a modern design collaboration platform for prototyping and UI design.',
-        category: 'Design',
-        tags: ['Design', 'Productivity'],
-        url: 'https://figma.com/',
-      },
-      {
-        title: 'OpenAI — GPT Models',
-        description: 'AI Summary: OpenAI provides advanced large language models and API access.',
-        category: 'AI',
-        tags: ['AI', 'Research'],
-        url: 'https://openai.com/',
-      },
-      {
-        title: 'GitHub — Code hosting',
-        description: 'AI Summary: GitHub is a mainstream code hosting and collaboration platform.',
-        category: 'Development',
-        tags: ['Development'],
-        url: 'https://github.com/',
-      },
-    ];
-      samples.forEach((data) => {
-        const added = storageAdapter.addLink(data);
-        const html = createCard(added);
+    
+    container.innerHTML = '';
+    links.forEach(c => {
+        const html = createCard(c);
         container.insertAdjacentHTML('beforeend', html);
-      });
+    });
+    
+    renderCategoriesSidebar();
+    syncEditCategorySelect();
+    markSubscribedButtons();
+    // 修复：页面加载后恢复冷却状态
+    updateDailyLimitUI();
+  }
+  
+  async function injectSamples(container) {
+      const samples = [
+        {
+          title: 'Figma — Design tool',
+          description: 'AI Summary: Figma is a modern design collaboration platform for prototyping and UI design.',
+          category: 'Design',
+          tags: ['Design', 'Productivity'],
+          url: 'https://figma.com/',
+        },
+        {
+          title: 'OpenAI — GPT Models',
+          description: 'AI Summary: OpenAI provides advanced large language models and API access.',
+          category: 'AI',
+          tags: ['AI', 'Research'],
+          url: 'https://openai.com/',
+        },
+        {
+          title: 'GitHub — Code hosting',
+          description: 'AI Summary: GitHub is a mainstream code hosting and collaboration platform.',
+          category: 'Development',
+          tags: ['Development'],
+          url: 'https://github.com/',
+        },
+      ];
+      for (const data of samples) {
+          const added = await storageAdapter.addLink(data);
+          const html = createCard(added);
+          container.insertAdjacentHTML('beforeend', html);
+      }
       renderCategoriesSidebar();
       syncEditCategorySelect();
       markSubscribedButtons();
-    }
+    updateDailyLimitUI();
   }
-  seedDemoCards();
+  loadAndRenderLinks();
 
-  const handleSubscribe = (e, btn) => {
+  const handleSubscribe = async (e, btn) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     
-    const cardEl = btn.closest('.rune-card');
-    const cardId = cardEl?.getAttribute('data-card-id');
+    // 显示加载状态
+    setLoading(btn, true, 'Subscribing...');
     
-    // P0: Operate on link.id
-    if (!cardId) {
-        // Fallback to URL if no ID (should not happen for valid cards)
-        const url = normalizeUrl(btn.getAttribute('data-url') || '');
-        if (!url) return;
-        // Try to find ID by URL
-        const cards = storageAdapter.getLinks();
-        const link = cards.find(c => normalizeUrl(c.url) === url);
-        if (link) {
-            storageAdapter.subscribeToLink(link.id);
-        } else {
-             console.error('Link not found for subscription');
-             return;
-        }
-    } else {
-        storageAdapter.subscribeToLink(cardId);
+    try {
+      const cardEl = btn.closest('.rune-card');
+      const idStr = cardEl?.getAttribute('data-card-id');
+      const cardId = idStr ? parseInt(idStr, 10) : null;
+      
+      // P0: Operate on link.id
+      if (!cardId) {
+          // Fallback to URL if no ID (should not happen for valid cards)
+          const url = normalizeUrl(btn.getAttribute('data-url') || '');
+          if (!url) {
+            openTextPrompt({ title: 'Error', placeholder: 'Invalid URL for subscription' });
+            return;
+          }
+          // Try to find ID by URL
+          const cards = await storageAdapter.getLinks();
+          const link = cards.find(c => normalizeUrl(c.url) === url);
+          if (link) {
+              await storageAdapter.subscribeToLink(link.id);
+          } else {
+               console.error('Link not found for subscription');
+               openTextPrompt({ title: 'Error', placeholder: 'Link not found for subscription' });
+               return;
+          }
+      } else {
+          await storageAdapter.subscribeToLink(cardId);
+      }
+      
+      // 成功提示
+      const t = document.createElement('div'); 
+      t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-green-500 text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-4'; 
+      t.textContent='Subscribed successfully!'; 
+      document.body.appendChild(t); 
+      setTimeout(()=>t.remove(),1600);
+      
+    } catch (error) {
+      console.error('Subscribe failed:', error);
+      openTextPrompt({ title: 'Subscription Failed', placeholder: error.message || 'Failed to subscribe to link' });
+    } finally {
+      setLoading(btn, false);
+      markSubscribedButtons();
     }
-    
-    setLoading(btn, false);
-    markSubscribedButtons();
   };
 
   function registerCardEvents() {
@@ -1159,22 +1272,22 @@ export function initDashboard() {
     const freqOk = document.getElementById('freqOk');
     const freqCancel = document.getElementById('freqCancel');
     let __freqEditingSubId = null;
-    function openFreqModal(subId) {
+    async function openFreqModal(subId) {
       __freqEditingSubId = subId;
-      const subs = storageAdapter.getSubscriptions();
+      const subs = await storageAdapter.getSubscriptions();
       const sub = subs.find(s => s.id === subId) || {};
       if (freqSelect) freqSelect.value = sub.frequency || 'daily';
       freqModal?.classList.remove('hidden');
     }
     function closeFreqModal() { __freqEditingSubId = null; freqModal?.classList.add('hidden'); }
     if (freqCancel) freqCancel.addEventListener('click', () => closeFreqModal());
-    if (freqOk) freqOk.addEventListener('click', () => {
+    if (freqOk) freqOk.addEventListener('click', async () => {
       if (!__freqEditingSubId) { closeFreqModal(); return; }
       const val = freqSelect?.value || 'daily';
-      const subs = storageAdapter.getSubscriptions();
+      const subs = await storageAdapter.getSubscriptions();
       const idx = subs.findIndex(s => s.id === __freqEditingSubId);
       if (idx !== -1) {
-        storageAdapter.updateSubscription({ ...subs[idx], frequency: val, lastChecked: subs[idx].lastChecked || 0 });
+        await storageAdapter.updateSubscription({ ...subs[idx], frequency: val, lastChecked: subs[idx].lastChecked || 0 });
       }
       markSubscribedButtons();
       closeFreqModal();
@@ -1182,77 +1295,104 @@ export function initDashboard() {
 
     delegate(document, '.btn-generate-once', 'click', async (e, b) => {
       e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      const subId = b.getAttribute('data-sub-id') || '';
-      const linkId = b.getAttribute('data-link-id') || ''; // P0: Use linkId
       
-      const subs = storageAdapter.getSubscriptions().filter(s=>s.enabled!==false);
-      // Find by ID or subId
-      const target = subs.find(s => (linkId && s.linkId === linkId) || (subId && s.id === subId));
-      if (!target) return;
+      // P0: Check Limits
+      const subId = b.getAttribute('data-sub-id') || '';
+      const linkId = b.getAttribute('data-link-id') || ''; 
+      const userId = storageAdapter.getUser()?.id || 'guest';
+      
+      // Check Daily
+      const isDev = userId === 'local-dev';
+      const limit = isDev ? 999 : DAILY_LIMIT_SINGLE;
 
+      if (storageAdapter.getDailyUsageCount(userId, 'manual') >= limit) {
+          openInfoModal({ title: 'Limit Reached', message: `You have reached the daily limit of ${limit} generations for Single links.` });
+          return;
+      }
+      
+      // Check Cooldown
+      const lastTime = storageAdapter.getLastGenerationTime(linkId, 'manual');
+      if (Date.now() - lastTime < COOLDOWN_MS) {
+          const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastTime))/1000);
+          openInfoModal({ title: 'Cooldown', message: `Please wait ${wait}s before generating again.` });
+          return;
+      }
+
+      const subs = (await storageAdapter.getSubscriptions()).filter(s=>s.enabled!==false);
+      // Find by ID or subId - 处理ID类型不匹配问题
+      const numericLinkId = linkId ? (typeof linkId === 'string' ? parseInt(linkId, 10) : linkId) : null;
+      const target = subs.find(s => {
+        // 处理linkId匹配（考虑字符串和数字类型）
+        if (linkId && s.linkId) {
+          const sLinkId = typeof s.linkId === 'string' ? parseInt(s.linkId, 10) : s.linkId;
+          const searchLinkId = numericLinkId || linkId;
+          return sLinkId === searchLinkId;
+        }
+        // 处理subId匹配
+        if (subId && s.id === subId) return true;
+        return false;
+      });
+      if (!target) {
+        console.error('Subscription not found for linkId:', linkId, 'subId:', subId);
+        openTextPrompt({ title: 'Error', placeholder: 'Subscription not found. Please check if the link is subscribed or try refreshing the page.' });
+        return;
+      }
+
+      b.dataset.loading = '1'; // Mark loading for cooldown check
       setLoading(b, true, 'Generating…');
       try {
         const site = await mockFetchSiteContentExternal(target.url);
         const ai = await mockAIFromUrlExternal(target.url);
         
         // P0: Digest Model Update
-        // { id: digest_xxx, type: 'single', siteIds: [link.id], summaries: { [link.id]: { summaryText, generatedAt }}, createdAt }
-        const digestId = `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
-        const summaries = {};
-        // Use linkId if available, else target.linkId
+        // Create independent manual digest
+        // type="manual" ensures it's not merged into daily digest
         const finalLinkId = linkId || target.linkId; 
+        const summary = ai.description || (site?.content||'').slice(0,500) || 'No summary';
         
-        if (finalLinkId) {
-             summaries[finalLinkId] = {
-                 summaryText: ai.description || (site?.content||'').slice(0,500) || 'No summary',
-                 generatedAt: Date.now(),
-                 title: ai.title || target.title || target.url,
-                 url: target.url
-             };
-        }
-
-        // We also keep 'entries' for backward compatibility with UI or update UI to read 'summaries'
-        // The user requested specific structure. I will add 'summaries' field.
-        // But existing UI reads 'entries'. I should probably populate both or update UI.
-        // For "Generate Now behavior", user specified the structure.
-        // Let's create the structure as requested, but ALSO populate entries so UI doesn't break immediately unless I refactor UI too.
-        // User said "P0... Clicking Generate Now... triggers creation of a digest object...". 
-        // It didn't say "break existing UI". So I will maintain 'entries' as derived data or just use it.
+        await storageAdapter.addDigest({
+            website_id: finalLinkId,
+            summary: summary,
+            type: 'manual'
+        });
         
-        const eobj = { 
-            subscriptionId: target.id, 
-            linkId: finalLinkId, // Add linkId to entry
-            url: normalizeUrl(target.url), 
-            title: ai.title || target.title || target.url, 
-            summary: ai.description || (site?.content||'').slice(0,500) || 'No summary', 
-            highlights: Array.isArray(ai.tags)?ai.tags:[], 
-            raw: { site, ai } 
-        };
-        
-        const digest = {
-            id: digestId,
-            type: 'single',
-            siteIds: finalLinkId ? [finalLinkId] : [],
-            summaries: summaries,
-            entries: [eobj], // Keep for compatibility
-            title: `Digest for ${target.title || 'Link'}`,
-            date: new Date().toISOString().slice(0,10),
-            merged: false, // Single digest
-            created_at: Date.now()
-        };
-
-        storageAdapter.addDigest(digest);
+        // Log Success
+        storageAdapter.addGenerationLog({
+            userId: userId,
+            type: 'manual',
+            linkId: finalLinkId,
+            status: 'success'
+        });
         
         const t = document.createElement('div'); 
         t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-4'; 
         t.textContent='Digest generated successfully!'; 
         document.body.appendChild(t); 
         setTimeout(()=>t.remove(),1600);
+        
+        // Update UI immediately
+        // Force render to show new manual digest
+        // render(); // Removed: render is not defined in this scope and not needed for Links view
+        delete b.dataset.loading;
+        updateDailyLimitUI(); // This triggers cooldown countdown
+        
       } catch (err) { 
           console.error('Generation failed', err); 
-          openTextPrompt({ title: 'Error', placeholder: 'Failed to generate digest' });
+          // 更具体的错误提示
+          let errorMessage = 'Failed to generate digest';
+          if (err.message && err.message.includes('Link not found')) {
+            errorMessage = 'Link not found. Please check if the link exists or try refreshing the page.';
+          } else if (err.message) {
+            errorMessage = err.message;
+          }
+          openTextPrompt({ title: 'Generation Failed', placeholder: errorMessage });
+          // Log Failure (optional, mostly for debug)
+          console.log('Generation failed, not logging quota');
       }
+      delete b.dataset.loading;
       setLoading(b, false);
+      // Ensure UI is consistent even if failed
+      updateDailyLimitUI();
     });
   }
 
@@ -1322,14 +1462,18 @@ export function initDashboard() {
       }
     });
 
-    delegate(document, '.menu-edit', 'click', (e, btn) => {
+delegate(document, '.menu-edit', 'click', async (e, btn) => {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
       closeUserDropdown();
+      closeAllMenusDoc(); // Close menu immediately
       const cardEl = btn.closest('.rune-card');
-      const id = cardEl?.getAttribute('data-card-id');
-      const cards = storageAdapter.getLinks();
+      // 修复：确保 ID 类型一致（IndexedDB 中为数字）
+      const idStr = cardEl?.getAttribute('data-card-id');
+      const id = idStr ? parseInt(idStr, 10) : null;
+      
+      const cards = await storageAdapter.getLinks();
       const data = id ? cards.find(c => c.id === id) : null;
       const modal = document.getElementById('editLinkModal');
       if (!data || !modal) return;
@@ -1351,7 +1495,7 @@ export function initDashboard() {
       const form = document.getElementById('editLinkForm');
       const cancelBtn = document.getElementById('cancelEditBtn');
       const menu = cardEl.querySelector('.rune-card-menu');
-      const onSubmit = (ev) => {
+      const onSubmit = async (ev) => {
         ev.preventDefault();
         const title = fTitle?.value?.trim() || 'Untitled';
         const url = fURL?.value?.trim() || '';
@@ -1366,7 +1510,8 @@ export function initDashboard() {
         // P1: Check for URL conflict
         if (url !== data.url) {
             const normalized = normalizeUrl(url);
-            const conflict = storageAdapter.getLinks().find(c => c.id !== id && normalizeUrl(c.url) === normalized);
+            const allLinks = await storageAdapter.getLinks();
+            const conflict = allLinks.find(c => c.id !== id && normalizeUrl(c.url) === normalized);
             
             if (conflict) {
                 // Show conflict modal
@@ -1407,7 +1552,7 @@ export function initDashboard() {
             }
           })();
         }
-        const updated = storageAdapter.getLinks().find(c => c.id === id);
+        const updated = (await storageAdapter.getLinks()).find(c => c.id === id);
         if (updated && cardEl) {
           cardEl.style.transition = 'opacity 120ms ease';
           cardEl.style.opacity = '0.4';
@@ -1435,75 +1580,68 @@ export function initDashboard() {
       }
     });
 
-    delegate(document, '.menu-delete', 'click', (e, btn) => {
+    delegate(document, '.menu-delete', 'click', async (e, btn) => {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
       closeUserDropdown();
-      const cardEl = btn.closest('.rune-card');
-      const id = cardEl?.getAttribute('data-card-id');
-      if (!id) return;
-      const cards = storageAdapter.getLinks();
-      const data = cards.find(c => c.id === id);
-      const menu = cardEl.querySelector('.rune-card-menu');
-      openConfirm({
-        title: `Delete saved link "${escapeHTML(data?.title || (data?.url||'').replace(/^https?:\/\//,''))}"?`,
-        message: 'This will remove the link and its related digest entries.',
-        okText: 'Delete',
-        onOk: () => {
-          cardEl.style.transition = 'opacity 160ms ease';
-          cardEl.style.opacity = '0';
-          setTimeout(() => { cardEl.remove(); }, 180);
-          storageAdapter.deleteLink(id);
+      closeAllMenusDoc(); // Close menu immediately
+      
+      try {
+        const cardEl = btn.closest('.rune-card');
+        const idStr = cardEl?.getAttribute('data-card-id');
+        const id = idStr ? parseInt(idStr, 10) : null;
+        if (!id) throw new Error('Card ID missing');
 
-          if (useCloud && data?.url) {
-            (async () => {
-              try {
-                const endpoint = `${SUPABASE_URL}/functions/v1/delete-link`;
-                const res = await fetch(endpoint, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                  body: JSON.stringify({ url: data.url })
-                });
-                if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+        const cards = await storageAdapter.getLinks();
+        const data = cards.find(c => c.id === id);
+        if (!data) throw new Error('Link data not found');
+
+        const menu = cardEl.querySelector('.rune-card-menu');
+        openConfirm({
+          title: `Delete saved link "${escapeHTML(data?.title || (data?.url||'').replace(/^https?:\/\//,''))}"?`,
+          message: 'This will remove the link and its related digest entries.',
+          okText: 'Delete',
+          okDanger: true,
+          onOk: () => {
+            // Optimistic UI removal
+            cardEl.style.transition = 'opacity 160ms ease';
+            cardEl.style.opacity = '0';
+            setTimeout(() => { cardEl.remove(); }, 180);
+            
+            (async () => { 
+              try { 
+                await storageAdapter.deleteLink(id); 
+                if (useCloud && data?.url) {
+                   try {
+                      const endpoint = `${SUPABASE_URL}/functions/v1/delete-link`;
+                      const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                        body: JSON.stringify({ url: data.url })
+                      });
+                      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+                   } catch (err) {
+                      console.error(err);
+                   }
+                }
               } catch (err) {
-                console.error(err);
+                console.error('Delete failed', err);
+                openTextPrompt({ title: 'Delete Failed', placeholder: 'Failed to delete link.' });
+                // In a real app, we might want to revert UI change here
               }
             })();
+
+            if (menu) menu.classList.add('hidden');
           }
-          if (menu) menu.classList.add('hidden');
-        }
-      });
+        });
+      } catch (err) {
+        console.error('Delete menu error:', err);
+        openTextPrompt({ title: 'Error', placeholder: err.message || 'Failed to prepare delete action.' });
+      }
     });
 
-    delegate(document, '.menu-unsubscribe', 'click', (e, btn) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      closeUserDropdown();
-      const cardEl = btn.closest('.rune-card');
-      const id = cardEl?.getAttribute('data-card-id');
-      if (!id) return;
-      const cards = storageAdapter.getLinks();
-      const data = cards.find(c => c.id === id);
-      const titleText = data?.title || (data?.url||'').replace(/^https?:\/\//,'');
-      
-      openConfirm({
-        title: `Unsubscribe from "${escapeHTML(titleText)}"?`,
-        message: 'You will no longer receive AI digests for this site.',
-        okDanger: true,
-        okText: 'Unsubscribe',
-        onOk: () => {
-          storageAdapter.unsubscribe(id);
-          const btnSub = cardEl?.querySelector('.btn-subscribe');
-          applySubscribeStyle(btnSub, false);
-          const controls = cardEl?.querySelector('.card-controls');
-          if (controls) controls.style.display = 'none';
-          const menu = cardEl?.querySelector('.rune-card-menu');
-          if (menu) menu.classList.add('hidden');
-        }
-      });
-    });
+    // 移除卡片内的取消订阅入口（按规范迁移到 Settings 面板）
   }
 
   const dropdownContainer = document.getElementById('userDropdownContainer');
@@ -1793,12 +1931,12 @@ export function initDashboard() {
         message: 'This will remove the category, but the links inside will remain available under All Links.',
         okText: 'Delete',
         okDanger: true,
-        onOk: () => {
+        onOk: async () => {
           // 1. Delete category from storage
           storageAdapter.deleteCategory(name);
           
           // 2. Update links belonging to this category
-          const links = storageAdapter.getLinks();
+          const links = await storageAdapter.getLinks();
           let changed = false;
           links.forEach(l => {
             if (l.category === name) {
@@ -1817,7 +1955,7 @@ export function initDashboard() {
           const container = document.getElementById('cardsContainer');
           if (container) {
              container.innerHTML = '';
-             const updatedLinks = storageAdapter.getLinks();
+             const updatedLinks = await storageAdapter.getLinks();
              updatedLinks.forEach(c => {
                const html = createCard(c);
                container.insertAdjacentHTML('beforeend', html);
@@ -1861,20 +1999,29 @@ export function initDashboard() {
 }
 
 function loadUserWelcome() {
+  // 获取当前用户信息
+  const user = storageAdapter.getUser();
+  const userName = user?.nickname || 'Developer';
+  const userId = user?.id || 'local-dev';
+  const userAvatar = user?.avatar || 'https://i.pravatar.cc/100?img=12';
+  
   const card = document.getElementById("userWelcomeCard");
   if (card) {
     card.innerHTML = `
       <div class="user-welcome-card">
-        <h2 class="text-lg font-bold mb-1">Good evening, <span class="text-primary">SoloDev</span> 👋</h2>
+        <h2 class="text-lg font-bold mb-1">Good evening, <span class="text-primary">${userName}</span> 👋</h2>
         <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">A night full of inspiration.</p>
+        <div class="mt-2">
+          <span class="text-xs text-primary font-medium">Developer Mode • User: ${userId}</span>
+        </div>
       </div>`;
   }
 
   const avatarContainer = document.getElementById("userDropdownContainer");
   if (avatarContainer) {
     avatarContainer.innerHTML = `
-      <img src="https://i.pravatar.cc/100?u=solodev" alt="User Avatar"
-        class="user-avatar" title="SoloDev" />`;
+      <img src="${userAvatar}" alt="User Avatar"
+        class="user-avatar" title="${userName}" />`;
   }
 }
 
