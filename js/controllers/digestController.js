@@ -163,5 +163,25 @@ export const digestController = {
       });
       
       return Object.values(groups).sort((a,b) => String(b.date).localeCompare(String(a.date)));
+  },
+
+  /**
+   * Get daily usage count for a user
+   * @param {string} userId 
+   * @param {string} type 
+   * @returns {number}
+   */
+  getDailyUsageCount(userId, type) {
+    return storageAdapter.getDailyUsageCount(userId, type);
+  },
+
+  /**
+   * Get last generation time for a link
+   * @param {number|string} linkId 
+   * @param {string} type 
+   * @returns {number} timestamp
+   */
+  getLastGenerationTime(linkId, type) {
+    return storageAdapter.getLastGenerationTime(linkId, type);
   }
 };

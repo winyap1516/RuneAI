@@ -100,12 +100,46 @@ export const linkController = {
     const subs = await storageAdapter.getSubscriptions();
     
     // 3. Merge Subscription Status
-    const subMap = new Set(subs.filter(s => s.enabled !== false).map(s => String(s.linkId)));
+    const subMap = new Map(subs.filter(s => s.enabled !== false).map(s => [String(s.linkId), s.id]));
     
     return links.map(link => ({
         ...link,
-        subscribed: subMap.has(String(link.id))
+        subscribed: subMap.has(String(link.id)),
+        subscriptionId: subMap.get(String(link.id)) || null
     }));
+  },
+
+  /**
+   * Subscribe to a link
+   * @param {number|string} linkId 
+   */
+  async subscribe(linkId) {
+    return await storageAdapter.subscribeToLink(linkId);
+  },
+
+  /**
+   * Unsubscribe from a link
+   * @param {number|string} subId 
+   */
+  async unsubscribe(subId) {
+    // storageAdapter might not have unsubscribeById, it has deleteSubscription(id) or similar?
+    // storageAdapter has `updateSubscription` (enable/disable) or delete.
+    // Usually we toggle `enabled`.
+    // Let's check storageAdapter.
+    const subs = await storageAdapter.getSubscriptions();
+    const sub = subs.find(s => String(s.id) === String(subId));
+    if (sub) {
+        sub.enabled = false; // Soft delete/disable
+        await storageAdapter.updateSubscription(sub);
+    }
+  },
+
+  /**
+   * Get all subscriptions (for UI updates)
+   * @returns {Promise<Array>}
+   */
+  async getSubscriptions() {
+    return await storageAdapter.getSubscriptions();
   },
 
   /**

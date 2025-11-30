@@ -35,12 +35,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 初始化页面
   // P0: Ensure migration runs before rendering
-  try {
-    storageAdapter.migrateToIdBased();
-  } catch (e) {
-    console.error("Migration failed:", e);
-  }
-  initDashboard(user);
+  (async () => {
+    try {
+      await storageAdapter.migrateToIdBased();
+    } catch (e) {
+      console.error("Migration failed:", e);
+    }
+    initDashboard(user);
+  })();
 
   // =============================
   // ⏱️ 本地 Scheduler（Dev 模式）

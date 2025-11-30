@@ -66,7 +66,7 @@ export const storageAdapter = {
   // =========================
   // Migration
   // =========================
-  migrateToIdBased() {
+  async migrateToIdBased() {
     console.log('[Migration] Checking status...');
     // P0: Migration must run only once
     if (localStorage.getItem('rune_migrated_to_id') === '1') {
@@ -77,7 +77,7 @@ export const storageAdapter = {
     console.log('[Migration] Starting ID-based migration...');
     
     // 1. Migrate Links to ID-first
-    const links = this.getLinks();
+    const links = await this.getLinks();
     let linksChanged = false;
     const linkMap = new Map();
 
@@ -95,12 +95,12 @@ export const storageAdapter = {
     });
 
     if (linksChanged) {
-      this.saveLinks(links);
+      await this.saveLinks(links);
       console.log('[Migration] Links updated with IDs');
     }
 
     // 2. Migrate Subscriptions to use linkId
-    const subs = this.getSubscriptions();
+    const subs = await this.getSubscriptions();
     let subsChanged = false;
     
     // P0: If subscriptions already exist, do NOT overwrite them if they look migrated
@@ -118,7 +118,7 @@ export const storageAdapter = {
     });
 
     if (subsChanged) {
-      this.saveSubscriptions(subs);
+      await this.saveSubscriptions(subs);
       console.log('[Migration] Subscriptions updated with linkIds');
     }
     

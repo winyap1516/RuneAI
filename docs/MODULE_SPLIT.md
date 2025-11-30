@@ -61,12 +61,13 @@ js/
         *   创建 `js/controllers/linkController.js`
         *   移出 CRUD 逻辑
         *   状态: 已完成 (Arch: PASS)
-    2.  **PR2: Digest Controller 提取** 🔄 **进行中**
+    2.  **PR2: Digest Controller 提取** ✅
         *   创建 `js/controllers/digestController.js`
         *   移出 Manual/Daily Digest 生成逻辑
         *   移出 Digest 列表获取与删除逻辑
         *   规范化 AI Service 调用 (`createDigestForWebsite`)
-    3.  **PR3: 视图层拆分** 📅 **待启动**
+        *   状态: 已完成 (Arch: PASS)
+    3.  **PR3: 视图层拆分** 🔄 **进行中**
         *   创建 `js/views/linksView.js` & `js/views/digestView.js`
         *   移出 DOM 操作与事件绑定
         *   `dashboard.js` 转变为纯路由/入口层
