@@ -1,7 +1,7 @@
 import storageAdapter from "../storage/storageAdapter.js";
 import { createDigestForWebsite } from "../services/ai.js";
-import { DIGEST_TYPE } from "../config/constants.js";
-import { linkController } from "./linkController.js";
+import * as quotaService from "../services/quota.js";
+import { DIGEST_TYPE, USER_ID } from "../config/constants.js";
 import { normalizeUrl } from "../utils/url.js";
 
 /**
@@ -18,21 +18,59 @@ export const digestController = {
   async generateManualDigest(linkId) {
     if (!linkId) throw new Error('Link ID is required');
     
-    // Get link data to ensure it exists and pass to AI service
-    // linkController.getLinks() returns all links with subscription status
-    // We can use storageAdapter directly or linkController
+    const user = storageAdapter.getUser() || { id: USER_ID.DEFAULT };
+    
+    // Quota Check
+    const canGen = await quotaService.canGenerate(user.id);
+    if (!canGen) {
+        throw new Error("DAILY_LIMIT_REACHED");
+    }
+
     const links = await storageAdapter.getLinks();
     const link = links.find(l => String(l.id) === String(linkId));
     
     if (!link) throw new Error('Link not found');
     
-    // Call AI Service
-    const record = await createDigestForWebsite(link, DIGEST_TYPE.MANUAL);
-    return record;
+    // Call AI Service (Standardized Interface)
+    const aiResponse = await createDigestForWebsite(link, DIGEST_TYPE.MANUAL);
+    
+    if (aiResponse.ok) {
+        // Save to DB
+        const record = await storageAdapter.addDigest({
+            website_id: link.id,
+            summary: aiResponse.summary,
+            type: DIGEST_TYPE.MANUAL,
+            metadata: aiResponse.metadata
+        });
+        
+        // Log Success
+        storageAdapter.addGenerationLog({
+            userId: user.id,
+            type: DIGEST_TYPE.MANUAL,
+            linkId: link.id,
+            status: 'success'
+        });
+        
+        return record;
+    } else {
+        // Log Failure
+        storageAdapter.addGenerationLog({
+            userId: user.id,
+            type: DIGEST_TYPE.MANUAL,
+            linkId: link.id,
+            status: 'failed',
+            error: aiResponse.error
+        });
+        
+        // Throw wrapped error
+        const err = new Error(aiResponse.error.message);
+        err.code = aiResponse.error.code;
+        throw err;
+    }
   },
 
   /**
-   * Generate daily digests for all active subscriptions (or specific one)
+   * Generate daily digests for all active subscriptions
    * @param {string} [targetLinkId] Optional link ID to filter
    * @returns {Promise<object>} Result summary { successCount, failedCount, errors }
    */
@@ -48,10 +86,11 @@ export const digestController = {
         return { successCount: 0, failedCount: 0, errors: [] };
     }
 
-    // Optional: Check if already generated for today?
-    // The requirement says "Query existing... merge logic".
-    // For now, we'll generate for all active subs.
-    // To prevent duplicates, we could check existing digests for today.
+    // Note: Daily generation might bypass quota or have separate logic. 
+    // For now, we process without strict quota check per item to avoid partial failures if limit is low,
+    // or we should check quota before starting? 
+    // Given specific instructions were for Manual Digest, we leave this as is but update standard AI call.
+    
     const todayStr = new Date().toISOString().slice(0, 10);
     const allDigests = await storageAdapter.getDigests();
     const todayDigests = allDigests.filter(d => 
@@ -63,27 +102,46 @@ export const digestController = {
     let successCount = 0;
     let failedCount = 0;
     const errors = [];
+    const user = storageAdapter.getUser() || { id: USER_ID.DEFAULT };
 
     for (const sub of activeSubs) {
-        // Skip if already generated today (Merge logic: only add missing ones)
         if (processedLinkIds.has(String(sub.linkId))) {
             continue;
         }
 
         try {
-            // fetch link data to pass to createDigestForWebsite
-            // The sub object has linkId, but createDigestForWebsite expects a website object with url
-            // storageAdapter.getSubscriptions returns { id, linkId, ... } 
-            // We need the full link object.
             const links = await storageAdapter.getLinks();
             const link = links.find(l => String(l.id) === String(sub.linkId));
             
             if (link) {
-                await createDigestForWebsite(link, DIGEST_TYPE.DAILY);
-                successCount++;
+                const aiResponse = await createDigestForWebsite(link, DIGEST_TYPE.DAILY);
+                
+                if (aiResponse.ok) {
+                    await storageAdapter.addDigest({
+                        website_id: link.id,
+                        summary: aiResponse.summary,
+                        type: DIGEST_TYPE.DAILY,
+                        metadata: aiResponse.metadata
+                    });
+                    storageAdapter.addGenerationLog({
+                        userId: user.id,
+                        type: DIGEST_TYPE.DAILY,
+                        linkId: link.id,
+                        status: 'success'
+                    });
+                    successCount++;
+                } else {
+                    storageAdapter.addGenerationLog({
+                        userId: user.id,
+                        type: DIGEST_TYPE.DAILY,
+                        linkId: link.id,
+                        status: 'failed',
+                        error: aiResponse.error
+                    });
+                    failedCount++;
+                    errors.push({ linkId: sub.linkId, error: aiResponse.error.message });
+                }
             } else {
-                // Link might be deleted but subscription remains? 
-                // Should clean up, but for now just skip
                 failedCount++;
             }
         } catch (err) {
@@ -113,7 +171,7 @@ export const digestController = {
   },
 
   /**
-   * Helper to group digests for view (simulating the merge logic in dashboard.js)
+   * Helper to group digests for view
    * @param {Array} digests 
    * @param {Array} links 
    * @returns {Array} Grouped digest objects
@@ -146,7 +204,7 @@ export const digestController = {
                  created_at: d.created_at,
                  updated_at: d.created_at,
                  entries: [],
-                 meta: { trigger: 'user' } // Default
+                 meta: { trigger: 'user' }
              };
          }
          

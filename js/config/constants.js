@@ -9,7 +9,7 @@ export const DIGEST_TYPE = {
 };
 
 export const LIMITS = {
-  DAILY_GENERATE: 5,
+  DAILY_GENERATE: 0, // 设置为0用于测试配额限制
   SINGLE_GENERATE: 5,
   DEV_LIMIT: 999
 };

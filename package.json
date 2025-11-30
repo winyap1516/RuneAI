@@ -9,6 +9,8 @@
     "lint:paths": "node scripts/check_static_paths.js"
   },
   "devDependencies": {
-    "vite": "^5.4.8"
+    "fake-indexeddb": "^6.2.5",
+    "vite": "^5.4.8",
+    "vitest": "^4.0.14"
   }
 }

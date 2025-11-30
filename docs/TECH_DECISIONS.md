@@ -46,3 +46,13 @@
 
 ### 理由
 前端调度不可靠（页面关闭即停止），仅作为单机版过渡方案。云端 Cron 是生产环境的唯一选择。
+
+## 5. 服务层标准化 (Service Layer Normalization)
+
+### 决策
+确立 `js/services/` 为唯一的业务逻辑/外部服务交互层 (Yin Layer)，禁止 Controller 直接处理原始 API 错误或直接操作底层 AI 逻辑。
+
+### 理由
+1.  **关注点分离**: Controller 负责业务流程控制 (Validation -> Service -> Storage -> UI Feedback)，Service 负责具体的原子能力实现 (AI, Quota)。
+2.  **错误边界**: `ai.js` 等服务必须捕获底层异常（网络、超时、解析），并返回统一的 `{ ok, error }` 结构，防止 UI 层崩溃。
+3.  **可测试性**: 独立的 Service 层便于 Mock 和单元测试，无需启动完整的 UI 环境。
