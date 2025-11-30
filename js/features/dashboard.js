@@ -6,6 +6,7 @@ import { USER_ID, DIGEST_TYPE, LIMITS, COOLDOWN } from "../config/constants.js";
 import { createCard } from "../templates/card.js";
 import { createDigestCard } from "../templates/digestCard.js";
 import { escapeHTML, getTagClass, buildIconHTML } from "../utils/ui-helpers.js";
+import { linkController } from "../controllers/linkController.js";
 
 // Listen for storage events to update UI
 storageAdapter.subscribe((event) => {
@@ -123,61 +124,12 @@ function syncCardControlsVisibility() {
   markSubscribedButtons(); // Re-use the main logic
 }
 
-async function findCardByUrl(url = '') {
-  const target = String(url).trim();
-  if (!target) return null;
-  const cards = await storageAdapter.getLinks();
-  return cards.find(c => String(c.url).trim() === target) || null;
-}
-
 // =============================
 // ☁️ 云端 AI 封装（Supabase Edge Functions）
 // =============================
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
 const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-
-async function fetchAIFromCloud(url) {
-  const endpoint = `${SUPABASE_URL}/functions/v1/super-endpoint`;
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({ url })
-  });
-  if (!res.ok) throw new Error(`Cloud AI failed: ${res.status}`);
-  const data = await res.json();
-  return data;
-}
-
-async function loadCloudLinks() {
-  try {
-    const endpoint = `${SUPABASE_URL}/rest/v1/links?select=*`;
-    const res = await fetch(endpoint, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      }
-    });
-    if (!res.ok) throw new Error(`List failed: ${res.status}`);
-    const arr = await res.json();
-    return (Array.isArray(arr) ? arr : []).map(row => ({
-      id: row.id, // Use ID from cloud
-      url: row.url || '',
-      title: row.title || 'Untitled',
-      description: row.description || 'Summary from cloud',
-      category: row.category || 'All Links',
-      tags: Array.isArray(row.tags) ? row.tags : [],
-      created_at: row.created_at || Date.now(),
-      updated_at: row.updated_at || Date.now(),
-    }));
-  } catch (e) {
-    console.warn(e);
-    return [];
-  }
-}
 
 // Helper to manage the single global floating menu
 let activeFloatingMenu = null;
@@ -257,7 +209,7 @@ export function renderCategoriesSidebar() {
   const list = document.getElementById('linksGroupList');
   if (!list) return;
   list.innerHTML = '';
-  const categories = storageAdapter.getCategories();
+  const categories = linkController.getCategories();
 
   const allItem = document.createElement('div');
   allItem.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer';
@@ -291,7 +243,7 @@ export function renderCategoriesSidebar() {
 function syncEditCategorySelect() {
   const sel = document.getElementById('editLinkCategory');
   if (!sel) return;
-  const categories = storageAdapter.getCategories();
+  const categories = linkController.getCategories();
   sel.innerHTML = '<option value="">Select Category</option>' + categories.filter(c => c !== 'All Links').map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('') + '<option value="__new__">+ New category…</option>';
 }
 
@@ -1049,38 +1001,24 @@ async function renderDigestView() {
     on(saveLinkBtn, 'click', async () => {
       const raw = (inpUrl.value || '').trim();
       if (!raw) { openTextPrompt({ title: 'Error', placeholder: 'Please enter a valid URL' }); return; }
-      const normalized = normalizeUrl(raw);
-      if (!normalized) {
-        openTextPrompt({ title: 'Error', placeholder: 'Please enter a valid URL' });
-        return;
-      }
-      const exists = await findCardByUrl(normalized);
-      if (exists) {
-        openTextPrompt({ title: 'Notice', placeholder: 'This link already exists.' });
-        return;
-      }
+      
       setLoading(saveLinkBtn, true, 'Generating summary…');
-      let ai = null;
-      if (useCloud) {
-        try { ai = await fetchAIFromCloud(normalized); } catch { ai = null; }
+      
+      try {
+          const added = await linkController.addLink(raw);
+          const html = createCard(added);
+          cardsContainer.insertAdjacentHTML('afterbegin', html);
+          markSubscribedButtons();
+          inpUrl.value = '';
+          closeModal(addLinkModal);
+      } catch (err) {
+          openTextPrompt({ title: 'Error', placeholder: err.message });
+      } finally {
+          setLoading(saveLinkBtn, false);
       }
-      const mock = ai || await mockAIFromUrlExternal(normalized).catch(() => ({ title: '', description: '', category: 'All Links', tags: ['bookmark'] }));
-      const data = {
-        title: mock?.title || (normalized.replace(/^https?:\/\//, '').split('/')[0] || 'Untitled'),
-        description: mock?.description || 'Mock: Auto-generated summary placeholder.',
-        category: mock?.category || 'All Links',
-        tags: Array.isArray(mock?.tags) && mock.tags.length ? mock.tags : ['bookmark'],
-        url: normalized,
-      };
-      const added = await storageAdapter.addLink(data);
-      const html = createCard(added);
-      cardsContainer.insertAdjacentHTML('afterbegin', html);
-      markSubscribedButtons();
-      inpUrl.value = '';
-      closeModal(addLinkModal);
-      setLoading(saveLinkBtn, false);
     });
   }
+
 
   const searchInput = document.getElementById('searchInput');
   function filterCards(query) {
@@ -1118,48 +1056,12 @@ async function renderDigestView() {
     const container = document.getElementById('cardsContainer');
     if (!container) return;
     
-    // 1. Read Links
-    let links = await storageAdapter.getLinks();
-    
-    // 2. Read Subscriptions
-    const subs = await storageAdapter.getSubscriptions();
-    
-    // 3. Merge/Map (Update in-memory link objects with correct subscription status from subs)
-    const subMap = new Set(subs.filter(s => s.enabled !== false).map(s => String(s.linkId)));
-    
-    links = links.map(link => ({
-        ...link,
-        subscribed: subMap.has(String(link.id))
-    }));
-    
-    console.log(`[Dashboard] Loaded ${links.length} links, ${subs.length} subs`);
-  
-    // Check empty / cloud logic
-    if (links.length === 0) {
-      if (useCloud) {
-        (async () => {
-          const cloud = await loadCloudLinks();
-          if (cloud.length > 0) {
-            container.innerHTML = '';
-          cloud.forEach(async c => {
-               if (!(await findCardByUrl(c.url))) await storageAdapter.addLink(c);
-               storageAdapter.ensureCategory(c.category);
-               const html = createCard(c);
-               container.insertAdjacentHTML('beforeend', html);
-          });
-            renderCategoriesSidebar();
-            syncEditCategorySelect();
-            markSubscribedButtons();
-            // 修复：页面加载后恢复冷却状态
-            updateDailyLimitUI();
-            return;
-          }
-          injectSamples(container);
-        })();
-        return;
-      }
-      injectSamples(container);
-      return;
+    let links = await linkController.getLinks();
+    console.log(`[Dashboard] Loaded ${links.length} links`);
+
+    if (links.length === 0 && !useCloud) {
+         await linkController.injectSamples();
+         links = await linkController.getLinks();
     }
     
     container.innerHTML = '';
@@ -1171,44 +1073,11 @@ async function renderDigestView() {
     renderCategoriesSidebar();
     syncEditCategorySelect();
     markSubscribedButtons();
-    // 修复：页面加载后恢复冷却状态
     updateDailyLimitUI();
   }
+
   
-  async function injectSamples(container) {
-      const samples = [
-        {
-          title: 'Figma — Design tool',
-          description: 'AI Summary: Figma is a modern design collaboration platform for prototyping and UI design.',
-          category: 'Design',
-          tags: ['Design', 'Productivity'],
-          url: 'https://figma.com/',
-        },
-        {
-          title: 'OpenAI — GPT Models',
-          description: 'AI Summary: OpenAI provides advanced large language models and API access.',
-          category: 'AI',
-          tags: ['AI', 'Research'],
-          url: 'https://openai.com/',
-        },
-        {
-          title: 'GitHub — Code hosting',
-          description: 'AI Summary: GitHub is a mainstream code hosting and collaboration platform.',
-          category: 'Development',
-          tags: ['Development'],
-          url: 'https://github.com/',
-        },
-      ];
-      for (const data of samples) {
-          const added = await storageAdapter.addLink(data);
-          const html = createCard(added);
-          container.insertAdjacentHTML('beforeend', html);
-      }
-      renderCategoriesSidebar();
-      syncEditCategorySelect();
-      markSubscribedButtons();
-    updateDailyLimitUI();
-  }
+
   loadAndRenderLinks();
 
   const handleSubscribe = async (e, btn) => {
@@ -1233,7 +1102,7 @@ async function renderDigestView() {
             return;
           }
           // Try to find ID by URL
-          const cards = await storageAdapter.getLinks();
+          const cards = await linkController.getLinks();
           const link = cards.find(c => normalizeUrl(c.url) === url);
           if (link) {
               await storageAdapter.subscribeToLink(link.id);
@@ -1473,7 +1342,7 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
       const idStr = cardEl?.getAttribute('data-card-id');
       const id = idStr ? parseInt(idStr, 10) : null;
       
-      const cards = await storageAdapter.getLinks();
+      const cards = await linkController.getLinks();
       const data = id ? cards.find(c => c.id === id) : null;
       const modal = document.getElementById('editLinkModal');
       if (!data || !modal) return;
@@ -1507,61 +1376,20 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
         if (!url) { openTextPrompt({ title: 'Error', placeholder: 'URL cannot be empty' }); return; }
         const tags = tagsStr ? tagsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
         
-        // P1: Check for URL conflict
-        if (url !== data.url) {
-            const normalized = normalizeUrl(url);
-            const allLinks = await storageAdapter.getLinks();
-            const conflict = allLinks.find(c => c.id !== id && normalizeUrl(c.url) === normalized);
-            
-            if (conflict) {
-                // Show conflict modal
-                openConfirm({
-                    title: 'Link conflict detected',
-                    message: `A link with URL "${escapeHTML(url)}" already exists ("${escapeHTML(conflict.title)}").`,
-                    okText: 'Keep editing',
-                    onOk: () => { /* Do nothing, let user fix it */ },
-                    // Ideally we would offer "Merge" or "Open existing", but standard openConfirm only has OK/Cancel.
-                    // For now, we block saving if conflict exists.
-                    // User requirement: "show conflict modal (Open existing / Create duplicate / Merge)"
-                    // Since openConfirm is limited, we block and advise.
-                    // Or we can allow saving as duplicate if user confirms?
-                    // Let's just block for safety unless we implement a complex modal.
-                    // Actually, let's implement a simple "Cancel" which stays, and "OK" which could be "Open Existing".
-                });
-                // But wait, I can't easily return 'Open existing' action from standard confirm.
-                // Let's just notify and stop.
-                openTextPrompt({ title: 'Conflict', placeholder: 'URL already exists in another card.' });
-                return;
+        try {
+            const updated = await linkController.updateLink(id, { title, url, description, tags, category });
+            if (updated && cardEl) {
+              cardEl.style.transition = 'opacity 120ms ease';
+              cardEl.style.opacity = '0.4';
+              cardEl.outerHTML = createCard(updated);
             }
+            if (menu) menu.classList.add('hidden');
+            closeModal(modal);
+            form?.removeEventListener('submit', onSubmit);
+            cancelBtn?.removeEventListener('click', onCancel);
+        } catch (err) {
+            openTextPrompt({ title: 'Error', placeholder: err.message });
         }
-
-        storageAdapter.updateLink(id, { title, url, description, tags, category });
-        
-        if (useCloud) {
-          (async () => {
-            try {
-              const endpoint = `${SUPABASE_URL}/functions/v1/update-link`;
-              const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                body: JSON.stringify({ url, title, description, category, tags })
-              });
-              if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-            } catch (err) {
-              console.error(err);
-            }
-          })();
-        }
-        const updated = (await storageAdapter.getLinks()).find(c => c.id === id);
-        if (updated && cardEl) {
-          cardEl.style.transition = 'opacity 120ms ease';
-          cardEl.style.opacity = '0.4';
-          cardEl.outerHTML = createCard(updated);
-        }
-        if (menu) menu.classList.add('hidden');
-        closeModal(modal);
-        form?.removeEventListener('submit', onSubmit);
-        cancelBtn?.removeEventListener('click', onCancel);
       };
       const onCancel = () => {
         closeModal(modal);
@@ -1593,7 +1421,7 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
         const id = idStr ? parseInt(idStr, 10) : null;
         if (!id) throw new Error('Card ID missing');
 
-        const cards = await storageAdapter.getLinks();
+        const cards = await linkController.getLinks();
         const data = cards.find(c => c.id === id);
         if (!data) throw new Error('Link data not found');
 
@@ -1611,24 +1439,10 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
             
             (async () => { 
               try { 
-                await storageAdapter.deleteLink(id); 
-                if (useCloud && data?.url) {
-                   try {
-                      const endpoint = `${SUPABASE_URL}/functions/v1/delete-link`;
-                      const res = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                        body: JSON.stringify({ url: data.url })
-                      });
-                      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-                   } catch (err) {
-                      console.error(err);
-                   }
-                }
+                await linkController.deleteLink(id);
               } catch (err) {
                 console.error('Delete failed', err);
                 openTextPrompt({ title: 'Delete Failed', placeholder: 'Failed to delete link.' });
-                // In a real app, we might want to revert UI change here
               }
             })();
 
@@ -1640,6 +1454,7 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
         openTextPrompt({ title: 'Error', placeholder: err.message || 'Failed to prepare delete action.' });
       }
     });
+
 
     // 移除卡片内的取消订阅入口（按规范迁移到 Settings 面板）
   }
@@ -1871,13 +1686,14 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
     on(saveCategoryBtn, 'click', () => {
       const name = inpCategoryName.value.trim();
       if (!name) { openTextPrompt({ title: 'Error', placeholder: 'Please enter a category name' }); return; }
-      storageAdapter.ensureCategory(name);
+      linkController.ensureCategory(name);
       inpCategoryName.value = '';
       closeModal(addCategoryModal);
       renderCategoriesSidebar();
       syncEditCategorySelect();
     });
   }
+
   if (linksGroupList) {
     delegate(linksGroupList, '.category-filter', 'click', (e, btn) => {
       const name = btn?.closest('div')?.getAttribute('data-name') || '';
@@ -1932,30 +1748,18 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
         okText: 'Delete',
         okDanger: true,
         onOk: async () => {
-          // 1. Delete category from storage
-          storageAdapter.deleteCategory(name);
-          
-          // 2. Update links belonging to this category
-          const links = await storageAdapter.getLinks();
-          let changed = false;
-          links.forEach(l => {
-            if (l.category === name) {
-               l.category = 'All Links';
-               changed = true;
-            }
-          });
-          if (changed) storageAdapter.saveLinks(links);
+          // 1. Delete category via Controller
+          await linkController.deleteCategory(name);
 
-          // 3. Update UI
+          // 2. Update UI
           renderCategoriesSidebar();
           syncEditCategorySelect();
           
-          // 4. Re-render cards to reflect updated category in DOM
-          // We need to re-fetch from storage to get updated 'All Links' status
+          // 3. Re-render cards to reflect updated category in DOM
           const container = document.getElementById('cardsContainer');
           if (container) {
              container.innerHTML = '';
-             const updatedLinks = await storageAdapter.getLinks();
+             const updatedLinks = await linkController.getLinks();
              updatedLinks.forEach(c => {
                const html = createCard(c);
                container.insertAdjacentHTML('beforeend', html);
@@ -1964,7 +1768,7 @@ delegate(document, '.menu-edit', 'click', async (e, btn) => {
              if (typeof markSubscribedButtons === 'function') markSubscribedButtons();
           }
 
-          // 5. Switch view to All Links
+          // 4. Switch view to All Links
           // Since we just re-rendered, all cards are visible. 
           // We just need to highlight "All Links" in sidebar.
           const allLinksBtn = linksGroupList.querySelector('[data-name=""] .category-filter');
