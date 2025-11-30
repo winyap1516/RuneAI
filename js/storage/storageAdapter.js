@@ -1,20 +1,25 @@
 // Storage Adapter Module
-// 封装所有 localStorage 操作，未来可扩展至 Supabase
-// 遵循单例模式导出
+// 适配层：将原先的 localStorage 读写改为 IndexedDB（见 js/storage/db.js）
+// 设计目标：
+// - 保持对外 API 名称与行为最大兼容（getLinks/getSubscriptions/...）
+// - 统一为每条记录补齐 user_id（本地开发固定为 local-dev）
+// - 保留事件总线与部分 legacy 字段（如 categories、本地审计日志）以减少 UI 改动
 
 import { normalizeUrl } from '../utils/url.js';
+import db, { websites as Websites, subscriptions as Subs, digests as Digests } from './db.js';
 
 const KEYS = {
   LINKS: 'rune_cards',
   SUBS: 'rune_subscriptions',
   DIGESTS: 'rune_digests',
-  CATEGORIES: 'rune_categories'
+  CATEGORIES: 'rune_categories',
+  GENERATION_HISTORY: 'rune_generation_history'
 };
 
 // Event listeners
 const listeners = [];
 
-// 内部辅助：安全读写
+// 内部辅助：安全读写（仅用于保留的 localStorage 数据：categories、generation_history、user）
 function safeLoad(key, fallback = []) {
   try {
     const raw = localStorage.getItem(key);
@@ -62,6 +67,15 @@ export const storageAdapter = {
   // Migration
   // =========================
   migrateToIdBased() {
+    console.log('[Migration] Checking status...');
+    // P0: Migration must run only once
+    if (localStorage.getItem('rune_migrated_to_id') === '1') {
+        console.log('[Migration] Already migrated. Skipping.');
+        return;
+    }
+
+    console.log('[Migration] Starting ID-based migration...');
+    
     // 1. Migrate Links to ID-first
     const links = this.getLinks();
     let linksChanged = false;
@@ -82,13 +96,16 @@ export const storageAdapter = {
 
     if (linksChanged) {
       this.saveLinks(links);
-      console.log('Migration: Links updated with IDs');
+      console.log('[Migration] Links updated with IDs');
     }
 
     // 2. Migrate Subscriptions to use linkId
     const subs = this.getSubscriptions();
     let subsChanged = false;
-
+    
+    // P0: If subscriptions already exist, do NOT overwrite them if they look migrated
+    // But we need to ensure linkId is present.
+    
     subs.forEach(sub => {
       if (!sub.linkId) {
         // Try to find matching link
@@ -96,206 +113,365 @@ export const storageAdapter = {
         if (linkId) {
           sub.linkId = linkId;
           subsChanged = true;
-        } else {
-          // Orphan subscription, keep as is but flag it?
-          // User requirement says: "store subscription { linkId, frequency, ... }"
-          // If no link, we can't store linkId. We leave it null.
         }
       }
     });
 
     if (subsChanged) {
       this.saveSubscriptions(subs);
-      console.log('Migration: Subscriptions updated with linkIds');
-    }
-  },
-
-  // =========================
-  // Links (Cards) Operations
-  // =========================
-
-  getLinks() {
-    return safeLoad(KEYS.LINKS, []);
-  },
-
-  saveLinks(list) {
-    safeSave(KEYS.LINKS, list);
-    this.notify({ type: 'links_changed' });
-  },
-
-  addLink(link) {
-    const links = this.getLinks();
-    // 简单的查重（按 URL）
-    const nUrl = normalizeUrl(link.url);
-    if (nUrl && links.some(l => normalizeUrl(l.url) === nUrl)) {
-      throw new Error('Link already exists');
+      console.log('[Migration] Subscriptions updated with linkIds');
     }
     
-    const newLink = {
-      id: link.id || generateId(),
-      created_at: Date.now(),
-      previousUrls: [],
-      ...link
-    };
-    links.unshift(newLink); // 新增在头部
-    this.saveLinks(links); // triggers notify
-
-    // 同时也需要确保 Category 存在
-    if (link.category) {
-      this.ensureCategory(link.category);
-    }
-
-    return newLink;
+    // Mark migration as complete
+    localStorage.setItem('rune_migrated_to_id', '1');
+    console.log('[Migration] Completed');
   },
 
-  updateLink(id, patch) {
-    const links = this.getLinks();
-    const idx = links.findIndex(l => l.id === id);
-    if (idx === -1) return null;
+  // =========================
+  // Migration (localStorage → IndexedDB)
+  // =========================
+  async migrateLocalStorageToIndexedDB() {
+    // 目的：将现有 localStorage 中的 Links/Subscriptions/Digests 迁移至 IndexedDB
+    // 触发策略：仅在尚未迁移且 IndexedDB 初始为空时执行一次
+    try {
+      if (localStorage.getItem('rune_migrated_to_indexeddb') === '1') return
+      const dbConn = await db.openDB()
+      const hasAnyData = dbConn.objectStoreNames.length > 0
+      // 简单判断：如果 websites 存在且非空则认为已初始化
+      const existingWebsites = await Websites.getAll().catch(() => [])
+      if ((existingWebsites && existingWebsites.length > 0)) {
+        localStorage.setItem('rune_migrated_to_indexeddb', '1')
+        return
+      }
 
-    const existing = links[idx];
-    const updated = { ...existing, ...patch, updated_at: Date.now() };
+      // 1. 迁移 Links → websites
+      const links = safeLoad(KEYS.LINKS, [])
+      const urlToWebsiteId = new Map()
+      for (const l of links) {
+        const rec = await Websites.create({
+          url: l.url,
+          title: l.title || l.url,
+          description: l.description || '',
+          category: l.category || null,
+          previousUrls: l.previousUrls || [],
+          created_at: l.created_at ? new Date(l.created_at).toISOString() : undefined,
+          user_id: (this.getUser()?.id) || 'local-dev',
+        })
+        urlToWebsiteId.set(normalizeUrl(rec.url), rec.website_id)
+      }
 
-    // Handle URL change logic (P1 requirement)
-    if (patch.url && patch.url !== existing.url) {
-        if (!updated.previousUrls) updated.previousUrls = [];
-        // Avoid duplicates in history
-        if (!updated.previousUrls.includes(existing.url)) {
-            updated.previousUrls.push(existing.url);
+      // 2. 迁移 Subscriptions → subscriptions
+      const subs = safeLoad(KEYS.SUBS, [])
+      for (const s of subs) {
+        // 优先使用 linkId 映射；否则按 URL 匹配
+        let websiteId = s.linkId
+        if (!websiteId && s.url) websiteId = urlToWebsiteId.get(normalizeUrl(s.url))
+        if (!websiteId) continue
+        await Subs.upsert({
+          website_id: websiteId,
+          url: s.url,
+          title: s.title || s.url,
+          frequency: s.frequency || 'daily',
+          enabled: s.enabled !== false,
+          user_id: (this.getUser()?.id) || 'local-dev',
+          last_generated_at: s.lastChecked || 0,
+        })
+      }
+
+      // 3. 迁移 Digests → digests（尽力映射）
+      const oldDigests = safeLoad(KEYS.DIGESTS, [])
+      for (const d of oldDigests) {
+        // 旧结构可能为合并日报：{ merged: true, date, entries: [{ url, summary, ... }] }
+        if (d.merged && Array.isArray(d.entries)) {
+          for (const e of d.entries) {
+            const wid = urlToWebsiteId.get(normalizeUrl(e.url))
+            if (!wid) continue
+            await Digests.create({
+              website_id: wid,
+              summary: e.summary || e.description || '',
+              type: 'daily',
+              created_at: d.date ? new Date(d.date).toISOString() : undefined,
+              user_id: (this.getUser()?.id) || 'local-dev',
+            })
+          }
+          continue
         }
+        // 非合并：尝试使用 site/link 信息
+        const wid = d.linkId ? d.linkId : (d.url ? urlToWebsiteId.get(normalizeUrl(d.url)) : null)
+        if (!wid) continue
+        await Digests.create({
+          website_id: wid,
+          summary: d.summary || d.description || '',
+          type: (d.type === 'single' || d.type === 'manual') ? 'manual' : 'daily',
+          created_at: d.created_at ? new Date(d.created_at).toISOString() : undefined,
+          user_id: (this.getUser()?.id) || 'local-dev',
+        })
+      }
+
+      // 标记迁移完成
+      localStorage.setItem('rune_migrated_to_indexeddb', '1')
+      this.notify({ type: 'links_changed' })
+      this.notify({ type: 'subscriptions_changed' })
+      this.notify({ type: 'digests_changed' })
+      try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+      console.log('[Migration] localStorage → IndexedDB completed')
+    } catch (err) {
+      console.error('[Migration] Failed', err)
     }
-
-    links[idx] = updated;
-    this.saveLinks(links); // triggers notify
-
-    // 如果更新了 category，也确保一下
-    if (patch.category) {
-      this.ensureCategory(patch.category);
-    }
-
-    return updated;
   },
 
-  deleteLink(id) {
-    const links = this.getLinks();
-    const target = links.find(l => l.id === id);
-    if (!target) return false;
+  // =========================
+  // Generation History & Quota
+  // =========================
+  getGenerationHistory() {
+    return safeLoad(KEYS.GENERATION_HISTORY, []);
+  },
 
-    // 1. 删除 Link
-    const newLinks = links.filter(l => l.id !== id);
-    this.saveLinks(newLinks); // triggers notify
+  saveGenerationHistory(list) {
+    safeSave(KEYS.GENERATION_HISTORY, list);
+    this.notify({ type: 'generation_history_changed' });
+  },
 
-    // 2. 删除关联 Subscription (如果有)
-    // Now based on ID logic, but user said:
-    // "delete/unsubscribe operate on link.id"
-    // We assume explicit unsubscribe is required by UI, but if link is gone,
-    // the subscription becomes an orphan.
-    // The UI handles the choice.
+  addGenerationLog(log) {
+    const history = this.getGenerationHistory();
+    const entry = {
+      id: generateId(),
+      timestamp: Date.now(),
+      ...log
+    };
+    history.push(entry);
+    this.saveGenerationHistory(history);
+    return entry;
+  },
+
+  getDailyUsageCount(userId, type) {
+    // Type is optional, if not provided, counts all
+    const history = this.getGenerationHistory();
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     
-    return true;
+    return history.filter(entry => {
+      // Filter by time (today)
+      if (entry.timestamp < startOfDay) return false;
+      // Filter by status (only success counts?) Requirement: "生成失败...不计入每日次数" -> "成功要记录审计日志"
+      // We assume only success logs are added via addGenerationLog or we filter by status 'success'
+      if (entry.status !== 'success') return false;
+      // Filter by user (if provided)
+      if (userId && entry.userId !== userId) return false;
+      // Filter by type (if provided)
+      if (type && entry.type !== type) return false;
+      
+      return true;
+    }).length;
+  },
+
+  getLastGenerationTime(linkId, type) {
+     // For cooldown calculation
+     const history = this.getGenerationHistory();
+     // Sort desc by timestamp
+     const sorted = history.sort((a,b) => b.timestamp - a.timestamp);
+     
+     // 修复：ID类型兼容处理
+     const targetLinkId = linkId ? (typeof linkId === 'string' ? parseInt(linkId, 10) : linkId) : null;
+
+     // Find latest success
+     const latest = sorted.find(entry => {
+         if (entry.status !== 'success') return false;
+         if (type && entry.type !== type) return false;
+         if (targetLinkId) {
+            const entryLinkId = entry.linkId ? (typeof entry.linkId === 'string' ? parseInt(entry.linkId, 10) : entry.linkId) : null;
+            if (entryLinkId !== targetLinkId) return false;
+         }
+         return true;
+     });
+     return latest ? latest.timestamp : 0;
+  },
+
+  // =========================
+  // Links (Cards) Operations → IndexedDB
+  // =========================
+
+  async getLinks() {
+    // 从 IndexedDB 读取，并在返回时按 UI 需要补充字段（id、subscribed）
+    const all = await Websites.getAll();
+    const subs = await Subs.getAll();
+    const subscribedSet = new Set(subs.map(s => s.website_id));
+    // 兼容 UI：保持 id 字段与 previousUrls
+    return all.map(w => ({
+      id: w.website_id,
+      website_id: w.website_id,
+      url: w.url,
+      title: w.title,
+      description: w.description,
+      created_at: w.created_at,
+      subscribed: subscribedSet.has(w.website_id),
+      previousUrls: w.previousUrls || [],
+      category: w.category || null,
+    }))
+  },
+
+  async addLink(link) {
+    // 简单查重：url+user 唯一
+    const existed = await Websites.getByUrl(link.url)
+    if (existed) throw new Error('Link already exists')
+    const record = await Websites.create({
+      url: link.url,
+      title: link.title || link.url,
+      description: link.description || '',
+      category: link.category || null,
+      user_id: (this.getUser()?.id) || 'local-dev',
+    })
+    // 分类维护
+    if (record.category) this.ensureCategory(record.category)
+    this.notify({ type: 'links_changed' })
+    return {
+      id: record.website_id,
+      website_id: record.website_id,
+      ...record
+    }
+  },
+
+  async updateLink(id, patch) {
+    const existing = await Websites.getById(id)
+    if (!existing) return null
+    const updated = await Websites.update(id, {
+      ...patch,
+      // 维护 URL 变更历史（previousUrls）
+      previousUrls: (() => {
+        const prev = existing.previousUrls || []
+        if (patch.url && patch.url !== existing.url) {
+          if (!prev.includes(existing.url)) prev.push(existing.url)
+        }
+        return prev
+      })()
+    })
+    if (patch.category) this.ensureCategory(patch.category)
+    this.notify({ type: 'links_changed' })
+    return { id, website_id: id, ...updated }
+  },
+
+  async deleteLink(id) {
+    // 删除网站并级联清理订阅与摘要
+    await Websites.delete(id)
+    await Subs.deleteByWebsite(id)
+    await Digests.deleteByWebsite(id)
+    this.notify({ type: 'links_changed' })
+    this.notify({ type: 'subscriptions_changed' })
+    this.notify({ type: 'digests_changed' })
+    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    return true
   },
 
   // =========================
   // Subscriptions Operations
   // =========================
 
-  getSubscriptions() {
-    return safeLoad(KEYS.SUBS, []);
+  async getSubscriptions() {
+    // 从 IndexedDB 读取，兼容现有 UI 字段
+    const list = await Subs.getAll()
+    return list.map(s => ({
+      id: s.subscription_id,
+      subscription_id: s.subscription_id,
+      linkId: s.website_id,
+      website_id: s.website_id,
+      url: s.url,
+      title: s.title,
+      frequency: s.frequency || 'daily',
+      enabled: s.enabled !== false,
+      last_generated_at: s.last_generated_at || 0,
+      created_at: s.created_at,
+    }))
   },
 
   saveSubscriptions(list) {
-    safeSave(KEYS.SUBS, list);
-    this.notify({ type: 'subscriptions_changed' });
+    // 兼容旧调用：不再直接写 localStorage，仅触发通知
+    this.notify({ type: 'subscriptions_changed' })
   },
 
   // 根据 Link ID 开启订阅
-  subscribeToLink(linkId) {
-    const link = this.getLinks().find(l => l.id === linkId);
-    if (!link) throw new Error('Link not found');
-
-    const subs = this.getSubscriptions();
+  async subscribeToLink(linkId) {
+    console.log('[Storage] subscribeToLink start', linkId);
+    // 修复：将字符串linkId转换为数字类型，与数据库中的website_id匹配
+    const numericLinkId = typeof linkId === 'string' ? parseInt(linkId, 10) : linkId;
     
-    // Find by linkId first
-    let sub = subs.find(s => s.linkId === linkId);
+    const link = await Websites.getById(numericLinkId)
+    if (!link) {
+      console.error('[Storage] Link not found for ID:', numericLinkId, '(original:', linkId, ')');
+      throw new Error(`Link not found for ID: ${linkId}`)
+    }
     
-    // Fallback: check by URL if migration missed something or dual state
-    if (!sub && link.url) {
-        const nUrl = normalizeUrl(link.url);
-        sub = subs.find(s => !s.linkId && normalizeUrl(s.url) === nUrl);
-        if (sub) {
-            // Fix it now
-            sub.linkId = linkId;
-        }
+    const sub = await Subs.upsert({
+      website_id: numericLinkId,
+      url: link.url,
+      title: link.title || link.url,
+      frequency: 'daily',
+      enabled: true,
+      user_id: (this.getUser()?.id) || 'local-dev',
+    })
+    this.notify({ type: 'subscriptions_changed' })
+    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    return {
+      id: sub.subscription_id,
+      linkId: sub.website_id,
+      url: sub.url,
+      title: sub.title,
+      frequency: sub.frequency,
+      enabled: sub.enabled !== false,
+      created_at: sub.created_at,
     }
-
-    if (sub) {
-      // 已存在，启用
-      sub.enabled = true;
-      sub.title = link.title || sub.title; // 更新标题
-      sub.url = link.url; // Update URL in case it changed
-    } else {
-      // 不存在，创建
-      sub = {
-        id: generateId(),
-        linkId: link.id,
-        url: link.url, 
-        title: link.title || link.url,
-        frequency: 'daily',
-        enabled: true,
-        lastChecked: 0,
-        created_at: Date.now()
-      };
-      subs.push(sub);
-    }
-    this.saveSubscriptions(subs); // triggers notify
-    return sub;
   },
 
   // 根据 Link ID 取消订阅 (仅 disable，不删除)
-  unsubscribeFromLink(linkId) {
-    const subs = this.getSubscriptions();
-    const sub = subs.find(s => s.linkId === linkId);
-
-    if (sub) {
-      sub.enabled = false;
-      this.saveSubscriptions(subs); // triggers notify
-      return true;
-    }
-    return false;
+  async unsubscribeFromLink(linkId) {
+    console.log('[Storage] unsubscribeFromLink start', linkId);
+    // 修复：将字符串linkId转换为数字类型，与数据库中的website_id匹配
+    const numericLinkId = typeof linkId === 'string' ? parseInt(linkId, 10) : linkId;
+    await Subs.deleteByWebsite(numericLinkId)
+    this.notify({ type: 'subscriptions_changed' });
+    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+    return true
   },
 
   // 更新单个订阅
-  updateSubscription(sub) {
-    const subs = this.getSubscriptions();
-    const idx = subs.findIndex(s => s.id === sub.id);
-    if (idx !== -1) {
-      subs[idx] = { ...subs[idx], ...sub };
-      this.saveSubscriptions(subs); // triggers notify
-      return true;
-    }
-    return false;
+  async updateSubscription(sub) {
+    // 兼容旧行为：按 subscription_id 更新，若仅需要禁用则写入 enabled=false
+    const currentList = await this.getSubscriptions()
+    const current = currentList.find(s => s.id === sub.id || s.subscription_id === sub.id)
+    if (!current) return false
+    await Subs.upsert({
+      subscription_id: current.subscription_id,
+      website_id: current.linkId,
+      url: sub.url ?? current.url,
+      title: sub.title ?? current.title,
+      frequency: sub.frequency ?? current.frequency,
+      enabled: sub.enabled ?? current.enabled,
+      user_id: (this.getUser()?.id) || 'local-dev',
+    })
+    this.notify({ type: 'subscriptions_changed' })
+    return true
   },
 
   // 彻底删除订阅 (ID based)
-  deleteSubscription(subId) {
-    const subs = this.getSubscriptions();
-    const newSubs = subs.filter(s => s.id !== subId);
-    if (newSubs.length !== subs.length) {
-        this.saveSubscriptions(newSubs);
-    }
+  async deleteSubscription(subId) {
+    // 通过读取找到主键后删除
+    const list = await this.getSubscriptions()
+    const target = list.find(s => s.id === subId || s.subscription_id === subId)
+    if (!target) return false
+    await Subs.delete(target.subscription_id)
+    this.notify({ type: 'subscriptions_changed' })
+    return true
   },
   
   // Deprecated but kept for compatibility if needed, now redirects to ID logic if possible
-  deleteSubscriptionByUrl(url) {
-      // Legacy support or orphan cleanup
-    const subs = this.getSubscriptions();
-    const nUrl = normalizeUrl(url);
-    const leftSubs = subs.filter(s => normalizeUrl(s.url) !== nUrl);
-    
-    if (leftSubs.length !== subs.length) {
-      this.saveSubscriptions(leftSubs); // triggers notify
-      // 同时也清理 Digests
-      this.cleanupDigestsByUrl(url);
+  async deleteSubscriptionByUrl(url) {
+    // 兼容旧逻辑：按 URL 清理订阅，并清理摘要
+    const list = await this.getSubscriptions()
+    const nUrl = normalizeUrl(url)
+    const target = list.find(s => normalizeUrl(s.url) === nUrl)
+    if (target) {
+      await Subs.delete(target.subscription_id)
+      await this.cleanupDigestsByUrl(url)
+      this.notify({ type: 'subscriptions_changed' })
     }
   },
 
@@ -303,34 +479,32 @@ export const storageAdapter = {
   // Digests Operations
   // =========================
 
-  getDigests() {
-    return safeLoad(KEYS.DIGESTS, []);
+  // =========================
+  // Digests Operations → IndexedDB（新规范）
+  // =========================
+  async getDigests() {
+    // 注意：与旧结构不同（旧结构支持 merged 的日报卡片），
+    // 新规范直接返回每条摘要记录，UI 层负责按需要分组/统计
+    const links = await this.getLinks()
+    const allByLink = await Promise.all(links.map(l => Digests.getByWebsite(l.website_id)))
+    return allByLink.flat()
   },
 
-  saveDigests(list) {
-    safeSave(KEYS.DIGESTS, list);
-    // Digest changes might not need global UI refresh immediately, but why not
-    this.notify({ type: 'digests_changed' });
+  async saveDigests(list) {
+    // 兼容旧方法签名：批量写入不再支持，保留通知以避免 UI 崩溃
+    this.notify({ type: 'digests_changed' })
   },
 
-  addDigest(digest) {
-    const digests = this.getDigests();
-    // P0: Digest generated successfully behavior
-    // If digest has an ID, we assume it's ready.
-    // The new requirement says: { id, type: 'single', siteIds: [link.id], summaries: {...}, createdAt }
-    
-    if (digest.merged && digest.date) {
-      const existingIdx = digests.findIndex(d => d.merged === true && d.date === digest.date);
-      if (existingIdx !== -1) {
-        digests[existingIdx] = { ...digests[existingIdx], ...digest, entries: digest.entries }; 
-      } else {
-        digests.push(digest);
-      }
-    } else {
-      digests.push(digest);
-    }
-    this.saveDigests(digests);
-    return digest;
+  async addDigest(digest) {
+    // digest: { website_id, summary, type }
+    const record = await Digests.create({
+      website_id: digest.website_id,
+      summary: digest.summary,
+      type: digest.type,
+      user_id: (this.getUser()?.id) || 'local-dev',
+    })
+    this.notify({ type: 'digests_changed' })
+    return record
   },
 
   // 内部：清理关联 Digest Entries
@@ -384,20 +558,15 @@ export const storageAdapter = {
   // =========================
   // Helper for Subscription Status
   // =========================
-  isSubscribed(identifier) {
-    // Identifier can be linkId (preferred) or url (legacy fallback)
-    const subs = this.getSubscriptions();
-    
-    // Check by ID
-    if (subs.some(s => s.enabled !== false && s.linkId === identifier)) return true;
-    
-    // Check by URL (Legacy)
-    const nUrl = normalizeUrl(identifier);
-    if (nUrl) {
-        return subs.some(s => s.enabled !== false && normalizeUrl(s.url) === nUrl);
-    }
-    
-    return false;
+  async isSubscribed(identifier) {
+    // 兼容：identifier 可为 linkId 或原始 URL
+    const subs = await this.getSubscriptions()
+    // by ID
+    if (subs.some(s => s.enabled !== false && s.linkId === identifier)) return true
+    // by URL
+    const nUrl = normalizeUrl(identifier)
+    if (nUrl) return subs.some(s => s.enabled !== false && normalizeUrl(s.url) === nUrl)
+    return false
   },
 
   // =========================
@@ -414,3 +583,10 @@ export const storageAdapter = {
 };
 
 export default storageAdapter;
+
+// 启动时尝试执行一次迁移（仅首次）
+try {
+  storageAdapter.migrateLocalStorageToIndexedDB()
+} catch (e) {
+  console.warn('[Startup] migrateLocalStorageToIndexedDB skipped', e)
+}

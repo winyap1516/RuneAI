@@ -1052,12 +1052,10 @@ async function renderDigestView() {
   loadUserWelcome();
 
   async function loadAndRenderLinks() {
-    console.log('[Dashboard] loadAndRenderLinks start');
     const container = document.getElementById('cardsContainer');
     if (!container) return;
     
     let links = await linkController.getLinks();
-    console.log(`[Dashboard] Loaded ${links.length} links`);
 
     if (links.length === 0 && !useCloud) {
          await linkController.injectSamples();

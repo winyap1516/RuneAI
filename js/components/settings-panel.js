@@ -26,15 +26,15 @@ storageAdapter.subscribe((event) => {
 });
 
 // 中文注释：渲染订阅设定列表（名称/URL/频率下拉），变更即保存
-window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
+window.renderSubscriptionsSettings = async function renderSubscriptionsSettings() {
   const wrap = document.getElementById('subsSettingsList');
   if (!wrap) return;
 
   // 1. 获取所有启用（enabled !== false）的订阅
-  const allSubs = storageAdapter.getSubscriptions().filter(s => s.enabled !== false);
+  const allSubs = (await storageAdapter.getSubscriptions()).filter(s => s.enabled !== false);
   
   // 2. 获取所有卡片链接，用于识别孤儿订阅
-  const links = storageAdapter.getLinks();
+  const links = await storageAdapter.getLinks();
   // P0: Subscription ID-first logic
   // We match by ID if available.
   const linkIdSet = new Set(links.map(l => l.id));
@@ -100,9 +100,9 @@ window.renderSubscriptionsSettings = function renderSubscriptionsSettings() {
 
     const list = document.createElement('div');
     list.className = 'flex flex-col gap-3';
-    orphanSubs.forEach(sub => renderRow(sub, list, true));
-    wrap.appendChild(list);
-  }
+    for (const sub of orphanSubs) { renderRow(sub, list, true); }
+  wrap.appendChild(list);
+}
 };
 
 // 中文注释：渲染单行订阅项
@@ -137,12 +137,12 @@ function renderRow(sub, container, isOrphan) {
       sel.appendChild(o);
     });
     sel.value = String(sub.frequency || 'daily');
-    sel.addEventListener('change', () => {
+    sel.addEventListener('change', async () => {
       const next = sel.value || 'daily';
-      const arr = storageAdapter.getSubscriptions();
+      const arr = await storageAdapter.getSubscriptions();
       const idx = arr.findIndex(s => String(s.id) === String(sub.id));
       if (idx !== -1) {
-        storageAdapter.updateSubscription({ ...arr[idx], frequency: next });
+        await storageAdapter.updateSubscription({ ...arr[idx], frequency: next });
         // Toast
         try {
             showToast('Frequency updated');
@@ -154,7 +154,7 @@ function renderRow(sub, container, isOrphan) {
     const unsubBtn = document.createElement('button');
     unsubBtn.className = 'px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors';
     unsubBtn.textContent = 'Unsubscribe';
-    unsubBtn.onclick = () => {
+    unsubBtn.onclick = async () => {
         openConfirm({
             title: isOrphan ? 'Remove orphan subscription?' : 'Unsubscribe?',
             message: isOrphan 
@@ -162,13 +162,12 @@ function renderRow(sub, container, isOrphan) {
                 : `Are you sure you want to unsubscribe from "${title}"?`,
             okText: 'Confirm',
             okDanger: true,
-            onOk: () => {
-                // 使用 storageAdapter 更新状态 (触发事件 -> 自动刷新 UI)
-                const arr = storageAdapter.getSubscriptions();
-                const idx = arr.findIndex(s => String(s.id) === String(sub.id));
-                if (idx !== -1) {
-                    storageAdapter.updateSubscription({ ...arr[idx], enabled: false });
-                    // 事件广播会自动更新 Dashboard 和 Settings
+            onOk: async () => {
+                // 使用 storageAdapter 删除订阅（符合“取消订阅移至 Settings”的规范）
+                const arr = await storageAdapter.getSubscriptions();
+                const current = arr.find(s => String(s.id) === String(sub.id));
+                if (current) {
+                    await storageAdapter.unsubscribeFromLink(current.linkId);
                 }
             }
         });

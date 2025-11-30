@@ -24,11 +24,22 @@ function hashText(text = '') {
 window.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 RuneAI Dashboard Loaded');
 
-  // 模拟已登录用户
-  const user = { nickname: 'SoloDev', avatar: '', email: 'solo@example.com' };
+  // 模拟已登录用户（开发者模式固定账号）
+  const user = {
+    id: 'local-dev',
+    nickname: 'Developer',
+    email: 'dev@local',
+    avatar: 'https://i.pravatar.cc/100?img=12'
+  };
   storageAdapter.saveUser(user);
 
   // 初始化页面
+  // P0: Ensure migration runs before rendering
+  try {
+    storageAdapter.migrateToIdBased();
+  } catch (e) {
+    console.error("Migration failed:", e);
+  }
   initDashboard(user);
 
   // =============================
@@ -64,7 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (!sub?.enabled) return;
       if (sub?.inProgress) return;
       sub.inProgress = true; sub.status = 'in_progress'; 
-      storageAdapter.updateSubscription(sub);
+      await storageAdapter.updateSubscription(sub);
       
       const dateStr = new Date().toISOString().slice(0,10);
       try {
@@ -77,7 +88,7 @@ window.addEventListener('DOMContentLoaded', () => {
           sub.lastChecked = Date.now();
           sub.inProgress = false;
           sub.status = 'ok';
-          storageAdapter.updateSubscription(sub);
+          await storageAdapter.updateSubscription(sub);
           return;
         }
         const entry = {
@@ -88,7 +99,7 @@ window.addEventListener('DOMContentLoaded', () => {
           highlights: Array.isArray(ai.tags) ? ai.tags : [],
           raw: { site, ai }
         };
-        const digests = storageAdapter.getDigests();
+        const digests = await storageAdapter.getDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         if (merged) {
           const exist = new Set((merged.entries||[]).map(e=>normalizeUrl(e.url)));
@@ -106,13 +117,13 @@ window.addEventListener('DOMContentLoaded', () => {
             created_at: Date.now()
           };
         }
-        storageAdapter.addDigest(merged);
+        await storageAdapter.addDigest(merged);
         
         sub.lastChecked = Date.now();
         sub.lastHash = currentHash;
         sub.inProgress = false;
         sub.status = 'ok';
-        storageAdapter.updateSubscription(sub);
+        await storageAdapter.updateSubscription(sub);
         
         try {
           const toast = document.createElement('div');
@@ -122,20 +133,20 @@ window.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => toast.remove(), 1800);
         } catch {}
       } catch (e) {
-        const digests = storageAdapter.getDigests();
+        const digests = await storageAdapter.getDigests();
         let merged = digests.find(d => d.date === dateStr && d.merged === true);
         const entry = { subscriptionId: sub.id, url: sub.url, title: sub.title||sub.url, summary: 'Fetch failed', highlights: [], raw: { error: String(e?.message||e) } };
         if (merged) { (merged.entries||[]).push(entry); merged.entries = merged.entries||[]; merged.siteCount = merged.entries.length; merged.updated_at = Date.now(); }
         else { merged = { id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [entry], created_at: Date.now() }; }
-        storageAdapter.addDigest(merged);
+        await storageAdapter.addDigest(merged);
         
         sub.inProgress = false; sub.status = 'error'; sub.lastError = String(e?.message||e);
-        storageAdapter.updateSubscription(sub);
+        await storageAdapter.updateSubscription(sub);
       }
     }
 
     async function checkAllSubscriptions() {
-      const subs = storageAdapter.getSubscriptions();
+      const subs = await storageAdapter.getSubscriptions();
       const now = Date.now();
       for (const sub of subs) {
         const interval = frequencyToMs(sub.frequency);

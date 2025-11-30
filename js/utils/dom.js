@@ -204,6 +204,41 @@ export function openConfirm({ title = 'Confirm action?', message = 'This action 
 }
 
 /**
+ * 中文注释：通用信息提示模态（替代 alert，只包含 OK 按钮）
+ */
+export function openInfoModal({ title = 'Notice', message = '', onOk = () => {} } = {}) {
+  const modal = document.getElementById('confirmModal');
+  const titleEl = document.getElementById('confirmTitle');
+  const msgEl = document.getElementById('confirmMessage');
+  const btnCancel = document.getElementById('confirmCancel');
+  const btnOk = document.getElementById('confirmOk');
+  if (!modal || !titleEl || !msgEl || !btnCancel || !btnOk) return;
+  
+  titleEl.textContent = title;
+  msgEl.textContent = message;
+  btnOk.textContent = 'OK';
+  btnCancel.style.display = 'none'; // Hide cancel button
+  
+  modal.style.zIndex = "99999";
+  show(modal);
+  document.body.dataset.modalOpen = '1';
+  
+  const cleanup = () => {
+    hide(modal);
+    btnCancel.style.display = ''; // Restore cancel button
+    const settingsPanel = document.getElementById('settingsPanel');
+    if (!settingsPanel || settingsPanel.classList.contains('hidden')) {
+      delete document.body.dataset.modalOpen;
+    }
+    modal.style.zIndex = "";
+    btnOk.removeEventListener('click', onConfirm);
+  };
+  
+  const onConfirm = () => { try { onOk(); } finally { cleanup(); } };
+  btnOk.addEventListener('click', onConfirm);
+}
+
+/**
  * 中文注释：通用文本输入模态（替代 prompt）
  */
 export async function openTextPrompt({ title='Input', placeholder='' } = {}) {
