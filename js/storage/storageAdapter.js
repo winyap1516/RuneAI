@@ -2,12 +2,17 @@
 // 封装所有 localStorage 操作，未来可扩展至 Supabase
 // 遵循单例模式导出
 
+import { normalizeUrl } from '../utils/url.js';
+
 const KEYS = {
   LINKS: 'rune_cards',
   SUBS: 'rune_subscriptions',
   DIGESTS: 'rune_digests',
   CATEGORIES: 'rune_categories'
 };
+
+// Event listeners
+const listeners = [];
 
 // 内部辅助：安全读写
 function safeLoad(key, fallback = []) {
@@ -33,33 +38,26 @@ function generateId() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// 辅助：URL 规范化（用于去重对比）
-function normalizeUrl(raw = '') {
-  const s = String(raw).trim();
-  if (!s) return '';
-  const guess = /^(https?:)?\/\//i.test(s) ? s : `https://${s}`;
-  try {
-    const u = new URL(guess);
-    u.hostname = u.hostname.toLowerCase();
-    return u.toString();
-  } catch {
-    return '';
-  }
-}
-
-function normalizeForCompare(raw = '') {
-  const n = normalizeUrl(raw);
-  if (!n) return '';
-  try {
-    const u = new URL(n);
-    const path = String(u.pathname || '').replace(/\/+$/, '');
-    return `${u.hostname.toLowerCase()}${path}`;
-  } catch {
-    return String(n).toLowerCase().replace(/\/+$/, '');
-  }
-}
-
 export const storageAdapter = {
+  // =========================
+  // Event System
+  // =========================
+  subscribe(listener) {
+    if (typeof listener === 'function') {
+      listeners.push(listener);
+    }
+    return () => {
+      const idx = listeners.indexOf(listener);
+      if (idx !== -1) listeners.splice(idx, 1);
+    };
+  },
+
+  notify(event) {
+    listeners.forEach(fn => {
+      try { fn(event); } catch (e) { console.error('Event listener error:', e); }
+    });
+  },
+
   // =========================
   // Links (Cards) Operations
   // =========================
@@ -70,13 +68,14 @@ export const storageAdapter = {
 
   saveLinks(list) {
     safeSave(KEYS.LINKS, list);
+    this.notify({ type: 'links_changed' });
   },
 
   addLink(link) {
     const links = this.getLinks();
     // 简单的查重（按 URL）
-    const nUrl = normalizeForCompare(link.url);
-    if (nUrl && links.some(l => normalizeForCompare(l.url) === nUrl)) {
+    const nUrl = normalizeUrl(link.url);
+    if (nUrl && links.some(l => normalizeUrl(l.url) === nUrl)) {
       throw new Error('Link already exists');
     }
     
@@ -86,7 +85,7 @@ export const storageAdapter = {
       ...link
     };
     links.unshift(newLink); // 新增在头部
-    this.saveLinks(links);
+    this.saveLinks(links); // triggers notify
 
     // 同时也需要确保 Category 存在
     if (link.category) {
@@ -103,14 +102,12 @@ export const storageAdapter = {
 
     const updated = { ...links[idx], ...patch, updated_at: Date.now() };
     links[idx] = updated;
-    this.saveLinks(links);
+    this.saveLinks(links); // triggers notify
 
     // 如果更新了 category，也确保一下
     if (patch.category) {
       this.ensureCategory(patch.category);
     }
-    // 如果更新了 URL，可能需要同步更新 Subscription? 
-    // 目前暂不处理 URL 变更导致的 Subscription 失效问题，假设 URL 不常变或由用户手动管理
 
     return updated;
   },
@@ -122,12 +119,21 @@ export const storageAdapter = {
 
     // 1. 删除 Link
     const newLinks = links.filter(l => l.id !== id);
-    this.saveLinks(newLinks);
+    this.saveLinks(newLinks); // triggers notify
 
     // 2. 删除关联 Subscription (如果有)
     // 需要通过 URL 匹配
+    // 注意：这里可能需要通知，但 deleteSubscriptionByUrl 会负责通知
     if (target.url) {
-      this.deleteSubscriptionByUrl(target.url);
+      // 默认行为：删除卡片时不自动删除订阅，除非调用者明确要求
+      // 但此处原逻辑是自动删除。根据用户需求：
+      // "如果删除卡片也要同时删除对应订阅...或至少弹提醒"
+      // 为了保持 API 行为一致，我们这里先保留原逻辑（彻底清理），或者改为保留订阅（孤儿）。
+      // 用户需求中提到“建议首发改为手动列出并可一键 Unsubscribe”，暗示孤儿是可以存在的。
+      // 但为了保持数据清洁，如果用户是在 Dashboard 点 Delete，通常期望全删。
+      // 不过为了安全，我们这里只删卡片。调用者（Dashboard UI）应该负责询问用户并调用 unsubscribe。
+      // 修改：不再自动调用 deleteSubscriptionByUrl(target.url);
+      // 让 UI 层决定是否调用 unsubscribe。
     }
 
     return true;
@@ -143,17 +149,18 @@ export const storageAdapter = {
 
   saveSubscriptions(list) {
     safeSave(KEYS.SUBS, list);
+    this.notify({ type: 'subscriptions_changed' });
   },
 
   // 根据 Link ID 开启订阅
-  subscribe(linkId) {
+  subscribeToLink(linkId) {
     const link = this.getLinks().find(l => l.id === linkId);
     if (!link || !link.url) throw new Error('Link not found or invalid URL');
 
     const subs = this.getSubscriptions();
-    const nUrl = normalizeForCompare(link.url);
+    const nUrl = normalizeUrl(link.url);
     
-    let sub = subs.find(s => normalizeForCompare(s.url) === nUrl);
+    let sub = subs.find(s => normalizeUrl(s.url) === nUrl);
     
     if (sub) {
       // 已存在，启用
@@ -163,7 +170,11 @@ export const storageAdapter = {
       // 不存在，创建
       sub = {
         id: generateId(),
-        url: normalizeUrl(link.url),
+        url: normalizeUrl(link.url), // Store normalized or raw? Better store raw if available, but for matching we use normalized.
+        // Actually, let's store the raw url from link for display, but matching uses normalized.
+        // Wait, if we normalize here, we lose the original casing for display.
+        // Let's store link.url (raw) but ensure we can match it later.
+        url: link.url, 
         title: link.title || link.url,
         frequency: 'daily',
         enabled: true,
@@ -172,47 +183,47 @@ export const storageAdapter = {
       };
       subs.push(sub);
     }
-    this.saveSubscriptions(subs);
+    this.saveSubscriptions(subs); // triggers notify
     return sub;
   },
 
   // 根据 Link ID 取消订阅 (仅 disable，不删除)
-  unsubscribe(linkId) {
+  unsubscribeFromLink(linkId) {
     const link = this.getLinks().find(l => l.id === linkId);
     if (!link || !link.url) return false;
 
     const subs = this.getSubscriptions();
-    const nUrl = normalizeForCompare(link.url);
-    const sub = subs.find(s => normalizeForCompare(s.url) === nUrl);
+    const nUrl = normalizeUrl(link.url);
+    const sub = subs.find(s => normalizeUrl(s.url) === nUrl);
 
     if (sub) {
       sub.enabled = false;
-      this.saveSubscriptions(subs);
+      this.saveSubscriptions(subs); // triggers notify
       return true;
     }
     return false;
   },
 
-  // 更新单个订阅 (用于调度器更新状态等)
+  // 更新单个订阅
   updateSubscription(sub) {
     const subs = this.getSubscriptions();
     const idx = subs.findIndex(s => s.id === sub.id);
     if (idx !== -1) {
       subs[idx] = { ...subs[idx], ...sub };
-      this.saveSubscriptions(subs);
+      this.saveSubscriptions(subs); // triggers notify
       return true;
     }
     return false;
   },
 
-  // 彻底删除订阅 (内部使用，配合 deleteLink)
+  // 彻底删除订阅
   deleteSubscriptionByUrl(url) {
     const subs = this.getSubscriptions();
-    const nUrl = normalizeForCompare(url);
-    const leftSubs = subs.filter(s => normalizeForCompare(s.url) !== nUrl);
+    const nUrl = normalizeUrl(url);
+    const leftSubs = subs.filter(s => normalizeUrl(s.url) !== nUrl);
     
     if (leftSubs.length !== subs.length) {
-      this.saveSubscriptions(leftSubs);
+      this.saveSubscriptions(leftSubs); // triggers notify
       // 同时也清理 Digests
       this.cleanupDigestsByUrl(url);
     }
@@ -228,22 +239,16 @@ export const storageAdapter = {
 
   saveDigests(list) {
     safeSave(KEYS.DIGESTS, list);
+    // Digest changes might not need global UI refresh immediately, but why not
+    this.notify({ type: 'digests_changed' });
   },
 
   addDigest(digest) {
     const digests = this.getDigests();
-    // 检查是否是合并 Digest 且当天已存在
     if (digest.merged && digest.date) {
       const existingIdx = digests.findIndex(d => d.merged === true && d.date === digest.date);
       if (existingIdx !== -1) {
-        // 合并逻辑通常由调用方处理完 entries 后传入 update，或者在这里做合并
-        // 这里假设 addDigest 传入的是一个新的或者完整的 digest 对象
-        // 如果业务逻辑是“追加”，建议使用 updateDigest 或专门的 addEntryToDailyDigest
-        // 简单起见，这里如果是 ID 冲突则覆盖，否则新增
         digests[existingIdx] = { ...digests[existingIdx], ...digest, entries: digest.entries }; 
-        // 注意：这里覆盖可能不安全，但根据目前逻辑，生成器是先读再写的。
-        // 更稳妥的方式是直接 push，但 merged digest 要求唯一。
-        // 修正：如果已存在，应该更新。
       } else {
         digests.push(digest);
       }
@@ -257,18 +262,16 @@ export const storageAdapter = {
   // 内部：清理关联 Digest Entries
   cleanupDigestsByUrl(url) {
     const digests = this.getDigests();
-    const nUrl = normalizeForCompare(url);
+    const nUrl = normalizeUrl(url);
     
     const cleanedDigests = digests.map(d => {
       if (!Array.isArray(d.entries)) return d;
-      const newEntries = d.entries.filter(e => normalizeForCompare(e.url) !== nUrl);
+      const newEntries = d.entries.filter(e => normalizeUrl(e.url) !== nUrl);
       if (newEntries.length !== d.entries.length) {
         return { ...d, entries: newEntries, siteCount: newEntries.length };
       }
       return d;
     }).filter(d => {
-      // 如果条目为空，且不是手动创建的空壳（通常 Digest 至少有一条），可以删除
-      // 这里策略：如果 entries 变空了，就删掉这个 Digest
       return Array.isArray(d.entries) && d.entries.length > 0;
     });
 
@@ -284,6 +287,7 @@ export const storageAdapter = {
   
   saveCategories(list) {
     safeSave(KEYS.CATEGORIES, list);
+    this.notify({ type: 'categories_changed' });
   },
 
   ensureCategory(name) {
@@ -308,8 +312,8 @@ export const storageAdapter = {
   // =========================
   isSubscribed(linkUrl) {
     const subs = this.getSubscriptions();
-    const nUrl = normalizeForCompare(linkUrl);
-    return subs.some(s => s.enabled !== false && normalizeForCompare(s.url) === nUrl);
+    const nUrl = normalizeUrl(linkUrl);
+    return subs.some(s => s.enabled !== false && normalizeUrl(s.url) === nUrl);
   },
 
   // =========================
@@ -321,6 +325,7 @@ export const storageAdapter = {
 
   saveUser(user) {
     safeSave('runeai_user', user);
+    this.notify({ type: 'user_changed' });
   }
 };
 

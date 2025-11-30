@@ -167,21 +167,38 @@ export function openConfirm({ title = 'Confirm action?', message = 'This action 
   const btnCancel = document.getElementById('confirmCancel');
   const btnOk = document.getElementById('confirmOk');
   if (!modal || !titleEl || !msgEl || !btnCancel || !btnOk) return;
+  
   titleEl.textContent = title;
   msgEl.textContent = message;
   btnOk.textContent = okText;
+  
+  // 确保 Confirm Modal 拥有最高的 z-index，显示在 Settings 遮罩层之上
+  modal.style.zIndex = "99999"; 
   show(modal);
   document.body.dataset.modalOpen = '1';
-  if (okDanger) { btnOk.classList.add('bg-red-600','text-white'); }
-  else { btnOk.classList.remove('bg-red-600','text-white'); }
+  
+  if (okDanger) { 
+    btnOk.classList.add('bg-red-600','text-white'); 
+  } else { 
+    btnOk.classList.remove('bg-red-600','text-white'); 
+  }
+  
   const cleanup = () => {
     hide(modal);
-     delete document.body.dataset.modalOpen;
+    // 注意：如果还有其他 modal 打开（如 settings），不要删除 modalOpen 标记
+    // 简单判断：如果 Settings Panel 也是打开的，就不删
+    const settingsPanel = document.getElementById('settingsPanel');
+    if (!settingsPanel || settingsPanel.classList.contains('hidden')) {
+      delete document.body.dataset.modalOpen;
+    }
+    modal.style.zIndex = ""; // 还原 z-index
     btnCancel.removeEventListener('click', onCancel);
     btnOk.removeEventListener('click', onConfirm);
   };
+  
   const onCancel = () => cleanup();
   const onConfirm = () => { try { onOk(); } finally { cleanup(); } };
+  
   btnCancel.addEventListener('click', onCancel);
   btnOk.addEventListener('click', onConfirm);
 }

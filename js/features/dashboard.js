@@ -1,6 +1,14 @@
 import { $, $$, fadeIn, slideToggle, on, openModal, closeModal, show, hide, mountHTML, delegate, openConfirm, openTextPrompt } from "../utils/dom.js";
 import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from "../../mockFunctions.js";
 import storageAdapter from "../storage/storageAdapter.js";
+import { normalizeUrl } from "../utils/url.js";
+
+// Listen for storage events to update UI
+storageAdapter.subscribe((event) => {
+  if (event.type === 'subscriptions_changed') {
+    markSubscribedButtons();
+  }
+});
 
 // =============================
 // 🎴 统一卡片模板与辅助函数
@@ -14,19 +22,6 @@ function escapeHTML(str = "") {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-// Normalize URLs for comparison
-function normalizeForCompare(raw = '') {
-  const n = normalizeUrl(raw);
-  if (!n) return '';
-  try {
-    const u = new URL(n);
-    const path = String(u.pathname || '').replace(/\/+$/, '');
-    return `${u.hostname.toLowerCase()}${path}`;
-  } catch {
-    return String(n).toLowerCase().replace(/\/+$/, '');
-  }
 }
 
 // Check if a URL is subscribed
@@ -94,23 +89,39 @@ export function createCard(data = {}) {
   }).join("");
 
   return `
-    <div class="rune-card group rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all" data-card-id="${escapeHTML(id)}" data-category="${escapeHTML(category)}">
+    <div class="rune-card group relative rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all" data-card-id="${escapeHTML(id)}" data-category="${escapeHTML(category)}">
       <div class="rune-card-head flex items-start justify-between gap-3">
         <div class="flex items-center gap-3">
           ${buildIconHTML({ title, url })}
           <div class="rune-card-title text-base font-bold">${escapeHTML(title)}</div>
         </div>
-        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/10 rounded p-1 transition-colors" title="More">more_horiz</button>
+        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/10 rounded p-1 transition-colors z-10" title="More">more_horiz</button>
       </div>
+      
+      <!-- Internal Menu -->
+      <div class="rune-card-menu hidden absolute top-10 right-2 z-[9999] w-32 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 text-sm flex flex-col animate-in fade-in zoom-in-95 duration-100">
+        <button class="menu-edit w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">edit</span> Edit
+        </button>
+        <button class="menu-delete w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-base">delete</span> Delete
+        </button>
+      </div>
+
       <div class="rune-card-desc text-sm mt-2 text-text-secondary-light dark:text-text-secondary-dark">${escapeHTML(description)}</div>
       <div class="rune-card-divider my-3"></div>
       <div class="rune-card-tags flex flex-wrap gap-2">
         ${tagsHtml}
       </div>
       <div class="mt-3 card-actions flex items-center justify-end gap-2">
-        ${(() => { const nurl = normalizeUrl(url); return `<button class\="btn-subscribe btn btn-small btn-muted\" data-url=\"${escapeHTML(nurl)}\">Subscribe</button>`; })()}
-        <div class="card-controls" style="display:none;">
-          <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="">Generate Now</button>
+        ${(() => { 
+           const nurl = normalizeUrl(url); 
+           // We start with Subscribe button. The state will be updated by markSubscribedButtons
+           return `<button class="btn-subscribe btn btn-small btn-muted" data-url="${escapeHTML(nurl)}">Subscribe</button>`; 
+        })()}
+        <div class="card-controls hidden items-center gap-2">
+           <span class="text-sm font-bold text-primary px-2">Subscribed</span>
+           <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="">Generate Now</button>
         </div>
       </div>
     </div>
@@ -126,60 +137,72 @@ const RESERVED_CATEGORIES = new Set(['All Links']);
 // Mark subscription button states
 function markSubscribedButtons() {
   const subs = storageAdapter.getSubscriptions();
-  const urls = new Set(
-    subs
-      .filter(s => s.enabled !== false)
-      .map(s => normalizeUrl(s.url))
-      .filter(u => !!u)
-  );
+  
+  // 使用 Map 建立多重索引，提高匹配命中率
+  const subMap = new Map();
+  subs.forEach(s => {
+    if (s.enabled === false) return;
+    // 1. 使用规范化 URL 作为 Key
+    const nUrl = normalizeUrl(s.url);
+    if (nUrl) subMap.set(nUrl, s);
+    
+    // 2. 使用原始 URL 作为备用 Key (防止规范化差异)
+    if (s.url) subMap.set(s.url, s);
+  });
+
   const container = document.getElementById('cardsContainer');
   if (!container) return;
+  
   const btns = Array.from(container.querySelectorAll('.btn-subscribe'));
   btns.forEach((b) => {
-    const url = normalizeUrl(b.getAttribute('data-url') || '');
-    applySubscribeStyle(b, urls.has(url));
+    const rawUrl = b.getAttribute('data-url') || '';
+    const cardUrlNormalized = normalizeUrl(rawUrl);
+    
+    // 尝试匹配
+    const sub = subMap.get(cardUrlNormalized) || subMap.get(rawUrl);
+    const isSubbed = !!sub;
+    
+    // 1. Toggle Subscribe Button visibility
+    if (isSubbed) {
+      b.classList.add('hidden');
+    } else {
+      b.classList.remove('hidden');
+      // Ensure it looks like a subscribe button
+      b.textContent = 'Subscribe';
+      b.disabled = false;
+      b.classList.remove('btn-outline', 'text-primary');
+      b.classList.add('btn-muted');
+    }
+
     const wrap = b.closest('.card-actions');
     if (!wrap) return;
+    
+    // 2. Toggle Controls (Subscribed label + Generate Now)
     const controls = wrap.querySelector('.card-controls');
     const onceBtn = wrap.querySelector('.btn-generate-once');
-    const card = b.closest('.rune-card');
-    const menuUnsub = card?.querySelector('.menu-unsubscribe');
-    const subsAll = storageAdapter.getSubscriptions();
-    const sub = subsAll.find(s => s.enabled !== false && normalizeForCompare(s.url) === normalizeForCompare(url));
-    const isOn = !!sub;
-    if (controls) controls.style.display = isOn ? 'inline-flex' : 'none';
-    if (onceBtn) { onceBtn.disabled = !isOn; onceBtn.dataset.subId = sub?.id || ''; }
-    if (menuUnsub) { if (isOn) menuUnsub.classList.remove('hidden'); else menuUnsub.classList.add('hidden'); }
+    
+    if (controls) {
+      if (isSubbed) {
+        controls.classList.remove('hidden');
+        controls.classList.add('flex');
+      } else {
+        controls.classList.add('hidden');
+        controls.classList.remove('flex');
+      }
+    }
+    
+    if (onceBtn) { 
+      onceBtn.disabled = !isSubbed; 
+      onceBtn.dataset.subId = sub?.id || ''; 
+    }
   });
-  syncCardControlsVisibility();
 }
+
+// Expose for external updates (e.g. from Settings)
+window.refreshSubscriptionUI = markSubscribedButtons;
 
 function syncCardControlsVisibility() {
-  const container = document.getElementById('cardsContainer');
-  if (!container) return;
-  Array.from(container.querySelectorAll('.rune-card')).forEach((card) => {
-    const url = card.querySelector('.btn-subscribe')?.getAttribute('data-url') || '';
-    const subscribed = isUrlSubscribed(url);
-    const controls = card.querySelector('.card-controls');
-    if (controls) controls.style.display = subscribed ? 'inline-flex' : 'none';
-    const onceBtn = card.querySelector('.btn-generate-once');
-    if (onceBtn) onceBtn.style.display = subscribed ? 'inline-flex' : 'none';
-    const menuUnsub = card.querySelector('.menu-unsubscribe');
-    if (menuUnsub) { if (subscribed) menuUnsub.classList.remove('hidden'); else menuUnsub.classList.add('hidden'); }
-  });
-}
-
-function normalizeUrl(raw = '') {
-  const s = String(raw).trim();
-  if (!s) return '';
-  const guess = /^(https?:)?\/\//i.test(s) ? s : `https://${s}`;
-  try {
-    const u = new URL(guess);
-    u.hostname = u.hostname.toLowerCase();
-    return u.toString();
-  } catch {
-    return '';
-  }
+  markSubscribedButtons(); // Re-use the main logic
 }
 
 function findCardByUrl(url = '') {
@@ -1182,26 +1205,51 @@ export function initDashboard() {
     };
     delegate(document, '.more-btn', 'click', (e, btn) => {
       e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+      e.stopPropagation(); // Stop bubbling to document
+      
       closeUserDropdown();
-      closeAllMenusDoc();
+      
       const card = btn.closest('.rune-card');
       const menu = card?.querySelector('.rune-card-menu');
-      if (menu) {
-        menu.classList.toggle('hidden');
-        if (!menu.classList.contains('hidden')) {
-          try { document.body.dataset.menuOpen = '1'; } catch {}
-        } else {
-          try { delete document.body.dataset.menuOpen; } catch {}
-        }
+      if (!menu) return;
+
+      const isCurrentlyOpen = !menu.classList.contains('hidden');
+
+      // Close all other menus first
+      closeAllMenusDoc();
+
+      if (!isCurrentlyOpen) {
+        menu.classList.remove('hidden');
+        try { document.body.dataset.menuOpen = '1'; } catch {}
+        
+        // One-time click listener to close on outside click
         const onDocClick = (ev) => {
-          if (!card.contains(ev.target)) { menu.classList.add('hidden'); document.removeEventListener('click', onDocClick); }
+          // If click is inside the menu, do nothing (unless it's a button which handles itself)
+          // If click is on the trigger button, do nothing (let the button handler handle it? No, button handler is this one)
+          // Actually, if I click the button again, 'isCurrentlyOpen' will be true, so it closes.
+          // So I only need to handle clicks *elsewhere*.
+          if (menu.contains(ev.target)) return;
+          if (btn.contains(ev.target)) return; // Let the button click handler handle toggle off
+          
+          menu.classList.add('hidden');
+          document.removeEventListener('click', onDocClick);
           try { delete document.body.dataset.menuOpen; } catch {}
         };
+        
+        // Delay adding listener to avoid catching the current click event
         setTimeout(() => document.addEventListener('click', onDocClick), 0);
-        const onEsc = (ev) => { if (ev.key === 'Escape') { menu.classList.add('hidden'); document.removeEventListener('keydown', onEsc); } };
+        
+        const onEsc = (ev) => { 
+            if (ev.key === 'Escape') { 
+                menu.classList.add('hidden'); 
+                document.removeEventListener('keydown', onEsc); 
+                try { delete document.body.dataset.menuOpen; } catch {}
+            } 
+        };
         document.addEventListener('keydown', onEsc, { once: true });
+      } else {
+         // If it was open, we just closed it via closeAllMenusDoc.
+         try { delete document.body.dataset.menuOpen; } catch {}
       }
     });
 
