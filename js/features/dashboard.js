@@ -1,5 +1,4 @@
 import { $, $$, fadeIn, slideToggle, on, openModal, closeModal, show, hide, mountHTML, delegate, openConfirm, openTextPrompt, openInfoModal } from "../utils/dom.js";
-import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from "../../mockFunctions.js";
 import storageAdapter from "../storage/storageAdapter.js";
 import { normalizeUrl } from "../utils/url.js";
 import { USER_ID, DIGEST_TYPE, LIMITS, COOLDOWN } from "../config/constants.js";
@@ -7,6 +6,7 @@ import { createCard } from "../templates/card.js";
 import { createDigestCard } from "../templates/digestCard.js";
 import { escapeHTML, getTagClass, buildIconHTML } from "../utils/ui-helpers.js";
 import { linkController } from "../controllers/linkController.js";
+import { digestController } from "../controllers/digestController.js";
 
 // Listen for storage events to update UI
 storageAdapter.subscribe((event) => {
@@ -367,20 +367,9 @@ export function initDashboard() {
     if (window.location.search.includes('selftest')) {
       (async () => {
         try {
-          const url = normalizeUrl('example.com/selftest');
-          let ai = null;
-          if (useCloud) { try { ai = await fetchAIFromCloud(url); } catch { ai = null; } }
-          const mock = ai || await mockAIFromUrlExternal(url);
-          const data = {
-            title: mock?.title || 'SelfTest',
-            description: mock?.description || 'Integration test placeholder',
-            category: mock?.category || 'All Links',
-            tags: Array.isArray(mock?.tags) && mock.tags.length ? mock.tags : ['bookmark'],
-            url,
-          };
-          const added = storageAdapter.addLink(data);
+          const added = await linkController.addLink('example.com/selftest');
           console.log('✅ Self-test: add flow completed');
-          storageAdapter.deleteLink(added.id);
+          await linkController.deleteLink(added.id);
           console.log('✅ Self-test: delete flow completed');
         } catch (e) {
           console.warn('❌ Self-test failed:', e);
@@ -588,54 +577,11 @@ async function renderDigestView() {
     const mockBtn = document.getElementById('digestMockGenerate');
     const searchEl = document.getElementById('digestSearch');
     const render = async () => {
-      const rawDigests = await storageAdapter.getDigests();
-      const links = await storageAdapter.getLinks();
-      const linkMap = new Map(links.map(l => [l.id, l]));
+      const rawDigests = await digestController.getDigestList();
+      const links = await linkController.getLinks();
       
-      // 聚合逻辑：将 IndexedDB 的扁平记录聚合为 UI 需要的 Daily/Single 格式
-      const groups = {}; // key: date_type, value: mergedObject
-      
-      rawDigests.forEach(d => {
-         const link = linkMap.get(d.website_id);
-         if (!link) return; // Skip if link deleted
-         
-         const dateStr = new Date(d.created_at || Date.now()).toISOString().slice(0,10);
-         const type = d.type || DIGEST_TYPE.DAILY;
-         // 对于 Daily，按日期聚合；对于 Single，每条独立（或者按 digest_id 如果有）
-         // 这里简单起见：Daily 按日期聚合，Single 独立展示
-         
-         let groupKey;
-         if (type === DIGEST_TYPE.DAILY) {
-             groupKey = `daily_${dateStr}`;
-         } else {
-             groupKey = `single_${d.digest_id || d.created_at}_${d.website_id}`;
-         }
-         
-         if (!groups[groupKey]) {
-             groups[groupKey] = {
-                 id: groupKey,
-                 date: dateStr,
-                 merged: type === DIGEST_TYPE.DAILY,
-                 type: type,
-                 title: type === DIGEST_TYPE.DAILY ? `AI Digest · ${dateStr}` : (link.title || 'Single Digest'),
-                 created_at: d.created_at,
-                 updated_at: d.created_at,
-                 entries: [],
-                 meta: { trigger: 'user' } // Default
-             };
-         }
-         
-         groups[groupKey].entries.push({
-             subscriptionId: link.id,
-             url: normalizeUrl(link.url),
-             title: link.title || link.url,
-             summary: d.summary || '',
-             website_id: d.website_id,
-             raw_digest_id: d.digest_id
-         });
-      });
-      
-      const all = Object.values(groups);
+      // Use digestController to aggregate data
+      const all = digestController.mergeDigestEntries(rawDigests, links);
 
       const date = dateEl?.value || '';
       const siteId = sel?.value || '';
@@ -684,46 +630,29 @@ async function renderDigestView() {
 
       const subsAll = (await storageAdapter.getSubscriptions()).filter(s=>s.enabled!==false);
       const targetId = sel?.value || '';
-      const targets = targetId ? subsAll.filter(s => s.id === targetId) : subsAll;
-      if (!targets.length) {
-        openInfoModal({ title: 'No Subscriptions', message: 'No active subscriptions found to generate digest.' });
-        return;
-      }
+      // const targets = targetId ? subsAll.filter(s => s.id === targetId) : subsAll;
+      // Moved logic to digestController
       
       mockBtn.dataset.loading = '1';
       setLoading(mockBtn, true, 'Generating…');
       
       try {
-        let successCount = 0;
-        for (const s of targets) {
-          try {
-            const site = await mockFetchSiteContentExternal(s.url);
-            const ai = await mockAIFromUrlExternal(s.url);
-            
-            // Create individual digest record for each subscription
-            // type="daily" implies it's part of the daily batch
-            await storageAdapter.addDigest({
-                website_id: s.linkId, // Use linkId as website_id
-                summary: ai.description || (site?.content||'').slice(0,500) || 'No summary',
-                type: DIGEST_TYPE.DAILY
-            });
-            successCount++;
-          } catch (innerErr) {
-             console.warn('Skipping failed source:', s.url, innerErr);
-          }
+        const { successCount, failedCount, errors } = await digestController.generateDailyDigest(targetId);
+        
+        if (successCount === 0 && failedCount === 0) {
+             openInfoModal({ title: 'No Subscriptions', message: 'No active subscriptions found to generate digest.' });
+             delete mockBtn.dataset.loading;
+             setLoading(mockBtn, false);
+             return;
         }
         
-        if (successCount === 0) {
-           throw new Error('Failed to generate any summaries from subscriptions.');
+        if (successCount === 0 && failedCount > 0) {
+           throw new Error(errors[0]?.error || 'Failed to generate any summaries from subscriptions.');
         }
 
-        // Log Success (Trigger Cooldown)
-        storageAdapter.addGenerationLog({
-            userId: userId,
-            type: DIGEST_TYPE.DAILY,
-            linkId: null, // Daily digest is global/batch, not tied to single linkId for cooldown
-            status: 'success'
-        });
+        // Log Success (Trigger Cooldown) - handled inside digestController via ai.js per site.
+        // To maintain batch cooldown behavior, we rely on storageAdapter.getLastGenerationTime(null, 'daily')
+        // finding the latest per-site log.
 
         const toast = document.createElement('div'); 
         toast.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-4'; 
@@ -757,8 +686,8 @@ async function renderDigestView() {
         title: 'Delete digest?',
         message: 'This action cannot be undone.',
         okText: 'Delete',
-        onOk: () => {
-          storageAdapter.deleteDigest(id);
+        onOk: async () => {
+          await digestController.deleteDigest(id);
           try {
             const toast = document.createElement('div');
             toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-red-500 text-white text-sm shadow-lg';
@@ -775,7 +704,7 @@ async function renderDigestView() {
       if (e.target.closest('button')) return;
       
       const id = card.getAttribute('data-digest-id');
-      const all = await storageAdapter.getDigests();
+      const all = await digestController.getDigestList();
       const d = all.find(x => x.id === id);
       if (!d) return;
       
@@ -865,7 +794,7 @@ async function renderDigestView() {
     delegate(listEl, '.digest-view-btn', 'click', async (e, btn) => {
       e.preventDefault(); e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const all = await storageAdapter.getDigests();
+      const all = await digestController.getDigestList();
       const d = all.find(x => x.id === id);
       if (!d) return;
       const card = btn.closest('.digest-card');
@@ -1208,28 +1137,9 @@ async function renderDigestView() {
       b.dataset.loading = '1'; // Mark loading for cooldown check
       setLoading(b, true, 'Generating…');
       try {
-        const site = await mockFetchSiteContentExternal(target.url);
-        const ai = await mockAIFromUrlExternal(target.url);
-        
-        // P0: Digest Model Update
-        // Create independent manual digest
-        // type="manual" ensures it's not merged into daily digest
-        const finalLinkId = linkId || target.linkId; 
-        const summary = ai.description || (site?.content||'').slice(0,500) || 'No summary';
-        
-        await storageAdapter.addDigest({
-            website_id: finalLinkId,
-            summary: summary,
-            type: 'manual'
-        });
-        
-        // Log Success
-        storageAdapter.addGenerationLog({
-            userId: userId,
-            type: 'manual',
-            linkId: finalLinkId,
-            status: 'success'
-        });
+        // Use digestController for logic
+        const finalLinkId = target.linkId || linkId;
+        await digestController.generateManualDigest(finalLinkId);
         
         const t = document.createElement('div'); 
         t.className='fixed bottom-6 right-6 z-50 px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-4'; 
@@ -1237,9 +1147,6 @@ async function renderDigestView() {
         document.body.appendChild(t); 
         setTimeout(()=>t.remove(),1600);
         
-        // Update UI immediately
-        // Force render to show new manual digest
-        // render(); // Removed: render is not defined in this scope and not needed for Links view
         delete b.dataset.loading;
         updateDailyLimitUI(); // This triggers cooldown countdown
         

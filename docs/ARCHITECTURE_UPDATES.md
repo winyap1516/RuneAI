@@ -37,14 +37,20 @@
 - `js/utils/ui-helpers.js` - UI辅助函数
 - 通过架构守护者审查（Arch: PASS）
 
-### Phase 2 🔄 准备启动
-- **目标**: 提取Service层，消除dashboard.js中的业务逻辑
+### Phase 2 🔄 进行中 (Controller/View Split)
+- **目标**: 拆解 `dashboard.js`，实现MVC架构
 - **关键任务**:
-  1. 创建 `js/services/ai.js` - AI调用服务
-  2. 创建 `js/services/storage.js` - 存储服务
-  3. 重构所有AI调用和存储操作
-- **预计工期**: 1-2天
-- **审查标准**: 使用新的标准化审查清单
+  1. ✅ **Link Controller** (`feat/phase2-link-controller`): 提取链接CRUD逻辑
+  2. ✅ **Digest Controller** (`feat/phase2-digest-controller`): 提取摘要生成与管理逻辑
+  3. 📅 **Views Split**: 提取DOM渲染逻辑 (Next)
+- **审查标准**: 使用标准化审查清单
+
+### 4. 新增 Controller 模块
+- **`js/controllers/digestController.js`**
+  - 封装 `generateManualDigest` / `generateDailyDigest`
+  - 封装 `getDigestList` / `deleteDigest`
+  - 统一 AI 调用入口 (`services/ai.js`)
+  - 提供 `mergeDigestEntries` 聚合逻辑给 View 层使用
 
 ## 📊 质量指标
 

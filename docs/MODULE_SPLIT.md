@@ -54,34 +54,28 @@ js/
 *   **完成时间**: 2025年11月30日
 *   **审查状态**: ✅ Arch: PASS
 
-### Phase 2: 提取服务逻辑 (Service Logic Extraction) 🔄 **进行中**
-*   **目标**: 消除 `dashboard.js` 中的 AI 生成、数据库读写逻辑，建立清晰的Service层。
-*   **核心任务**:
-  1. **创建 AI 服务** (`js/services/ai.js`):
-     *   封装 `createDigestForWebsite()` 完整逻辑
-     *   包含错误处理、重试机制、日志记录
-     *   提供统一的AI调用接口
-  2. **创建存储服务** (`js/services/storage.js`):
-     *   抽象存储操作（CRUD、查询、订阅管理）
-     *   提供数据转换和验证
-     *   处理本地缓存与云端同步
-  3. **重构业务调用**:
-     *   `Generate Now` 按钮 → 调用 `aiService.generateSingle()`
-     *   `Generate Daily` 功能 → 调用 `aiService.generateBatch()`
-     *   所有存储操作 → 通过 `storageService` 进行
-*   **验收标准**:
-  *   dashboard.js 中无直接AI调用代码
-  *   所有存储操作通过Service层
-  *   功能行为与拆分前完全一致
-  *   新增Service函数有完整JSDoc文档
-*   **PR Scope**: 仅重构业务逻辑，不涉及UI变动，保持事件委托机制
+### Phase 2: 控制器与视图拆分 (Controller & View Split) 🔄 **进行中**
+*   **目标**: 拆解 `dashboard.js` 巨石结构，实现 MVC 架构。
+*   **执行步骤**:
+    1.  **PR1: Link Controller 提取** ✅
+        *   创建 `js/controllers/linkController.js`
+        *   移出 CRUD 逻辑
+        *   状态: 已完成 (Arch: PASS)
+    2.  **PR2: Digest Controller 提取** 🔄 **进行中**
+        *   创建 `js/controllers/digestController.js`
+        *   移出 Manual/Daily Digest 生成逻辑
+        *   移出 Digest 列表获取与删除逻辑
+        *   规范化 AI Service 调用 (`createDigestForWebsite`)
+    3.  **PR3: 视图层拆分** 📅 **待启动**
+        *   创建 `js/views/linksView.js` & `js/views/digestView.js`
+        *   移出 DOM 操作与事件绑定
+        *   `dashboard.js` 转变为纯路由/入口层
 
-### Phase 3: 拆分视图与控制器 (View & Controller Split)
-*   **目标**: 拆解 `dashboard.js` 主体。
-*   **文件**:
-    *   创建 `js/views/linksView.js`: 负责 `renderLinks`, `filterCards`, `bindEvents`。
-    *   创建 `js/controllers/linkController.js`: 负责协调 Storage 和 View。
-*   **PR Scope**: 将 Links 相关代码移出，`dashboard.js` 仅保留入口和路由分发。
+### Phase 3: 服务层完善 (Service Layer Refinement)
+*   **目标**: 完善 `js/services/` 目录，强化 AI 与 Storage 服务。
+*   **任务**:
+    *   完善 `ai.js` 错误处理与重试机制
+    *   完善 `storage.js` (如果需要进一步封装 storageAdapter)
 
 ### Phase 4: 清理与标准化 (Cleanup)
 *   **目标**: 删除 `dashboard.js` 中的废弃代码，统一引用路径。
