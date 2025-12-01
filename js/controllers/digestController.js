@@ -9,6 +9,18 @@ import { normalizeUrl } from "../utils/url.js";
  * Handles business logic for digest generation and management.
  */
 export const digestController = {
+  _view: null,
+  
+  // Pagination State
+  _pagination: {
+    currentPage: 0,
+    isLoading: false,
+    hasMore: true
+  },
+
+  setView(view) {
+      this._view = view;
+  },
   
   /**
    * Generate a manual digest for a specific link
@@ -160,6 +172,46 @@ export const digestController = {
    */
   async getDigestList() {
     return await storageAdapter.getDigests();
+  },
+
+  /**
+   * Fetch paginated digests
+   * @param {number} pageIndex 0-based index
+   * @param {number} pageSize 
+   * @returns {Promise<object>} { items, total, hasMore }
+   */
+  async fetchPage(pageIndex = 0, pageSize = 20) {
+    // Sync state if page 0 is requested
+    if (pageIndex === 0) {
+        this._pagination.currentPage = 0;
+        this._pagination.hasMore = true;
+        this._pagination.isLoading = false;
+    }
+    
+    const offset = pageIndex * pageSize;
+    return await storageAdapter.getDigestsPage({ limit: pageSize, offset });
+  },
+
+  async loadNextPage() {
+    if (this._pagination.isLoading || !this._pagination.hasMore) return;
+    
+    this._pagination.isLoading = true;
+    try {
+        const nextPage = this._pagination.currentPage + 1;
+        const { items, total, hasMore } = await this.fetchPage(nextPage, 20);
+        
+        this._pagination.currentPage = nextPage;
+        this._pagination.hasMore = hasMore;
+        
+        if (items.length > 0 && this._view) {
+            // Note: appendPage in view handles merging
+            this._view.appendPage(items);
+        }
+    } catch (err) {
+        console.error('Failed to load next page:', err);
+    } finally {
+        this._pagination.isLoading = false;
+    }
   },
 
   /**

@@ -44,7 +44,12 @@ export async function renderDigests(list = null) {
     `);
 
     // 2. Fetch Data
-    const rawDigests = list || await _controllers.digestController.getDigestList();
+    let rawDigests = list;
+    if (!rawDigests) {
+        const res = await _controllers.digestController.fetchPage(0, 20);
+        rawDigests = res.items;
+    }
+    
     const links = await _controllers.linkController.getLinks();
     const subs = await _controllers.linkController.getSubscriptions();
 
@@ -102,9 +107,9 @@ export function bindDigestEvents() {
     const mockBtn = document.getElementById('digestMockGenerate');
     
     const refresh = async () => {
-        const raw = await digestController.getDigestList();
+        const { items } = await digestController.fetchPage(0, 20);
         const links = await linkController.getLinks();
-        const all = digestController.mergeDigestEntries(raw, links);
+        const all = digestController.mergeDigestEntries(items, links);
         updateDigestList(all);
     };
     
@@ -197,6 +202,83 @@ export function bindDigestEvents() {
         
         if (target) showDigestDetail(target);
     });
+}
+
+export function clearList() {
+    const listEl = document.getElementById('digestList');
+    if (listEl) listEl.innerHTML = '';
+}
+
+export async function appendPage(items) {
+    const listEl = document.getElementById('digestList');
+    if (!listEl) return;
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    // If empty message exists, remove it
+    if (listEl.children.length === 1 && listEl.innerText.includes('No digests yet')) {
+        listEl.innerHTML = '';
+    }
+
+    // We need links to merge properly
+    const links = await _controllers.linkController.getLinks();
+    const merged = _controllers.digestController.mergeDigestEntries(items, links);
+
+    // Batch rendering
+    const BATCH_SIZE = 5;
+    let idx = 0;
+
+    function renderBatch() {
+        const batch = merged.slice(idx, idx + BATCH_SIZE);
+        if (batch.length === 0) return;
+
+        const html = batch.map(d => _templates.createDigestCard(d)).join('');
+        listEl.insertAdjacentHTML('beforeend', html);
+        
+        idx += BATCH_SIZE;
+        if (idx < merged.length) {
+            requestAnimationFrame(renderBatch);
+        }
+    }
+    renderBatch();
+}
+
+let _scrollListener = null;
+let _scrollContainer = null;
+
+export function enableInfiniteScroll(container, { onLoadMore, threshold = 200 }) {
+    if (!container) return;
+    disableInfiniteScroll();
+
+    _scrollContainer = container;
+    let ticking = false;
+    
+    _scrollListener = () => {
+        if (!ticking) {
+            window.requestAnimationFrame(() => {
+                if (!_scrollContainer) return;
+                const { scrollTop, scrollHeight, clientHeight } = _scrollContainer;
+                if (scrollTop + clientHeight >= scrollHeight - threshold) {
+                    onLoadMore();
+                }
+                ticking = false;
+            });
+            ticking = true;
+        }
+    };
+    
+    _scrollContainer.addEventListener('scroll', _scrollListener);
+}
+
+export function disableInfiniteScroll() {
+    if (_scrollListener && _scrollContainer) {
+        _scrollContainer.removeEventListener('scroll', _scrollListener);
+    }
+    _scrollListener = null;
+    _scrollContainer = null;
+}
+
+export function onScrollEnd(callback) {
+     console.warn('onScrollEnd is deprecated. Use enableInfiniteScroll instead.');
 }
 
 function showDigestDetail(d) {

@@ -66,6 +66,13 @@ async function loadCloudLinks() {
 export const linkController = {
   _view: null,
   
+  // Pagination State
+  _pagination: {
+    currentPage: 0,
+    isLoading: false,
+    hasMore: true
+  },
+
   /**
    * Set the view for partial updates
    * @param {object} view 
@@ -150,6 +157,47 @@ export const linkController = {
         if (this._view) {
              this._view.updateSingleCardUI(sub.linkId, { subscribed: false });
         }
+    }
+  },
+
+  /**
+   * Fetch paginated links
+   * @param {number} pageIndex 0-based index
+   * @param {number} pageSize 
+   * @returns {Promise<object>} { items, total, hasMore }
+   */
+  async fetchPage(pageIndex = 0, pageSize = 20) {
+    // Sync state if page 0 is requested (reset)
+    if (pageIndex === 0) {
+        this._pagination.currentPage = 0;
+        this._pagination.hasMore = true;
+        this._pagination.isLoading = false;
+    }
+
+    const offset = pageIndex * pageSize;
+    return await storageAdapter.getLinksPage({ limit: pageSize, offset });
+  },
+
+  async loadNextPage() {
+    if (this._pagination.isLoading || !this._pagination.hasMore) return;
+    
+    this._pagination.isLoading = true;
+    try {
+        const nextPage = this._pagination.currentPage + 1;
+        const { items, total, hasMore } = await this.fetchPage(nextPage, 20);
+        
+        // Update state
+        this._pagination.currentPage = nextPage;
+        this._pagination.hasMore = hasMore;
+        
+        // Append to view
+        if (items.length > 0 && this._view) {
+            this._view.appendPage(items);
+        }
+    } catch (err) {
+        console.error('Failed to load next page:', err);
+    } finally {
+        this._pagination.isLoading = false;
     }
   },
 

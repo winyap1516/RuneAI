@@ -75,6 +75,7 @@ export function initDashboard() {
     
     // Phase 3: Partial Update - Inject View into Controller
     linkController.setView(linksView);
+    digestController.setView(digestView);
 
     // Initial Render
     renderDefaultMain();
@@ -82,7 +83,7 @@ export function initDashboard() {
 
   const mainEl = document.querySelector('main');
   const defaultMainHTML = mainEl ? mainEl.innerHTML : '';
-
+  
   // Sidebar Toggle Logic
   const toggle = document.getElementById("sidebarToggle");
   const logoBtn = document.getElementById("logoBtn");
@@ -173,6 +174,9 @@ export function initDashboard() {
 
   function renderDefaultMain() {
     if (mainEl) {
+      // Cleanup other scrolls
+      digestView.disableInfiniteScroll();
+
       mainEl.innerHTML = defaultMainHTML;
       // Update container reference for LinksView as DOM changed
       linksView.initLinksView({ 
@@ -182,7 +186,17 @@ export function initDashboard() {
           utils: { dom: {$,$$,fadeIn,slideToggle,on,openModal,closeModal,show,hide,mountHTML,delegate,openConfirm,openTextPrompt,openInfoModal}, storageAdapter }
       });
       linkController.setView(linksView);
-      linksView.renderLinks();
+      
+      // Phase 3: Pagination (Load Page 0)
+      linkController.fetchPage(0, 20).then(({ items }) => {
+          linksView.renderLinks(items);
+          // Enable Infinite Scroll
+          const scrollContainer = document.getElementById('mainScrollContainer');
+          linksView.enableInfiniteScroll(scrollContainer, {
+              onLoadMore: () => linkController.loadNextPage()
+          });
+      });
+      
       linksView.bindLinksEvents();
     }
   }
@@ -192,24 +206,18 @@ export function initDashboard() {
   const navChat = document.getElementById('navChat');
   const navLinks = document.querySelector('.nav-item[href="#"]'); // Assuming Home/Links is default
   
-  // We need to handle "All Links" or "Home" click to go back to LinksView
-  // Currently "nav-item" click just sets active class.
-  // We need actual navigation.
-  
-  // Find the "All Links" or similar in sidebar?
-  // Actually, the logo or the "Links" header usually resets view.
-  // But wait, `renderCategoriesSidebar` creates buttons.
-  // If I click "All Links" in sidebar, it calls filter.
-  // If I am in Digest View, how do I go back?
-  // Usually via a Sidebar item.
-  // Let's look at sidebar HTML structure (inferred).
-  // There is a "Links" group.
-  // We should probably add a listener to the Links group or specific items to switch view back to `renderDefaultMain`.
+  // ...
   
   // For now, let's assume clicking "Digest" switches view.
   if (navDigest) on(navDigest, 'click', (e) => { 
       e.preventDefault(); 
-      digestView.renderDigests(); 
+      linksView.disableInfiniteScroll();
+       digestView.renderDigests().then(() => {
+           const scrollContainer = document.getElementById('mainScrollContainer');
+           digestView.enableInfiniteScroll(scrollContainer, {
+               onLoadMore: () => digestController.loadNextPage()
+           });
+       });
   });
   
   // We need a way to go back to Links. 

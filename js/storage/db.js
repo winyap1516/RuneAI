@@ -144,10 +144,103 @@ export const websites = {
       req.onerror = () => reject(req.error)
     }))
   },
+  // 分页获取网站
+  async getPage(userId = DEFAULT_USER_ID, { offset = 0, limit = 20 } = {}) {
+    return withStore('websites', 'readonly', store => new Promise((resolve, reject) => {
+      const idx = store.index('by_user')
+      const range = IDBKeyRange.only(userId)
+      
+      // 并行请求：Count 和 Cursor
+      const countReq = idx.count(range)
+      let total = 0
+      
+      countReq.onsuccess = () => {
+        total = countReq.result
+        if (total === 0 || offset >= total) {
+          resolve({ items: [], total, hasMore: false })
+          return
+        }
+
+        const items = []
+        let advanced = false
+        // 使用 'prev' 获取最新的数据 (Desc order by PK)
+        const cursorReq = idx.openCursor(range, 'prev')
+
+        cursorReq.onsuccess = (e) => {
+          const cursor = e.target.result
+          if (!cursor) {
+            resolve({ items, total, hasMore: false })
+            return
+          }
+
+          if (offset > 0 && !advanced) {
+            advanced = true
+            cursor.advance(offset)
+            return
+          }
+
+          items.push(cursor.value)
+          if (items.length < limit) {
+            cursor.continue()
+          } else {
+            resolve({ items, total, hasMore: offset + items.length < total })
+          }
+        }
+        cursorReq.onerror = () => reject(cursorReq.error)
+      }
+      countReq.onerror = () => reject(countReq.error)
+    }))
+  },
 }
 
 // Digests 表接口
 export const digests = {
+  // 分页获取摘要
+  async getPage(userId = DEFAULT_USER_ID, { offset = 0, limit = 20 } = {}) {
+    return withStore('digests', 'readonly', store => new Promise((resolve, reject) => {
+      const idx = store.index('by_user')
+      const range = IDBKeyRange.only(userId)
+      
+      const countReq = idx.count(range)
+      let total = 0
+      
+      countReq.onsuccess = () => {
+        total = countReq.result
+        if (total === 0 || offset >= total) {
+          resolve({ items: [], total, hasMore: false })
+          return
+        }
+
+        const items = []
+        let advanced = false
+        // 使用 'prev' 获取最新的数据
+        const cursorReq = idx.openCursor(range, 'prev')
+
+        cursorReq.onsuccess = (e) => {
+          const cursor = e.target.result
+          if (!cursor) {
+            resolve({ items, total, hasMore: false })
+            return
+          }
+
+          if (offset > 0 && !advanced) {
+            advanced = true
+            cursor.advance(offset)
+            return
+          }
+
+          items.push(cursor.value)
+          if (items.length < limit) {
+            cursor.continue()
+          } else {
+            resolve({ items, total, hasMore: offset + items.length < total })
+          }
+        }
+        cursorReq.onerror = () => reject(cursorReq.error)
+      }
+      countReq.onerror = () => reject(countReq.error)
+    }))
+  },
   // 获取某网站的摘要（可按类型过滤）
   async getByWebsite(website_id, type = null) {
     return withStore('digests', 'readonly', store => new Promise((resolve, reject) => {

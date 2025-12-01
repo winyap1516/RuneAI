@@ -310,6 +310,30 @@ export const storageAdapter = {
     }))
   },
 
+  // 分页获取 Links
+  async getLinksPage({ limit = 20, offset = 0 } = {}) {
+    const userId = (this.getUser()?.id) || 'local-dev';
+    const { items, total, hasMore } = await Websites.getPage(userId, { limit, offset });
+    
+    // 需要附加订阅状态
+    const subs = await Subs.getAll(); // 优化：这里最好只查当前页相关的订阅，但Subs表不大，暂且全查
+    const subscribedSet = new Set(subs.map(s => s.website_id));
+
+    const mappedItems = items.map(w => ({
+      id: w.website_id,
+      website_id: w.website_id,
+      url: w.url,
+      title: w.title,
+      description: w.description,
+      created_at: w.created_at,
+      subscribed: subscribedSet.has(w.website_id),
+      previousUrls: w.previousUrls || [],
+      category: w.category || null,
+    }));
+
+    return { items: mappedItems, total, hasMore };
+  },
+
   async addLink(link, options = {}) {
     // 简单查重：url+user 唯一
     const existed = await Websites.getByUrl(link.url)
@@ -494,6 +518,12 @@ export const storageAdapter = {
     const links = await this.getLinks()
     const allByLink = await Promise.all(links.map(l => Digests.getByWebsite(l.website_id)))
     return allByLink.flat()
+  },
+
+  // 分页获取 Digests
+  async getDigestsPage({ limit = 20, offset = 0 } = {}) {
+    const userId = (this.getUser()?.id) || 'local-dev';
+    return await Digests.getPage(userId, { limit, offset });
   },
 
   async saveDigests(list) {

@@ -21,7 +21,11 @@ export function initLinksView({ containerEl, controllers, templates, utils }) {
 export async function renderLinks(links = null) {
   if (!_containerEl) return;
   
-  const data = links || await _controllers.linkController.getLinks();
+  let data = links;
+  if (!data) {
+      const res = await _controllers.linkController.fetchPage(0, 20);
+      data = res.items;
+  }
   
   _containerEl.innerHTML = '';
   
@@ -155,6 +159,98 @@ export function updateSingleCardUI(id, data) {
     }
     
     updateDailyLimitUI();
+}
+
+export function clearList() {
+    if (!_containerEl) return;
+    _containerEl.innerHTML = '';
+}
+
+export function appendPage(items) {
+    if (!_containerEl) return;
+    if (!Array.isArray(items)) return;
+
+    // If empty state exists and we have items, remove it
+    const empty = _containerEl.querySelector('.col-span-full.text-center'); 
+    if (empty && items.length > 0 && empty.textContent === "No links found.") {
+        empty.remove();
+    }
+    
+    if (items.length === 0 && _containerEl.children.length === 0) {
+         const emptyDiv = document.createElement('div');
+         emptyDiv.className = "col-span-full text-center text-gray-400 py-10";
+         emptyDiv.textContent = "No links found.";
+         _containerEl.appendChild(emptyDiv);
+         return;
+    }
+
+    // Batch rendering to avoid blocking UI
+    const BATCH_SIZE = 5;
+    let idx = 0;
+
+    function renderBatch() {
+        const batch = items.slice(idx, idx + BATCH_SIZE);
+        if (batch.length === 0) {
+            renderCategoriesSidebar();
+            syncEditCategorySelect();
+            updateUIStates();
+            return;
+        }
+
+        const html = batch.map(c => _templates.createCard(c)).join('');
+        _containerEl.insertAdjacentHTML('beforeend', html);
+        
+        idx += BATCH_SIZE;
+        if (idx < items.length) {
+            requestAnimationFrame(renderBatch);
+        } else {
+            renderCategoriesSidebar();
+            syncEditCategorySelect();
+            updateUIStates();
+        }
+    }
+    renderBatch();
+}
+
+let _scrollListener = null;
+let _scrollContainer = null;
+
+export function enableInfiniteScroll(container, { onLoadMore, threshold = 200 }) {
+    if (!container) return;
+    // Cleanup existing if any
+    disableInfiniteScroll();
+
+    _scrollContainer = container;
+    
+    let ticking = false;
+    _scrollListener = () => {
+        if (!ticking) {
+            window.requestAnimationFrame(() => {
+                if (!_scrollContainer) return;
+                const { scrollTop, scrollHeight, clientHeight } = _scrollContainer;
+                if (scrollTop + clientHeight >= scrollHeight - threshold) {
+                    onLoadMore();
+                }
+                ticking = false;
+            });
+            ticking = true;
+        }
+    };
+    
+    _scrollContainer.addEventListener('scroll', _scrollListener);
+}
+
+export function disableInfiniteScroll() {
+    if (_scrollListener && _scrollContainer) {
+        _scrollContainer.removeEventListener('scroll', _scrollListener);
+    }
+    _scrollListener = null;
+    _scrollContainer = null;
+}
+
+export function onScrollEnd(callback) {
+    // Deprecated in favor of enableInfiniteScroll
+    console.warn('onScrollEnd is deprecated. Use enableInfiniteScroll instead.');
 }
 
 export function addSingleCardUI(data) {
