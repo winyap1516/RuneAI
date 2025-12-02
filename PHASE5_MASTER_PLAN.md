@@ -44,12 +44,12 @@
     *   **UI**: 非阻断 Toast 通知，冲突历史仅在后台记录。
     *   **RPC**: 升级 `apply_client_changes` 支持 `field_timestamps`。
 
-### Milestone 5.3: 离线之根 (PWA & Offline) - **Priority: P2**
+### Milestone 5.3: 离线之根 (PWA & Offline) - **Priority: P2** (✅ Completed)
 **核心目标**: 断网环境下应用秒开。
 
-*   **TASK-P5-006**: **Manifest 配置**
+*   **TASK-P5-006**: **Manifest 配置** (✅ Done)
     *   添加 `manifest.json`，配置图标、名称、主题色。
-*   **TASK-P5-007**: **Service Worker**
+*   **TASK-P5-008**: **Service Worker** (✅ Done)
     *   编写 `sw.js`，缓存 App Shell (HTML, CSS, JS Core)。
     *   在 `js/main.js` 中注册 SW。
 
