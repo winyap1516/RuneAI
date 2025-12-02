@@ -41,7 +41,7 @@
     "priority": "P1",
     "description": "Implement a UI modal (js/components/modal-conflict.js) that shows Server vs Local data diff and allows user choice.",
     "source": "PHASE5_PLAN",
-    "status": "TODO",
+    "status": "OBSOLETE",
     "depends_on": [],
     "files": ["js/components/modal-conflict.js", "components/modal_conflict.html"],
     "branch": "feat/conflict-modal",
