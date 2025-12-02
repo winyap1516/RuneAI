@@ -10,7 +10,12 @@
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",
+    "supabase": "^2.64.2",
     "vite": "^5.4.8",
     "vitest": "^4.0.14"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0",
+    "dotenv": "^17.2.3"
   }
 }

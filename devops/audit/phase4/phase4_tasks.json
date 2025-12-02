@@ -1,0 +1,38 @@
+[
+  {
+    "id": "TASK-P4-001",
+    "title": "Merge Phase 4 to Main",
+    "description": "Phase 4 implementation is verified. Merge feature branch to main.",
+    "files": ["js/sync/*", "supabase/migrations/*", "supabase/functions/*"],
+    "priority": "P0",
+    "suggested_branch": "main",
+    "suggested_commit_message": "feat(phase4): merge cloud sync and auth implementation"
+  },
+  {
+    "id": "TASK-P4-DOC-001",
+    "title": "Update Deployment Documentation",
+    "description": "Add local Supabase setup guide to README.md.",
+    "files": ["README.md"],
+    "priority": "P1",
+    "suggested_branch": "docs/phase4-update",
+    "suggested_commit_message": "docs: add local supabase deployment guide"
+  },
+  {
+    "id": "TASK-P5-UI-001",
+    "title": "Implement Auth UI",
+    "description": "Connect login button to supabaseClient.js logic.",
+    "files": ["js/features/auth_ui.js", "index.html"],
+    "priority": "P1",
+    "suggested_branch": "feat/auth-ui",
+    "suggested_commit_message": "feat(ui): implement login/signup forms"
+  },
+  {
+    "id": "TASK-P5-SYNC-001",
+    "title": "Implement Conflict Resolution UI",
+    "description": "Replace alert() in conflict.js with a proper modal.",
+    "files": ["js/sync/conflict.js", "js/components/modal.js"],
+    "priority": "P2",
+    "suggested_branch": "feat/conflict-ui",
+    "suggested_commit_message": "feat(ui): add sync conflict resolution modal"
+  }
+]

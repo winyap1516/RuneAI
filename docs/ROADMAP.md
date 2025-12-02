@@ -35,15 +35,44 @@
     *   [ ] 部署 Edge Functions 处理网页抓取与 OpenAI 调用。
     *   [ ] 移除前端的 Mock AI 逻辑（或保留为离线模式）。
 
-## Phase 3: 性能与规模化 (Optimization & Scale)
+## Phase 3: 性能与规模化 (Optimization & Scale) ✅ **已完成**
 **目标**: 支持 1000+ 链接流畅运行，优化首屏体验。
 
-*   **Milestone 3.1: 渲染性能**
-    *   [ ] 实现列表的**虚拟滚动 (Virtual Scrolling)**。
-    *   [ ] 图片/Icon 懒加载。
-*   **Milestone 3.2: 数据性能**
-    *   [ ] 实现 IndexedDB/API 的**分页查询 (Pagination)**。
-    *   [ ] 引入 Service Worker 进行静态资源缓存 (PWA)。
+*   **Milestone 3.1: 渲染性能** (✅ Done)
+    *   [x] 实现列表的**虚拟滚动 (Virtual Scrolling)**。
+    *   [x] 图片/Icon 懒加载。
+*   **Milestone 3.2: 数据性能** (✅ Done)
+    *   [x] 实现 IndexedDB/API 的**分页查询 (Pagination)**。
+    *   [ ] 引入 Service Worker 进行静态资源缓存 (PWA) [Defer to Phase 5]
+
+## Phase 4: 云端同步与迁移 (Cloud Sync) ✅ **已完成**
+**目标**: 实现 Local-First 架构下的云端同步与多端一致性。
+
+*   **Milestone 4.1: 基础设施** (✅ Done)
+    *   [x] Supabase Project 配置 (DB, Auth, Edge Functions)。
+    *   [x] RLS 安全策略落地。
+    *   [x] RPC 事务化同步接口 (`apply_client_changes`)。
+*   **Milestone 4.2: 客户端同步** (✅ Done)
+    *   [x] Local Change Log (IndexedDB)。
+    *   [x] Sync Agent (Backoff, Retry, Batching)。
+    *   [x] Migration Tool (Local -> Cloud)。
+*   **Milestone 4.3: 冲突解决** (✅ Done)
+    *   [x] 基础字段级冲突策略 (Server-Wins / Client-Wins)。
+    *   [x] 冲突检测 UI 占位。
+
+## Phase 5: 生产级强化与体验闭环 (Harmony & Experience) - **Current Step**
+**目标**: 补齐前端交互短板，实现 Auth UI、冲突解决界面与 PWA 离线能力，达成端到端“和谐”体验。
+
+*   **Milestone 5.1: 身份之门 (Auth UI & Logic)**
+    *   [ ] 引入 `@supabase/supabase-js` SDK。
+    *   [ ] 实现登录/注册 UI 逻辑。
+    *   [ ] 登录后自动触发数据迁移与同步。
+*   **Milestone 5.2: 冲突之舞 (Conflict Resolution)**
+    *   [ ] 实现冲突解决弹窗 (Server vs Local)。
+    *   [ ] Sync Agent 接入人工决策流。
+*   **Milestone 5.3: 离线之根 (PWA & Offline)**
+    *   [ ] 配置 Web App Manifest。
+    *   [ ] 实现 Service Worker 缓存 Shell。
 
 ## 验收标准 (Success Metrics)
 *   **稳定性**: 关键路径 (Generate, CRUD) 无未捕获异常。

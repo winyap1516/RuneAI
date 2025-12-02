@@ -6,7 +6,7 @@
 // - 未来如需替换为 Dexie，仅需在此模块保持同名方法，实现内部迁移即可
 
 const DB_NAME = 'runeai-db'
-const DB_VERSION = 1
+const DB_VERSION = 3
 const DEFAULT_USER_ID = 'local-dev'
 
 // 打开数据库（带版本升级）
@@ -42,6 +42,28 @@ function openDB() {
         const store = db.createObjectStore('locations', { keyPath: 'location_id', autoIncrement: true })
         store.createIndex('by_user', 'user_id', { unique: false })
         store.createIndex('by_created', 'created_at', { unique: false })
+      }
+      // client_changes_local：本地变更日志（用于同步队列）
+      if (!db.objectStoreNames.contains('client_changes_local')) {
+        const store = db.createObjectStore('client_changes_local', { keyPath: 'client_change_id' })
+        store.createIndex('by_client_ts', 'client_ts', { unique: false })
+        store.createIndex('by_synced', 'synced_at', { unique: false })
+      }
+
+      // conflict_backups：字段级冲突备份（非阻断审计）
+      if (!db.objectStoreNames.contains('conflict_backups')) {
+        const store = db.createObjectStore('conflict_backups', { keyPath: 'id', autoIncrement: true })
+        store.createIndex('by_user', 'user_id', { unique: false })
+        store.createIndex('by_item', 'item_id', { unique: false })
+        store.createIndex('by_created', 'created_at', { unique: false })
+      }
+
+      // deletion_backups：删除快照备份（用于恢复）
+      if (!db.objectStoreNames.contains('deletion_backups')) {
+        const store = db.createObjectStore('deletion_backups', { keyPath: 'id', autoIncrement: true })
+        store.createIndex('by_user', 'user_id', { unique: false })
+        store.createIndex('by_item', 'item_id', { unique: false })
+        store.createIndex('by_deleted', 'deleted_at', { unique: false })
       }
     }
 
@@ -81,6 +103,7 @@ function normalizeRecord(input, extra = {}) {
   return {
     user_id: input.user_id || DEFAULT_USER_ID,
     created_at: input.created_at || now,
+    updated_at: input.updated_at || now,
     ...input,
     ...extra,
   }
@@ -129,7 +152,7 @@ export const websites = {
   async update(website_id, patch) {
     const current = await websites.getById(website_id)
     if (!current) throw new Error('Website not found')
-    const record = { ...current, ...patch }
+    const record = { ...current, ...patch, updated_at: new Date().toISOString() }
     return withStore('websites', 'readwrite', store => new Promise((resolve, reject) => {
       const req = store.put(record)
       req.onsuccess = () => resolve(record)
@@ -273,7 +296,7 @@ export const digests = {
       getReq.onsuccess = () => {
         const current = getReq.result
         if (!current) return reject(new Error('Digest not found'))
-        const record = { ...current, ...patch }
+        const record = { ...current, ...patch, updated_at: new Date().toISOString() }
         const putReq = store.put(record)
         putReq.onsuccess = () => resolve(record)
         putReq.onerror = () => reject(putReq.error)
@@ -322,7 +345,7 @@ export const subscriptions = {
     const record = normalizeRecord(data, { last_generated_at: data.last_generated_at || null })
     const existed = await subscriptions.getByWebsite(record.website_id, record.user_id)
     if (existed) {
-      const merged = { ...existed, ...record }
+      const merged = { ...existed, ...record, updated_at: new Date().toISOString() }
       return withStore('subscriptions', 'readwrite', store => new Promise((resolve, reject) => {
         const req = store.put(merged)
         req.onsuccess = () => resolve(merged)
@@ -395,4 +418,3 @@ export const locations = {
 // 导出默认对象，便于按需注入与替换
 const db = { websites, digests, subscriptions, locations, openDB }
 export default db
-

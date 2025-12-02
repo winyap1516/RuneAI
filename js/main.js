@@ -1,5 +1,6 @@
 // main.js
 import { initDashboard } from './features/dashboard.js';
+import { initAuthUI } from './features/auth_ui.js';
 import storageAdapter from './storage/storageAdapter.js';
 // 中文注释：引入本地 Mock 抓取与 AI 摘要（用于订阅与日报生成）
 import { mockFetchSiteContent, mockAIFromUrl } from '../mockFunctions.js';
@@ -42,6 +43,7 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error("Migration failed:", e);
     }
     initDashboard(user);
+    initAuthUI(); // Phase 5: Auth UI Listener
   })();
 
   // =============================
