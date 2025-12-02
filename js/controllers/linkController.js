@@ -1,6 +1,8 @@
 import storageAdapter from "../storage/storageAdapter.js";
 import { normalizeUrl } from "../utils/url.js";
 import { mockAIFromUrl as mockAIFromUrlExternal } from "../../mockFunctions.js";
+import { migrateLocalToCloud } from "../sync/migrate.js";
+import { syncLoop } from "../sync/syncAgent.js";
 
 // Cloud Configuration
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
@@ -79,6 +81,18 @@ export const linkController = {
    */
   setView(view) {
     this._view = view;
+  },
+
+  /**
+   * 登录后初始化同步与迁移（可由外部在登录成功后调用）
+   */
+  async initSyncAfterLogin() {
+    try {
+      await migrateLocalToCloud();
+      syncLoop();
+    } catch (e) {
+      console.warn('[InitSync] failed', e);
+    }
   },
 
   /**

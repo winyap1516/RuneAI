@@ -23,20 +23,20 @@
 2.  **控制力**: 直接控制事务和索引，便于后续实现特定的同步逻辑。
 3.  **迁移便利性**: 我们的 Wrapper 接口设计为 Promise 风格，未来如果需要切换到底层更快的库（如 SQLite Wasm）或云端 SDK，只需替换 Adapter 层。
 
-## 3. 后端服务: Supabase
+## 3. 后端服务: Supabase (Phase 4 Updated)
 
 ### 决策
-选用 **Supabase** 作为后端基础设施（Database, Auth, Edge Functions）。
+选用 **Supabase** 作为后端基础设施，并采用 "Local-First + RPC Sync" 模式。
 
 ### 理由
-1.  **PostgreSQL**: 世界上最强大的开源关系型数据库，支持 JSONB，非常适合存储结构多变的 Link Metadata。
-2.  **Edge Functions (Deno)**: 允许编写 TypeScript/JS 后端逻辑，与前端语言栈统一。
-3.  **Row Level Security (RLS)**: 可以在数据库层面强制执行安全规则，极大简化应用层代码。
-4.  **成本**: 这里的 "Scale to Zero" 特性非常适合初创项目。
+1.  **PostgreSQL + JSONB**: 完美支持结构多变的 Link Metadata。
+2.  **Edge Functions (Deno)**: 允许编写 TypeScript 后端逻辑，与前端语言栈统一。
+3.  **RLS (Row Level Security)**: 强制执行 `user_id = auth.uid()`，确保数据隔离。
+4.  **RPC (Remote Procedure Call)**: 使用 Postgres Function (`apply_client_changes`) 替代简单的 REST API，确保批量同步的**事务性**与**幂等性**。
 
-### 替代方案对比
-*   **Firebase**: NoSQL 结构在处理复杂关联（如 Digest 与 Link 的多对多关系）时不如 SQL 顺手。
-*   **Custom Node.js**: 运维成本（部署、扩容、数据库维护）太高。
+### RPC 设计决策
+*   **事务控制**: `/sync-push` 内部使用 `EXCEPTION` 块模拟 `SAVEPOINT`，实现 Per-Change 回滚，避免批量失败导致的数据不一致。
+*   **幂等去重**: 通过 `client_change_id` 唯一约束，防止网络重试导致的重复写入。
 
 ## 4. 任务调度: Client-Side Scheduler (Phase 1) -> Cloud Cron (Phase 2)
 

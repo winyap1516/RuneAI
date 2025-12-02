@@ -6,6 +6,7 @@ import { createCard } from "../templates/card.js";
 import { createDigestCard } from "../templates/digestCard.js";
 import { escapeHTML, getTagClass, buildIconHTML } from "../utils/ui-helpers.js";
 import { linkController } from "../controllers/linkController.js";
+import { syncLoop } from "../sync/syncAgent.js";
 import { digestController } from "../controllers/digestController.js";
 import * as linksView from "../views/linksView.js";
 import * as digestView from "../views/digestView.js";
@@ -79,6 +80,9 @@ export function initDashboard() {
 
     // Initial Render
     renderDefaultMain();
+
+    // 启动后台同步循环（在线时定期推送变更）
+    try { syncLoop(); } catch {}
   })();
 
   const mainEl = document.querySelector('main');

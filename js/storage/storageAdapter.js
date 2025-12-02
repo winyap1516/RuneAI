@@ -7,6 +7,8 @@
 
 import { normalizeUrl } from '../utils/url.js';
 import db, { websites as Websites, subscriptions as Subs, digests as Digests } from './db.js';
+import { addChange as enqueueChange } from '../sync/changeLog.js';
+import { getServerId } from '../sync/idMapping.js';
 
 const KEYS = {
   LINKS: 'rune_cards',
@@ -345,6 +347,8 @@ export const storageAdapter = {
       category: link.category || null,
       user_id: (this.getUser()?.id) || 'local-dev',
     })
+    // 写入本地变更日志（create）
+    try { await enqueueChange('website', 'create', record.website_id, { url: record.url, title: record.title, description: record.description, category: record.category }) } catch {}
     // 分类维护
     if (record.category) this.ensureCategory(record.category)
     if (!options.silent) this.notify({ type: 'links_changed' })
@@ -369,6 +373,10 @@ export const storageAdapter = {
         return prev
       })()
     })
+    // 写入本地变更日志（update），优先使用服务器 UUID 作为 resource_id
+    const serverId = getServerId('website', id) || id;
+    const baseTs = existing.updated_at || null;
+    try { await enqueueChange('website', 'update', serverId, patch, baseTs) } catch {}
     if (patch.category) this.ensureCategory(patch.category)
     if (!options.silent) this.notify({ type: 'links_changed' })
     return { id, website_id: id, ...updated }
@@ -379,6 +387,9 @@ export const storageAdapter = {
     await Websites.delete(id)
     await Subs.deleteByWebsite(id)
     await Digests.deleteByWebsite(id)
+    // 写入本地变更日志（delete），优先使用服务器 UUID
+    const serverId = getServerId('website', id) || id;
+    try { await enqueueChange('website', 'delete', serverId, {}) } catch {}
     if (!options.silent) {
       this.notify({ type: 'links_changed' })
       this.notify({ type: 'subscriptions_changed' })
@@ -434,6 +445,8 @@ export const storageAdapter = {
       enabled: true,
       user_id: (this.getUser()?.id) || 'local-dev',
     })
+    // 写入本地变更日志（create subscription）
+    try { await enqueueChange('subscription', 'create', sub.subscription_id, { website_id: getServerId('website', numericLinkId) || null, url: sub.url, title: sub.title, frequency: sub.frequency, enabled: true }) } catch {}
     if (!options.silent) {
       this.notify({ type: 'subscriptions_changed' })
       try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
@@ -455,6 +468,13 @@ export const storageAdapter = {
     // 修复：将字符串linkId转换为数字类型，与数据库中的website_id匹配
     const numericLinkId = typeof linkId === 'string' ? parseInt(linkId, 10) : linkId;
     await Subs.deleteByWebsite(numericLinkId)
+    // 写入本地变更日志（delete subscription）
+    const subsList = await Subs.getAll();
+    const sub = subsList.find(s => s.website_id === numericLinkId);
+    if (sub) {
+      const serverSubId = getServerId('subscription', sub.subscription_id) || sub.subscription_id;
+      try { await enqueueChange('subscription', 'delete', serverSubId, {}) } catch {}
+    }
     if (!options.silent) {
       this.notify({ type: 'subscriptions_changed' });
       try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
