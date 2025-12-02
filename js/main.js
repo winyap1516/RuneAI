@@ -34,6 +34,15 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   storageAdapter.saveUser(user);
 
+  // Phase 5: Register Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('[SW] Registered:', reg.scope))
+        .catch(err => console.warn('[SW] Registration failed:', err));
+    });
+  }
+
   // 初始化页面
   // P0: Ensure migration runs before rendering
   (async () => {
