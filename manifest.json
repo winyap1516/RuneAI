@@ -1,0 +1,21 @@
+{
+  "name": "Rune AI Assistant",
+  "short_name": "RuneAI",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#F4F5F7",
+  "theme_color": "#4A69FF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "logo/logo_icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "logo/logo_icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
