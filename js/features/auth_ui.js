@@ -14,9 +14,18 @@ import storageAdapter from '../storage/storageAdapter.js';
 export async function initAuthUI(mode = 'global') {
   console.log(`[Auth] Initializing UI in ${mode} mode`);
 
-  // 1. 检查当前 Session（仅在登录/注册页检查，避免重复跳转）
-  if (mode === 'login' || mode === 'register') {
-    const { data: { session } } = await supabase.auth.getSession();
+    // 1. 检查当前 Session（仅在登录/注册页检查，避免重复跳转）
+    // 安全修正：如果 URL 包含 password 参数，说明发生了意外的表单提交，优先清理
+    if (window.location.search.includes('password=')) {
+      const url = new URL(window.location);
+      url.searchParams.delete('password');
+      url.searchParams.delete('email');
+      url.searchParams.delete('remember');
+      window.history.replaceState({}, '', url);
+    }
+
+    if (mode === 'login' || mode === 'register') {
+      const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       console.log('[Auth] Session valid, redirecting to dashboard');
       window.location.href = 'dashboard.html';
@@ -104,6 +113,16 @@ function bindLoginForm() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    // 安全修正：立即清理 URL 中的敏感参数（如果存在）
+    if (window.location.search.includes('password=')) {
+      const url = new URL(window.location);
+      url.searchParams.delete('password');
+      url.searchParams.delete('email');
+      url.searchParams.delete('remember');
+      window.history.replaceState({}, '', url);
+    }
+
     const email = form.email?.value;
     const password = form.password?.value;
     const remember = form.remember?.checked === true;
