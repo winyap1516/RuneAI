@@ -7,6 +7,9 @@ import { setMapping } from './idMapping.js';
 import { callFunction } from '../services/supabaseClient.js';
 import { showToast } from '../utils/ui-helpers.js';
 import db from '../storage/db.js';
+import { logger } from '../services/logger.js';
+import { config } from '../services/config.js';
+import { showConflictModal } from '../components/modal-conflict.js';
 
 // 指数退避序列（毫秒）
 const BACKOFF_STEPS = [2000, 4000, 8000, 16000, 30000];
@@ -54,6 +57,21 @@ async function pushOnce() {
   }
 
   // 非阻断通知：若服务端记录了冲突备份数量，则提示用户
+  // UI 冲突处理（若返回 conflicts 并启用 UI）
+  const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
+  if (conflicts.length > 0 && config.uiConflictEnabled) {
+    logger.warn('[Sync] 检测到冲突，进入 UI 选择流程', conflicts.length);
+    const c = conflicts[0];
+    const choice = await showConflictModal({ local: c?.local_snapshot, server: c?.server_snapshot });
+    if (choice === 'keepLocal') {
+      showToast('已选择保留本地版本，队列继续', 'info');
+    } else if (choice === 'useServer') {
+      if (c?.server_snapshot) await applyMergedRecordLocally({ resource_type: 'website', data: c.server_snapshot.data, deleted: c.server_snapshot.deleted });
+      showToast('已选择使用服务器版本', 'success');
+    } else {
+      showToast('已取消处理，稍后重试', 'warn');
+    }
+  }
   const conflictsLogged = Number(data.conflicts_logged || 0);
   if (conflictsLogged > 0) {
     showToast(`部分字段在服务器已更新，已自动合并并保存历史（${conflictsLogged}）`, 'info');
@@ -81,10 +99,10 @@ async function pullChanges() {
     // 日志记录（标示 Pull 成功）
     const count = (data.websites?.length || 0) + (data.subscriptions?.length || 0);
     if (count > 0) {
-      console.log('[Sync] Pulled changes (pending application):', count);
+      logger.info('[Sync] Pulled changes (pending application):', count);
     }
   } catch (e) {
-    console.warn('[Sync] Pull failed', e);
+    logger.warn('[Sync] Pull failed', e);
   }
 }
 
@@ -100,7 +118,7 @@ async function loop() {
     backoffIdx = 0;
     scheduleNext(10000); // 正常间隔 10s
   } catch (e) {
-    console.warn('[Sync] Push failed', e.message);
+    logger.warn('[Sync] Push failed', e.message);
     // 失败后按指数退避
     backoffIdx = Math.min(backoffIdx + 1, BACKOFF_STEPS.length - 1);
     scheduleNext(BACKOFF_STEPS[backoffIdx]);
@@ -158,7 +176,7 @@ async function applyMergedRecordLocally(rec = {}) {
   }
 }
 
-export { loop as syncLoop };
+// 移除别名导出，保留下方正式导出
 
 /**
  * 启动同步循环（在线状态下立即触发，离线恢复后重试）

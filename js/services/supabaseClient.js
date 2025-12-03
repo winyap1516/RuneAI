@@ -2,12 +2,13 @@
 // 作用：统一管理 Supabase 实例，使用官方 SDK 处理 Auth 与 API 交互
 // 注意：需要 index.html / dashboard.html 引入 @supabase/supabase-js
 
-const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
-const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
+import logger from './logger.js';
+import { config } from './config.js';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('[Supabase] URL or Key is missing. Check .env');
-}
+const SUPABASE_URL = config.supabaseUrl;
+const SUPABASE_ANON_KEY = config.supabaseAnonKey;
+
+try { config.validate(); } catch (e) { logger.error('[Config] 校验失败：', e.message); }
 
 // 初始化 SDK 实例
 // 注意：在 CDN 模式下，supabase 是挂载在 window 上的全局对象
@@ -21,12 +22,12 @@ if (typeof window !== 'undefined' && window.supabase) {
                 detectSessionInUrl: true
             }
         });
-        console.log('[Supabase] Client initialized');
+        logger.info('[Supabase] Client initialized');
     } catch (e) {
-        console.error('[Supabase] Init failed:', e);
+        logger.error('[Supabase] Init failed:', e);
     }
 } else {
-    console.warn('[Supabase] SDK not found on window. Ensure script is loaded in HTML.');
+    logger.warn('[Supabase] SDK not found on window. Ensure script is loaded in HTML.');
 }
 
 // 导出实例供其他模块使用
@@ -107,6 +108,7 @@ export async function callFunction(name, init = {}) {
     // 获取 Headers (await)
     const authHeaders = await getAuthHeaders();
     const headers = { ...(init.headers || {}), ...authHeaders };
+    logger.debug('[EdgeFn] callFunction:', name, headers);
     return fetch(endpoint, { ...init, headers });
 }
 
@@ -118,6 +120,7 @@ export async function callRest(path, init = {}) {
     const endpoint = `${SUPABASE_URL}${path}`;
     const authHeaders = await getAuthHeaders();
     const headers = { ...(init.headers || {}), ...authHeaders, apikey: SUPABASE_ANON_KEY || '' };
+    logger.debug('[REST] callRest:', path, headers);
     return fetch(endpoint, { ...init, headers });
 }
 

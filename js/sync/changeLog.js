@@ -3,6 +3,7 @@
 // 存储：优先使用 IndexedDB 新建 store `client_changes_local`；若不可用则回退至 localStorage
 
 import db from '../storage/db.js';
+import { logger } from '../services/logger.js';
 
 const LS_KEY = 'rune_client_changes_local';
 
@@ -31,7 +32,7 @@ async function hasIdbStore() {
  * @param {number|null} baseServerTs
  * @returns {Promise<object>} 变更记录（含 client_change_id）
  */
-export async function addChange(resourceType, op, resourceId, payload, baseServerTs = null) {
+export async function addChange(resourceType, op, resourceId, payload, baseServerTs = null, origin = 'ui') {
   // 中文注释：为每个字段生成时间戳（ISO），用于字段级 LWW
   const nowIso = new Date().toISOString();
   const field_timestamps = {};
@@ -44,16 +45,20 @@ export async function addChange(resourceType, op, resourceId, payload, baseServe
       field_timestamps['deleted'] = nowIso;
     }
   } catch {}
+  const client_req_id = uuid();
   const record = {
     client_change_id: uuid(),
+    client_req_id,
     resource_type: resourceType,
     op,
     resource_id: resourceId ?? null,
     payload: payload ?? {},
+    patch: payload ?? {},
     client_ts: Date.now(),
     base_server_ts: baseServerTs,
     synced_at: null,
     field_timestamps,
+    origin,
   };
 
   if (await hasIdbStore()) {
@@ -63,7 +68,7 @@ export async function addChange(resourceType, op, resourceId, payload, baseServe
       const tx = conn.transaction('client_changes_local', 'readwrite');
       const store = tx.objectStore('client_changes_local');
       const req = store.add(record);
-      req.onsuccess = () => resolve(record);
+      req.onsuccess = () => { logger.info('[ChangeLog] 新增变更', { resourceType, op, resourceId, client_req_id }); resolve(record); };
       req.onerror = () => reject(req.error);
     });
   }
