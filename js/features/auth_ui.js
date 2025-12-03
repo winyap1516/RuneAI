@@ -106,6 +106,7 @@ function bindLoginForm() {
     e.preventDefault();
     const email = form.email?.value;
     const password = form.password?.value;
+    const remember = form.remember?.checked === true;
     const btn = form.querySelector('button[type="submit"]');
 
     if (!email || !password) return showToast('请输入邮箱和密码', 'error');
@@ -114,6 +115,14 @@ function bindLoginForm() {
       if (btn) {
         btn.disabled = true;
         btn.textContent = '登录中...';
+      }
+      // 中文注释：若勾选“记住我”且已有有效会话，直接跳转到 Dashboard
+      if (remember) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          window.location.href = 'dashboard.html';
+          return;
+        }
       }
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -161,11 +170,13 @@ function bindSignupForm() {
     e.preventDefault();
     const email = form.email?.value;
     const password = form.password?.value;
+    const confirm = form.confirm_password?.value;
     const nickname = form.nickname?.value;
     const btn = form.querySelector('button[type="submit"]');
     const successDiv = document.getElementById('signup-success');
 
-    if (!email || !password) return showToast('请输入邮箱和密码', 'error');
+    if (!email || !password || !confirm) return showToast('请填写完整并确认密码', 'error');
+    if (String(password) !== String(confirm)) return showToast('两次输入的密码不一致', 'error');
 
     try {
       if (btn) {
