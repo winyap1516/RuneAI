@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!-- 中文注释：注册页面 (Phase 5 UI Spec 实现) -->
+<!-- 
+  UI Spec 对应：
+  - Layout: 继承 login.html 布局
+  - Components: 
+    - 昵称 (可选)
+    - 确认密码
+    - 成功提示卡片 (success message card)
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rune AI – 注册</title>
+    <base href="./">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#6e57e0',
+              'primary-hover': '#5a46c0',
+              'background-light': '#f6f6f8',
+              'background-dark': '#141220',
+            },
+            fontFamily: { display: ['Inter', 'sans-serif'] },
+            borderRadius: { DEFAULT: '0.5rem', lg: '1rem', xl: '1.5rem' },
+            boxShadow: { 'card': '0 2px 8px rgba(0, 0, 0, 0.05)' }
+          },
+        },
+      };
+    </script>
+    <style>
+      .form-input {
+        @apply w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all;
+      }
+      .btn-primary {
+        @apply w-full bg-primary text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed;
+      }
+    </style>
+  </head>
+  <body class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+    <!-- 顶部导航 -->
+    <header class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-10 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-sm sticky top-0 z-50">
+      <div class="flex items-center gap-3">
+        <div class="size-8 text-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+            <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+          </svg>
+        </div>
+        <a href="index.html" class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Rune AI</a>
+      </div>
+      <div>
+        <a href="index.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">返回首页</a>
+      </div>
+    </header>
+
+    <!-- 主体内容：注册卡片 -->
+    <main class="flex-1 flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-[400px] bg-white dark:bg-[#1A1828] rounded-2xl shadow-card border border-gray-100 dark:border-gray-800 p-8">
+        <div class="text-center mb-8">
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">创建账号</h1>
+          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">开启您的 AI 知识库之旅</p>
+        </div>
+
+        <!-- 注册表单 -->
+        <form id="signup-form" class="space-y-5">
+          <!-- 邮箱 -->
+          <div>
+            <label for="signupEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">邮箱地址</label>
+            <input id="signupEmail" name="email" type="email" required autocomplete="email"
+                   class="form-input"
+                   placeholder="name@example.com" />
+          </div>
+          
+          <!-- 密码 -->
+          <div>
+            <label for="signupPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">密码</label>
+            <input id="signupPassword" name="password" type="password" required minlength="6" autocomplete="new-password"
+                   class="form-input"
+                   placeholder="至少 6 位字符" />
+          </div>
+
+          <!-- 确认密码 -->
+          <div>
+            <label for="signupConfirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">确认密码</label>
+            <input id="signupConfirm" name="confirm_password" type="password" required minlength="6" autocomplete="new-password"
+                   class="form-input"
+                   placeholder="请再次输入密码" />
+          </div>
+
+          <!-- 昵称 -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="signupNickname" class="block text-sm font-medium text-gray-700 dark:text-gray-300">昵称</label>
+              <span class="text-xs text-gray-500">可选</span>
+            </div>
+            <input id="signupNickname" name="nickname" type="text"
+                   class="form-input"
+                   placeholder="给自己一个好记的称呼" />
+          </div>
+          
+          <!-- 注册按钮 -->
+          <button type="button" id="btn-signup" class="btn-primary mt-2">
+            立即注册
+          </button>
+        </form>
+
+        <!-- 注册成功提示 (默认隐藏) -->
+        <div id="signup-success" class="hidden text-center py-4">
+          <div class="mx-auto flex items-center justify-center size-12 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 mb-4">
+            <span class="material-symbols-outlined text-2xl">check_circle</span>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">注册成功！</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">验证邮件已发送至您的邮箱，请点击链接激活账号。</p>
+          <a href="login.html" class="btn-primary inline-block w-full text-center">
+            返回登录
+          </a>
+        </div>
+
+        <!-- 底部链接 -->
+        <p class="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
+          已有账号？
+          <a href="login.html" class="font-semibold text-primary hover:text-primary-hover hover:underline">
+            直接登录
+          </a>
+        </p>
+      </div>
+    </main>
+
+    <script type="module">
+      import { initAuthUI } from './js/features/auth_ui.js';
+      import './js/services/supabaseClient.js';
+      initAuthUI('register'); // 仅初始化注册逻辑
+    </script>
+  </body>
+</html>

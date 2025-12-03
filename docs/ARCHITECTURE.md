@@ -80,6 +80,24 @@ graph TD
 2.  **生成摘要 (Manual/Daily)**:
     UI (Click) -> Controller (Check Quota) -> Service (AI Gen) -> Adapter (Save Digest & Log) -> IndexedDB -> UI (Update)
 
+### 4.1.1 Phase 5 用户体验主流程（入口 → Auth → Sync → Dashboard）
+- 入口（Landing）：`index.html` 提供“登录 / 注册”入口按钮，跳转 `login.html`。
+- 登录（Login）：`login.html` 提供登录表单与 OAuth 入口；成功后跳转 `dashboard.html`。
+- 注册（Register）：`register.html` 提供注册表单；注册后引导验证。
+- 会话检查（Session）：`dashboard.html` 初始化时（`js/dashboard_init.js`）检查 Session，无效则重定向回 Login。
+- 同步触发：登录成功或 Dashboard 加载时，调用 `linkController.initSyncAfterLogin()`，执行迁移与同步循环。
+- 展示页：`dashboard.html` 渲染链接列表与用户信息（从 Session 恢复）。
+
+```mermaid
+graph LR
+    Index[Index.html] -->|Click Login/Register| AuthPage[Login/Register.html]
+    AuthPage -->|Sign In/Up| Supabase[Supabase Auth]
+    Supabase -->|Session Valid| Dashboard[Dashboard.html]
+    Dashboard -->|Init| LinkController[LinkController]
+    LinkController -->|Trigger| SyncAgent[SyncAgent]
+    SyncAgent <-->|Push/Pull| CloudDB[(Cloud DB)]
+```
+
 ### 4.2 安全边界 (Security Boundaries)
 *   **前端验证 (Weak)**:
     *   `userId === 'local-dev'` 仅用于本地调试和 UI 展示控制。
@@ -102,3 +120,8 @@ graph TD
 | **P2** | **ARCH-001** | **拆分 `dashboard.js` - 第一阶段 (提取 Templates)** | Solo | ✅ **Completed** |
 | **P2** | **ARCH-002** | **拆分 `dashboard.js` - 第二阶段 (提取 Controllers)** | Solo | 📋 Ready |
 | **P3** | **PERF-001** | 为 Links 列表实现分页加载 (IndexedDB 游标) | Solo | To Do |
+
+## 附录 · Auth 与 SW 更新（2025-12-04）
+- Auth UI：`login.html` / `register.html` 采用 **手动事件绑定**（按钮 `type="button"`），避免默认表单提交导致 URL 泄露与刷新。
+- 状态监听：`supabase.auth.onAuthStateChange` 负责跳转与同步触发；登录成功兜底调用 `handleLoginSuccess()`。
+- SW 策略：`sw.js` 对 HTML 请求采用 **Network First**，确保页面始终最新，避免缓存旧页面带来的交互问题。

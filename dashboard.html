@@ -690,6 +690,8 @@
     <!-- Digest 弹窗容器（组件由入口注入到 body；此处无需额外容器） -->
 
     <!-- ✅ 脚本引用：入口唯一，统一由 js/main.js 控制路由与挂载 -->
+    <!-- Phase 5: 使用 dashboard_init.js 进行初始化 -->
+    <script type="module" src="js/dashboard_init.js"></script>
     <script type="module" src="js/main.js"></script>
     <!-- 中文注释：通用文本输入模态，用于替代 prompt()，防止浏览器禁用导致交互失败 -->
     <div id="textPromptModal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:60;">

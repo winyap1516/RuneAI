@@ -9,7 +9,10 @@ export default defineConfig({
   // 规则：统一使用相对基础路径 './'。
   base: './',
   server: {
+    // 中文注释：在 IDE 预览环境下禁用 HMR，避免 WebSocket 被代理阻断导致的报错
+    host: true, // 允许通过局域网访问（0.0.0.0）
     port: 5173,
     strictPort: true, // 端口被占用时直接报错，不自动切换端口
+    hmr: false
   },
 })
