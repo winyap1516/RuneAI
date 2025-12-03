@@ -3,6 +3,7 @@ import { normalizeUrl } from "../utils/url.js";
 import { mockAIFromUrl as mockAIFromUrlExternal } from "../../mockFunctions.js";
 import { migrateLocalToCloud } from "../sync/migrate.js";
 import { syncLoop } from "../sync/syncAgent.js";
+import { supabase } from "../services/supabaseClient.js";
 
 // Cloud Configuration
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
@@ -34,19 +35,16 @@ async function fetchAIFromCloud(url) {
  * @returns {Promise<Array>}
  */
 async function loadCloudLinks() {
-  if (!useCloud) return [];
+  // 中文注释：使用 Supabase SDK 拉取云端 links 列表，替代手动 fetch
+  if (!useCloud || !supabase) return [];
   try {
-    const endpoint = `${SUPABASE_URL}/rest/v1/links?select=*`;
-    const res = await fetch(endpoint, {
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      }
-    });
-    if (!res.ok) throw new Error(`List failed: ${res.status}`);
-    const arr = await res.json();
-    return (Array.isArray(arr) ? arr : []).map(row => ({
-      id: row.id, // Use ID from cloud
+    const { data, error } = await supabase
+      .from('links')
+      .select('*');
+    if (error) throw error;
+    const arr = Array.isArray(data) ? data : [];
+    return arr.map(row => ({
+      id: row.id,
       url: row.url || '',
       title: row.title || 'Untitled',
       description: row.description || 'Summary from cloud',
@@ -56,7 +54,7 @@ async function loadCloudLinks() {
       updated_at: row.updated_at || Date.now(),
     }));
   } catch (e) {
-    console.warn('Load cloud links failed:', e);
+    console.warn('[Supabase] loadCloudLinks failed:', e);
     return [];
   }
 }
@@ -81,18 +79,6 @@ export const linkController = {
    */
   setView(view) {
     this._view = view;
-  },
-
-  /**
-   * 登录后初始化同步与迁移（可由外部在登录成功后调用）
-   */
-  async initSyncAfterLogin() {
-    try {
-      await migrateLocalToCloud();
-      syncLoop();
-    } catch (e) {
-      console.warn('[InitSync] failed', e);
-    }
   },
 
   /**
@@ -295,18 +281,17 @@ export const linkController = {
     const silent = !!this._view;
     await storageAdapter.updateLink(id, { title, url, description, tags, category }, { silent });
 
-    // Sync to Cloud (Fire and Forget or Await?)
-    // Dashboard code awaited it but caught errors.
-    if (useCloud && url) {
+    // 中文注释：使用 Supabase SDK 更新云端数据（替代 Edge Function）
+    if (useCloud && supabase && url) {
         try {
-            const endpoint = `${SUPABASE_URL}/functions/v1/update-link`;
-            await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-            body: JSON.stringify({ url, title, description, category, tags })
-            });
+            const updates = { title, description, category, tags };
+            const { error } = await supabase
+              .from('links')
+              .update(updates)
+              .eq('url', url);
+            if (error) throw error;
         } catch (err) {
-            console.error('Cloud update failed:', err);
+            console.error('[Supabase] update link failed:', err);
         }
     }
 
@@ -335,16 +320,16 @@ export const linkController = {
         this._view.removeSingleCardUI(id);
     }
 
-    if (useCloud && data?.url) {
+    // 中文注释：使用 Supabase SDK 删除云端数据（替代 Edge Function）
+    if (useCloud && supabase && data?.url) {
         try {
-            const endpoint = `${SUPABASE_URL}/functions/v1/delete-link`;
-            await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-            body: JSON.stringify({ url: data.url })
-            });
+            const { error } = await supabase
+              .from('links')
+              .delete()
+              .eq('url', data.url);
+            if (error) throw error;
         } catch (err) {
-            console.error('Cloud delete failed:', err);
+            console.error('[Supabase] delete link failed:', err);
         }
     }
   },
@@ -402,5 +387,17 @@ export const linkController = {
         }
       });
       if (changed) storageAdapter.saveLinks(links);
+  },
+
+  /**
+   * 登录后初始化同步与迁移（可由外部在登录成功后调用）
+   */
+  async initSyncAfterLogin() {
+    try {
+      await migrateLocalToCloud();
+      syncLoop();
+    } catch (e) {
+      console.warn('[InitSync] failed', e);
+    }
   }
 };

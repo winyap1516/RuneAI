@@ -4,7 +4,7 @@
 
 import { supabase, getSession, getUser } from '../services/supabaseClient.js';
 import { showToast } from '../utils/ui-helpers.js';
-import { initSyncAfterLogin } from '../controllers/linkController.js';
+import { linkController } from '../controllers/linkController.js';
 import storageAdapter from '../storage/storageAdapter.js';
 
 /**
@@ -53,7 +53,7 @@ async function handleLoginSuccess(user) {
 
   // 触发数据同步 (TASK-P5-003)
   try {
-    await initSyncAfterLogin();
+    await linkController.initSyncAfterLogin();
   } catch (e) {
     console.warn('[Auth] Sync trigger failed:', e);
   }
