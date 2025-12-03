@@ -1,14 +1,11 @@
 // sw.js - Service Worker for PWA Support (Phase 5)
 // 策略: Cache First for App Shell, Network First for Data
 
-const CACHE_NAME = 'runeai-v1';
+const CACHE_NAME = 'runeai-v2';
 const ASSETS_TO_CACHE = [
   '/',
-  'index.html',
-  'dashboard.html',
-  'signup.html',
-  'login.html',
-  'register.html',
+  // 中文注释：避免预缓存 HTML 页面，防止开发阶段出现旧页面缓存导致交互失效
+  // 改为只缓存静态资源（JS/Manifest/字体），HTML 采用 Network First
   'js/main.js',
   'js/features/auth_ui.js',
   'js/features/dashboard.js',
@@ -54,37 +51,42 @@ self.addEventListener('activate', (event) => {
 
 // Fetch: Cache First strategy for static assets, Network for others
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  
-  // 忽略 Supabase API 和 Edge Functions (由 syncAgent 处理离线重试)
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // 忽略 Supabase API 和 Edge Functions (由业务层处理离线重试)
   if (url.href.includes('supabase.co') || url.href.includes('functions/v1')) {
     return;
   }
 
+  // 中文注释：对 HTML 导航请求采用 Network First，确保页面最新（避免旧缓存导致表单默认提交）
+  const isHtmlRequest = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
+  if (isHtmlRequest) {
+    event.respondWith(
+      fetch(req)
+        .then((response) => {
+          const resClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone)).catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 其他静态资源采用 Cache First
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache Hit - return response
-      if (response) {
-        return response;
-      }
-
-      // Clone request stream
-      const fetchRequest = event.request.clone();
-
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      const fetchRequest = req.clone();
       return fetch(fetchRequest).then((response) => {
-        // Check valid response
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
-
-        // Cache new resource if it's part of our app domain (and not an API call)
         if (url.origin === self.location.origin) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, responseToCache)).catch(() => {});
         }
-
         return response;
       });
     })

@@ -50,8 +50,11 @@
 - 成功提示：
   - 注册成功：显示提示卡片“请检查邮箱并点击验证链接完成激活”，并提供“返回登录”按钮
 
-## 安全与环境
-- SDK 初始化：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`
-- Edge Functions：如需调用统一使用 `supabase.functions.invoke(name, { body })`
-- RLS 与 Authorization：遵循项目规则，前端仅使用 `anon` key
-
+## 安全与实现细节 (Security Implementation)
+- **防止 URL 敏感信息泄露**：
+  - 登录/注册按钮必须使用 `<button type="button">`，禁止 `type="submit"`。
+  - 禁止浏览器默认表单提交，改用 JS 手动绑定 `click` 和 `Enter` 事件。
+  - 页面加载时自动检测并清理 URL 中的 `password`、`access_token` 等敏感参数 (`history.replaceState`)。
+- **SDK 初始化**：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`
+- **Edge Functions**：如需调用统一使用 `supabase.functions.invoke(name, { body })`
+- **RLS 与 Authorization**：遵循项目规则，前端仅使用 `anon` key

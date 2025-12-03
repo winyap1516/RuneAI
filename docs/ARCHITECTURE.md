@@ -120,3 +120,8 @@ graph LR
 | **P2** | **ARCH-001** | **拆分 `dashboard.js` - 第一阶段 (提取 Templates)** | Solo | ✅ **Completed** |
 | **P2** | **ARCH-002** | **拆分 `dashboard.js` - 第二阶段 (提取 Controllers)** | Solo | 📋 Ready |
 | **P3** | **PERF-001** | 为 Links 列表实现分页加载 (IndexedDB 游标) | Solo | To Do |
+
+## 附录 · Auth 与 SW 更新（2025-12-04）
+- Auth UI：`login.html` / `register.html` 采用 **手动事件绑定**（按钮 `type="button"`），避免默认表单提交导致 URL 泄露与刷新。
+- 状态监听：`supabase.auth.onAuthStateChange` 负责跳转与同步触发；登录成功兜底调用 `handleLoginSuccess()`。
+- SW 策略：`sw.js` 对 HTML 请求采用 **Network First**，确保页面始终最新，避免缓存旧页面带来的交互问题。

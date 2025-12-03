@@ -1,5 +1,24 @@
 # 更新日志 (CHANGELOG)
 
+## v0.3.13 - 2025-12-04
+### Added（新增）
+- 登录页引入 Supabase SDK 并初始化 `initAuthUI('login')`。
+- `auth_ui.js` 增加 SDK 初始化防护与登录成功兜底跳转（`handleLoginSuccess`）。
+- Service Worker：对 HTML 采用 **Network First** 策略，保证页面最新。
+
+### Changed（修改）
+- `login.html` / `register.html` 的按钮统一改为 `type="button"`，改用 JS 手动绑定点击与回车事件。
+- `auth_ui.js` 登录/注册事件绑定重构，统一错误提示与加载状态文案。
+
+### Fixed（修复）
+- 修复敏感信息出现在 URL 的问题（邮箱/密码/remember 参数），并在页面加载时执行 `history.replaceState` 清理。
+- 修复登录点击无反应（原因：登录页未加载 Supabase SDK）。
+- 消除默认表单提交导致的页面刷新行为。
+
+### Docs（文档）
+- 更新 `docs/auth_ui_spec.md`、新增 `docs/README.md`，补充认证流程、安全细则与手动验证步骤。
+- 在 `docs/ARCHITECTURE.md` 增补“Auth 与 SW 更新”附录。
+
 ## v0.3.12 - 2025-11-08
 ### Changed（修改）
 - 统一组件注释的脚本归属与路径：

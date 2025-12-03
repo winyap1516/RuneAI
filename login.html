@@ -20,6 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -104,7 +105,7 @@
           </div>
 
           <!-- 登录按钮 -->
-          <button type="submit" class="btn-primary">
+          <button type="button" id="btn-login" class="btn-primary">
             登录
           </button>
         </form>
@@ -136,5 +137,11 @@
         </p>
       </div>
     </main>
+    <script type="module">
+      // 中文注释：初始化登录页的 Auth 逻辑与 SDK 客户端
+      import { initAuthUI } from './js/features/auth_ui.js';
+      import './js/services/supabaseClient.js';
+      initAuthUI('login');
+    </script>
   </body>
 </html>

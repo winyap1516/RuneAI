@@ -25,13 +25,15 @@ export async function initAuthUI(mode = 'global') {
     }
 
     if (mode === 'login' || mode === 'register') {
-      const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      console.log('[Auth] Session valid, redirecting to dashboard');
-      window.location.href = 'dashboard.html';
-      return;
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('[Auth] Session valid, redirecting to dashboard');
+          window.location.href = 'dashboard.html';
+          return;
+        }
+      }
     }
-  }
 
   // 2. 监听 Auth 状态变更 (全局监听)
   if (supabase) {
@@ -109,11 +111,16 @@ async function handleLogoutSuccess() {
  */
 function bindLoginForm() {
   const form = document.getElementById('login-form');
-  if (!form) return;
+  const loginBtn = document.getElementById('btn-login');
+  
+  if (!form || !loginBtn) return;
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
+  // 核心登录逻辑
+  const handleLogin = async () => {
+    if (!supabase) {
+      showToast('认证服务未初始化，请检查环境变量或刷新页面', 'error');
+      return;
+    }
     // 安全修正：立即清理 URL 中的敏感参数（如果存在）
     if (window.location.search.includes('password=')) {
       const url = new URL(window.location);
@@ -126,15 +133,13 @@ function bindLoginForm() {
     const email = form.email?.value;
     const password = form.password?.value;
     const remember = form.remember?.checked === true;
-    const btn = form.querySelector('button[type="submit"]');
 
     if (!email || !password) return showToast('请输入邮箱和密码', 'error');
 
     try {
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = '登录中...';
-      }
+      loginBtn.disabled = true;
+      loginBtn.textContent = '登录中...';
+
       // 中文注释：若勾选“记住我”且已有有效会话，直接跳转到 Dashboard
       if (remember) {
         const { data: { session } } = await supabase.auth.getSession();
@@ -143,16 +148,38 @@ function bindLoginForm() {
           return;
         }
       }
+      
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      // onAuthStateChange 会处理跳转
+      // onAuthStateChange 会处理跳转；为稳妥起见，若 data.user 存在则立即触发后续逻辑
+      if (data?.user) {
+        await handleLoginSuccess(data.user);
+      }
     } catch (e) {
       showToast(e.message, 'error');
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = '登录';
-      }
+      loginBtn.disabled = false;
+      loginBtn.textContent = '登录';
     }
+  };
+
+  // 1. 绑定按钮点击
+  loginBtn.addEventListener('click', (e) => {
+    e.preventDefault(); // 双重保险
+    handleLogin();
+  });
+
+  // 2. 绑定回车键
+  form.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // 防止默认提交
+      handleLogin();
+    }
+  });
+
+  // 3. 兜底防止表单默认提交
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    return false;
   });
 }
 
@@ -183,25 +210,28 @@ function bindGoogleLogin() {
  */
 function bindSignupForm() {
   const form = document.getElementById('signup-form');
-  if (!form) return;
+  const signupBtn = document.getElementById('btn-signup');
+  const successDiv = document.getElementById('signup-success');
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  if (!form || !signupBtn) return;
+
+  // 核心注册逻辑
+  const handleSignup = async () => {
+    if (!supabase) {
+      showToast('认证服务未初始化，请检查环境变量或刷新页面', 'error');
+      return;
+    }
     const email = form.email?.value;
     const password = form.password?.value;
     const confirm = form.confirm_password?.value;
     const nickname = form.nickname?.value;
-    const btn = form.querySelector('button[type="submit"]');
-    const successDiv = document.getElementById('signup-success');
 
     if (!email || !password || !confirm) return showToast('请填写完整并确认密码', 'error');
     if (String(password) !== String(confirm)) return showToast('两次输入的密码不一致', 'error');
 
     try {
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = '注册中...';
-      }
+      signupBtn.disabled = true;
+      signupBtn.textContent = '注册中...';
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -225,11 +255,29 @@ function bindSignupForm() {
       
     } catch (e) {
       showToast(e.message, 'error');
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = '立即注册';
-      }
+      signupBtn.disabled = false;
+      signupBtn.textContent = '立即注册';
     }
+  };
+
+  // 1. 绑定按钮点击
+  signupBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleSignup();
+  });
+
+  // 2. 绑定回车键
+  form.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSignup();
+    }
+  });
+
+  // 3. 兜底防止表单默认提交
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    return false;
   });
 }
 
