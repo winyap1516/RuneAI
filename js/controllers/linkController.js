@@ -16,18 +16,13 @@ const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
  * @returns {Promise<object>}
  */
 async function fetchAIFromCloud(url) {
-  if (!useCloud) throw new Error('Cloud not configured');
-  const endpoint = `${SUPABASE_URL}/functions/v1/super-endpoint`;
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({ url })
+  // 中文注释：使用 Supabase SDK 调用 Edge Function（替代手动 fetch）
+  if (!useCloud || !supabase) throw new Error('Cloud not configured');
+  const { data, error } = await supabase.functions.invoke('super-endpoint', {
+    body: { url },
   });
-  if (!res.ok) throw new Error(`Cloud AI failed: ${res.status}`);
-  return await res.json();
+  if (error) throw error;
+  return data;
 }
 
 /**

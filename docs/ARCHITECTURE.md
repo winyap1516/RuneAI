@@ -81,11 +81,12 @@ graph TD
     UI (Click) -> Controller (Check Quota) -> Service (AI Gen) -> Adapter (Save Digest & Log) -> IndexedDB -> UI (Update)
 
 ### 4.1.1 Phase 5 用户体验主流程（入口 → Auth → Sync → Dashboard）
-- 入口（Landing）：`index.html` 提供“登录 / 注册”入口按钮，跳转 `auth.html`。
-- 认证（Auth）：`auth.html` 引入 `js/features/auth_ui.js`，通过 Supabase SDK 完成登录/注册。
-- 会话与用户：`js/services/supabaseClient.js` 负责初始化 SDK，提供 `getSession()` / `getUser()`，页面监听 `auth.onAuthStateChange`。
-- 同步触发：登录成功后，`auth_ui.js` 调用 `linkController.initSyncAfterLogin()`，执行迁移与同步循环。
-- 展示页：认证成功自动跳转到 `dashboard.html`，视图层渲染链接列表与用户信息。
+- 入口（Landing）：`index.html` 提供“登录 / 注册”入口按钮，跳转 `login.html`。
+- 登录（Login）：`login.html` 提供登录表单与 OAuth 入口；成功后跳转 `dashboard.html`。
+- 注册（Register）：`register.html` 提供注册表单；注册后引导验证。
+- 会话检查（Session）：`dashboard.html` 初始化时（`js/dashboard_init.js`）检查 Session，无效则重定向回 Login。
+- 同步触发：登录成功或 Dashboard 加载时，调用 `linkController.initSyncAfterLogin()`，执行迁移与同步循环。
+- 展示页：`dashboard.html` 渲染链接列表与用户信息（从 Session 恢复）。
 
 ### 4.2 安全边界 (Security Boundaries)
 *   **前端验证 (Weak)**:

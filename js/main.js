@@ -51,8 +51,18 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       console.error("Migration failed:", e);
     }
-    initDashboard(user);
-    initAuthUI(); // Phase 5: Auth UI Listener
+    
+    // Phase 5: 如果是 dashboard 页，不在此初始化（由 dashboard_init.js 接管）
+    // 或者保持 initDashboard 的调用，但要避免重复 Auth
+    // 目前 dashboard.html 会加载 dashboard_init.js，所以这里我们保留通用逻辑
+    // 但要根据当前页面判断
+    
+    if (!window.location.pathname.includes('dashboard.html')) {
+       initAuthUI('global'); // 仅在非 dashboard 页初始化全局监听（如 Landing）
+    } else {
+       // Dashboard 页初始化逻辑移至 dashboard_init.js
+       initDashboard(user);
+    }
   })();
 
   // =============================

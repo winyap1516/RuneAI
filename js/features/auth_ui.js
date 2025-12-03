@@ -1,18 +1,30 @@
-// 中文注释：Auth UI 逻辑
+// 中文注释：Auth UI 逻辑 (Phase 5 重构)
 // 作用：处理登录、注册表单的提交，以及 Auth 状态变更的监听与跳转
 // 依赖：@supabase/supabase-js (via supabaseClient.js)
 
-import { supabase, getSession, getUser } from '../services/supabaseClient.js';
+import { supabase, getSession } from '../services/supabaseClient.js';
 import { showToast } from '../utils/ui-helpers.js';
 import { linkController } from '../controllers/linkController.js';
 import storageAdapter from '../storage/storageAdapter.js';
 
 /**
  * 初始化 Auth UI 监听
- * 在 main.js 中调用
+ * @param {string} mode 'login' | 'register' | 'global'
  */
-export function initAuthUI() {
-  // 1. 监听 Auth 状态变更
+export async function initAuthUI(mode = 'global') {
+  console.log(`[Auth] Initializing UI in ${mode} mode`);
+
+  // 1. 检查当前 Session（仅在登录/注册页检查，避免重复跳转）
+  if (mode === 'login' || mode === 'register') {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      console.log('[Auth] Session valid, redirecting to dashboard');
+      window.location.href = 'dashboard.html';
+      return;
+    }
+  }
+
+  // 2. 监听 Auth 状态变更 (全局监听)
   if (supabase) {
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth] State change:', event, session?.user?.id);
@@ -27,9 +39,15 @@ export function initAuthUI() {
     });
   }
 
-  // 2. 绑定表单事件 (如果存在)
-  bindLoginForm();
-  bindSignupForm();
+  // 3. 根据模式绑定表单
+  if (mode === 'login') {
+    bindLoginForm();
+    bindGoogleLogin();
+  } else if (mode === 'register') {
+    bindSignupForm();
+  }
+  
+  // 全局绑定退出按钮
   bindLogoutButton();
 }
 
@@ -58,9 +76,8 @@ async function handleLoginSuccess(user) {
     console.warn('[Auth] Sync trigger failed:', e);
   }
 
-  // 如果当前在登录页/注册页，跳转到 Dashboard
-  const path = window.location.pathname;
-  if (path.includes('index.html') || path.includes('signup.html') || path === '/') {
+  // 跳转到 Dashboard (如果不在 Dashboard)
+  if (!window.location.pathname.includes('dashboard.html')) {
     window.location.href = 'dashboard.html';
   }
 }
@@ -72,14 +89,14 @@ async function handleLogoutSuccess() {
   localStorage.removeItem('rune_user'); // 清理本地 User
   localStorage.removeItem('runeai_jwt'); // 清理旧 JWT (SDK 也会自动清理)
   
-  // 跳转到 Landing
-  if (!window.location.pathname.includes('index.html')) {
-    window.location.href = 'index.html';
+  // 跳转到 Login
+  if (!window.location.pathname.includes('login.html') && !window.location.pathname.includes('index.html')) {
+    window.location.href = 'login.html';
   }
 }
 
 /**
- * 绑定登录表单 (modal_login.html / index.html)
+ * 绑定登录表单 (login.html)
  */
 function bindLoginForm() {
   const form = document.getElementById('login-form');
@@ -94,19 +111,47 @@ function bindLoginForm() {
     if (!email || !password) return showToast('请输入邮箱和密码', 'error');
 
     try {
-      if (btn) btn.disabled = true;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '登录中...';
+      }
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       // onAuthStateChange 会处理跳转
     } catch (e) {
       showToast(e.message, 'error');
-      if (btn) btn.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '登录';
+      }
     }
   });
 }
 
 /**
- * 绑定注册表单 (signup.html)
+ * 绑定 Google 登录按钮
+ */
+function bindGoogleLogin() {
+  const btn = document.getElementById('btn-google-login');
+  if (!btn) return;
+  
+  btn.addEventListener('click', async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/dashboard.html'
+        }
+      });
+      if (error) throw error;
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  });
+}
+
+/**
+ * 绑定注册表单 (register.html)
  */
 function bindSignupForm() {
   const form = document.getElementById('signup-form');
@@ -116,13 +161,18 @@ function bindSignupForm() {
     e.preventDefault();
     const email = form.email?.value;
     const password = form.password?.value;
-    const nickname = form.nickname?.value; // 假设有昵称字段
+    const nickname = form.nickname?.value;
     const btn = form.querySelector('button[type="submit"]');
+    const successDiv = document.getElementById('signup-success');
 
     if (!email || !password) return showToast('请输入邮箱和密码', 'error');
 
     try {
-      if (btn) btn.disabled = true;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '注册中...';
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -132,18 +182,23 @@ function bindSignupForm() {
       });
       if (error) throw error;
       
-      showToast('注册成功！请查收确认邮件或直接登录。');
-      // 注册后通常需要确认邮件，或者直接登录 (取决于 Supabase 配置)
-      // 如果配置了“Enable Confirm Email”，则不会立即 SIGNED_IN
-      if (data.session) {
-        // 自动登录成功
-      } else {
-        // 需要确认邮件
-        setTimeout(() => window.location.href = 'index.html', 2000);
+      // 注册成功提示
+      if (data.user && !data.session) {
+        // 需要验证邮箱
+        form.reset();
+        form.classList.add('hidden');
+        if (successDiv) successDiv.classList.remove('hidden');
+      } else if (data.session) {
+        // 自动登录成功 (某些配置下)
+        showToast('注册成功！即将跳转...');
       }
+      
     } catch (e) {
       showToast(e.message, 'error');
-      if (btn) btn.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '立即注册';
+      }
     }
   });
 }
@@ -154,7 +209,7 @@ function bindSignupForm() {
 function bindLogoutButton() {
   // 使用委托，因为 Logout 按钮可能在下拉菜单中动态生成
   document.addEventListener('click', async (e) => {
-    const target = e.target.closest('[data-action="logout"]');
+    const target = e.target.closest('[data-action="logout"]') || e.target.closest('#logoutBtn');
     if (!target) return;
 
     e.preventDefault();
