@@ -194,14 +194,14 @@ function bindSignupForm() {
       if (error) throw error;
       
       // 注册成功提示
-      if (data.user && !data.session) {
-        // 需要验证邮箱
+      if (data.user) {
+        // 强制登出，避免自动登录，确保用户验证邮箱
+        await supabase.auth.signOut();
+        
+        // UI 反馈
         form.reset();
         form.classList.add('hidden');
         if (successDiv) successDiv.classList.remove('hidden');
-      } else if (data.session) {
-        // 自动登录成功 (某些配置下)
-        showToast('注册成功！即将跳转...');
       }
       
     } catch (e) {

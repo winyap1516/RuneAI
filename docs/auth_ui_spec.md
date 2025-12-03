@@ -24,7 +24,8 @@
 - `registerSubmit({ email, password, confirm_password, nickname })`
   - 校验 `password === confirm_password`
   - 调用 `supabase.auth.signUp({ email, password, options:{ data:{ nickname } } })`
-  - 不自动登录；显示“请查收邮箱完成验证”，提供“返回登录”按钮
+  - 成功后立即调用 `supabase.auth.signOut()` 强制登出，防止自动登录
+  - 显示“请查收邮箱完成验证”，提供“返回登录”按钮
 - `onAuthStateChange(event, session)`
   - `SIGNED_IN`：保存本地用户信息 → 调用 `linkController.initSyncAfterLogin()` → `redirect: dashboard.html`
   - `SIGNED_OUT`：清理本地状态 → `redirect: login.html`
