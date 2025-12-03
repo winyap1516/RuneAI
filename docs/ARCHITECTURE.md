@@ -88,6 +88,16 @@ graph TD
 - 同步触发：登录成功或 Dashboard 加载时，调用 `linkController.initSyncAfterLogin()`，执行迁移与同步循环。
 - 展示页：`dashboard.html` 渲染链接列表与用户信息（从 Session 恢复）。
 
+```mermaid
+graph LR
+    Index[Index.html] -->|Click Login/Register| AuthPage[Login/Register.html]
+    AuthPage -->|Sign In/Up| Supabase[Supabase Auth]
+    Supabase -->|Session Valid| Dashboard[Dashboard.html]
+    Dashboard -->|Init| LinkController[LinkController]
+    LinkController -->|Trigger| SyncAgent[SyncAgent]
+    SyncAgent <-->|Push/Pull| CloudDB[(Cloud DB)]
+```
+
 ### 4.2 安全边界 (Security Boundaries)
 *   **前端验证 (Weak)**:
     *   `userId === 'local-dev'` 仅用于本地调试和 UI 展示控制。
