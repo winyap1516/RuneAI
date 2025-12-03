@@ -74,15 +74,18 @@ js/
         *   统一日志写入 (`storageAdapter.addGenerationLog`)
         *   补充单元测试 (`tests/digestController.test.js`, `tests/aiService.test.js`)
 
-### Phase 3: 清理与优化 (Cleanup & Optimization)
+### Phase 3: 清理与优化 (Cleanup & Optimization) ✅ **已完成**
 *   **目标**: 移除旧代码，优化性能。
 *   **任务**:
     *   移除 `dashboard.js` 中残留的未使用函数
     *   优化 DOM 操作性能 (Batch update)
     *   补充更多 E2E 测试
 
-### Phase 4: 云端迁移准备 (Cloud Prep)
-*   **目标**: 为接入 Supabase Edge Functions 做准备。
-*   **任务**:
-    *   `ai.js` 支持云端 Endpoint 切换
-    *   Quota Service 支持远程校验
+### Phase 4: 云端同步与迁移 (Cloud Sync) ✅ **已完成**
+*   **目标**: 接入 Supabase Auth、RLS 与 Sync Engine。
+*   **完成内容**:
+    *   **Supabase Client**: `js/services/supabaseClient.js` 统一 JWT 与 API 调用
+    *   **Sync Agent**: `js/sync/syncAgent.js` + `changeLog.js` 实现双向同步与离线支持
+    *   **Cloud RPC**: `/sync-push` (事务) 与 `/sync-pull` (多资源) 落地
+    *   **Migration**: `migrateLocalToCloud()` 工具实现 IndexedDB 上云
+    *   **Storage Adapter**: 深度改造支持 `enqueueChange` 与 `updated_at` 维护

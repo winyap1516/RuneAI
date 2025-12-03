@@ -1,5 +1,6 @@
 // main.js
 import { initDashboard } from './features/dashboard.js';
+import { initAuthUI } from './features/auth_ui.js';
 import storageAdapter from './storage/storageAdapter.js';
 // 中文注释：引入本地 Mock 抓取与 AI 摘要（用于订阅与日报生成）
 import { mockFetchSiteContent, mockAIFromUrl } from '../mockFunctions.js';
@@ -33,6 +34,15 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   storageAdapter.saveUser(user);
 
+  // Phase 5: Register Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('[SW] Registered:', reg.scope))
+        .catch(err => console.warn('[SW] Registration failed:', err));
+    });
+  }
+
   // 初始化页面
   // P0: Ensure migration runs before rendering
   (async () => {
@@ -42,6 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error("Migration failed:", e);
     }
     initDashboard(user);
+    initAuthUI(); // Phase 5: Auth UI Listener
   })();
 
   // =============================

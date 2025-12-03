@@ -60,3 +60,56 @@ export function getTagClass(tag = "") {
   const index = Math.abs(hash) % colors.length;
   return colors[index];
 }
+
+/**
+ * 显示轻量提示（Toast）
+ * @param {string} message 文本内容
+ * @param {('info'|'success'|'error')} level 级别
+ */
+export function showToast(message = '', level = 'info') {
+  try {
+    const containerId = 'rune-toast-container';
+    let container = document.getElementById(containerId);
+    if (!container) {
+      container = document.createElement('div');
+      container.id = containerId;
+      container.style.position = 'fixed';
+      container.style.top = '12px';
+      container.style.right = '12px';
+      container.style.zIndex = '9999';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '8px';
+      document.body.appendChild(container);
+    }
+
+    const el = document.createElement('div');
+    el.textContent = String(message || '').trim() || '提示';
+    el.style.padding = '10px 14px';
+    el.style.borderRadius = '8px';
+    el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+    el.style.color = '#fff';
+    el.style.fontSize = '14px';
+    el.style.fontWeight = '600';
+    el.style.maxWidth = '380px';
+    el.style.wordBreak = 'break-word';
+    el.style.pointerEvents = 'auto';
+
+    const colors = {
+      info: '#4A69FF',
+      success: '#10B981',
+      error: '#EF4444',
+    };
+    el.style.background = colors[level] || colors.info;
+
+    container.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0.0';
+      el.style.transition = 'opacity 200ms ease';
+      setTimeout(() => el.remove(), 220);
+    }, 2600);
+  } catch (e) {
+    console.warn('Toast failed:', e);
+    alert(message);
+  }
+}
