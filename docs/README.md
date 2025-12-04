@@ -1,5 +1,11 @@
 # RuneAI / YinGAN — 前端运行与认证指南
 
+> ⚠️ **开发环境警告**：  
+> 本项目 **禁止** 使用 IDE（VS Code/Trae）内置的 WebView/Preview 进行调试。  
+> 内置浏览器的沙箱限制会导致 Supabase 认证与同步功能失效。  
+> 请务必使用 **Chrome / Edge** 访问 `http://localhost:5173`。  
+> 详见 [WEBVIEW-LIMITATIONS.md](WEBVIEW-LIMITATIONS.md)。
+
 ## 快速开始
 - 安装依赖：`npm install`
 - 启动开发：`npm run dev`，访问 `http://localhost:5173/`
@@ -15,6 +21,10 @@
 - 登录成功：触发 `linkController.initSyncAfterLogin()` 并跳转 `dashboard.html`
 - 注册成功：立即 `signOut()`，显示“请查收邮箱验证”提示卡片，用户返回登录页
 - 会话监听：`supabase.auth.onAuthStateChange` 处理 `SIGNED_IN`/`SIGNED_OUT` 事件
+
+### 开发环境临时说明（Auth Fallback）
+- 在部分 IDE 内置浏览器中，SDK 会话恢复可能失败导致 401。已在开发环境实现受控兜底：从 `localStorage` 读取 Token 并附加到 `Authorization`。
+- 详情与迁移计划见 `docs/AUTH-FALLBACK.md`（上线前必须移除 dev-only 逻辑）。
 
 ## 安全细则（本次修复）
 - 登录/注册按钮使用 `type="button"`，禁止浏览器默认提交，改为 JS 手动触发

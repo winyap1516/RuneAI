@@ -260,9 +260,12 @@ export function addSingleCardUI(data) {
     if (empty && empty.textContent === "No links found.") {
         empty.remove();
     }
-    
-    const html = _templates.createCard(data);
-    _containerEl.insertAdjacentHTML('afterbegin', html);
+    // 中文注释：使用后端返回的唯一 id 做渲染去重；若已有同 id 卡片，避免重复插入
+    const exists = _containerEl.querySelector(`.rune-card[data-card-id="${data.id}"]`);
+    if (!exists) {
+        const html = _templates.createCard(data);
+        _containerEl.insertAdjacentHTML('afterbegin', html);
+    }
     
     renderCategoriesSidebar();
     syncEditCategorySelect();
@@ -545,7 +548,7 @@ function renderCategoriesSidebar() {
     const allItem = document.createElement('div');
     allItem.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer';
     allItem.setAttribute('data-name', '');
-    allItem.innerHTML = `<button class="category-filter text-sm font-medium text-left flex-1 w-full focus:outline-none" title="All Links">All Links</button>`;
+    allItem.innerHTML = `<button type="button" class="category-filter text-sm font-medium text-left flex-1 w-full focus:outline-none" title="All Links">All Links</button>`;
     list.appendChild(allItem);
 
     cats.forEach(cat => {
@@ -555,9 +558,9 @@ function renderCategoriesSidebar() {
         item.setAttribute('data-name', cat);
         const initial = (cat || 'U').charAt(0).toUpperCase();
         item.innerHTML = `
-          <button class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}">${escapeHTML(cat)}</button>
+          <button type="button" class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}">${escapeHTML(cat)}</button>
           <div class="relative shrink-0">
-            <button class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none" data-category="${escapeHTML(cat)}">
+            <button type="button" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none" data-category="${escapeHTML(cat)}">
               <span class="material-symbols-outlined text-base">more_horiz</span>
             </button>
           </div>
@@ -597,20 +600,20 @@ function bindModalEvents() {
         on(saveBtn, 'click', async () => {
             const raw = (inpUrl.value||'').trim();
             if (!raw) { openTextPrompt({title:'Error', placeholder:'Invalid URL'}); return; }
+            // 中文注释：提交防护；防止用户重复点击导致多次请求与重复插入
+            if (saveBtn.dataset.submitting === '1') return;
+            saveBtn.dataset.submitting = '1';
             setLoading(saveBtn, true, 'Saving...');
             try {
-                const added = await linkController.addLink(raw);
-                // Render single card or re-render all?
-                // re-render all ensures sort order etc.
-                // But dashboard did insertAdjacentHTML 'afterbegin'.
-                const html = _templates.createCard(added);
-                _containerEl.insertAdjacentHTML('afterbegin', html);
+                await linkController.addLink(raw);
+                // 中文注释：视图插入由 linkController 调用 view.addSingleCardUI 完成，这里不再重复插入
                 updateUIStates();
                 inpUrl.value = '';
                 closeModal(addModal);
             } catch(err) {
                 openTextPrompt({title:'Error', placeholder:err.message});
             } finally {
+                delete saveBtn.dataset.submitting;
                 setLoading(saveBtn, false);
             }
         });
@@ -711,16 +714,33 @@ function bindMenuEvents() {
 
 function bindCategoryEvents() {
     const { delegate } = _utils.dom;
-    const list = document.getElementById('linksGroupList');
-    if (!list) return;
-    
-    delegate(list, '.category-filter', 'click', (e, btn) => {
+    // 中文注释：改为在 document 上做事件委托，避免切换视图或重建侧栏导致绑定丢失
+    delegate(document, '#linksGroupList .category-filter', 'click', (e, btn) => {
         const name = btn.closest('div').getAttribute('data-name');
+        // 中文注释：若当前不在 Links 视图（容器不存在），先切换回 Links 再执行分类过滤
+        const hasContainer = !!document.getElementById('cardsContainer');
+        if (!hasContainer || !_containerEl) {
+            if (typeof window.navigateToLinks === 'function') {
+                const res = window.navigateToLinks();
+                if (res && typeof res.then === 'function') {
+                    res.then(() => filterCardsByCategory(name));
+                } else {
+                    setTimeout(() => filterCardsByCategory(name), 100);
+                }
+                return;
+            }
+        }
         filterCardsByCategory(name);
     });
 }
 
 function filterCardsByCategory(category) {
+    // 中文注释：健壮性防护；如果容器未初始化或已被其他视图替换，尝试重新获取
+    if (!_containerEl || !_containerEl.isConnected) {
+        const c = document.getElementById('cardsContainer');
+        if (!c) return;
+        _containerEl = c;
+    }
     const cards = Array.from(_containerEl.children);
     let visible = 0;
     cards.forEach(el => {

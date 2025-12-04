@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",
+    "jsdom": "^27.2.0",
     "supabase": "^2.64.2",
     "vite": "^5.4.8",
     "vitest": "^4.0.14"

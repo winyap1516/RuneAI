@@ -246,11 +246,8 @@ export const linkController = {
       url: normalized,
     };
 
-    const silent = !!this._view;
-    const added = await storageAdapter.addLink(data, { silent });
-    if (this._view) {
-        this._view.addSingleCardUI(added);
-    }
+    // 中文注释：统一通过事件驱动刷新，避免“手动插入 + 渲染刷新”双路径导致重复卡片
+    const added = await storageAdapter.addLink(data, { silent: false });
     return added;
   },
 

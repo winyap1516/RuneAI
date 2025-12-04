@@ -98,8 +98,15 @@ async function handleLoginSuccess(user) {
  */
 async function handleLogoutSuccess() {
   localStorage.removeItem('rune_user'); // 清理本地 User
-  localStorage.removeItem('runeai_jwt'); // 清理旧 JWT (SDK 也会自动清理)
+  localStorage.removeItem('runeai_jwt'); // 清理旧 JWT
   
+  // 强力清理 Supabase SDK 可能残留的 Token
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+      localStorage.removeItem(key);
+    }
+  });
+
   // 跳转到 Login
   if (!window.location.pathname.includes('login.html') && !window.location.pathname.includes('index.html')) {
     window.location.href = 'login.html';
@@ -292,12 +299,24 @@ function bindLogoutButton() {
 
     e.preventDefault();
     if (confirm('确定要退出登录吗？')) {
+      // 中文注释：若当前无 Session/Token，直接本地清理，避免触发网络请求导致 ERR_ABORTED
       try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        // onAuthStateChange 会处理跳转
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        if (!token) {
+          console.warn('[Auth] logout -> no session, doing local cleanup');
+          await handleLogoutSuccess();
+          return;
+        }
+      } catch {}
+      try {
+        // 尝试网络登出
+        await supabase.auth.signOut();
       } catch (e) {
-        showToast(e.message, 'error');
+        console.warn('[Auth] Network signOut failed, forcing local cleanup:', e);
+      } finally {
+        // 无论网络请求是否成功，都强制执行本地登出
+        await handleLogoutSuccess();
       }
     }
   });
