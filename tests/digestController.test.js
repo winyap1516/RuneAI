@@ -1,16 +1,19 @@
+/* @vitest-environment jsdom */
+// 中文注释：
+// 1) 指定 jsdom 测试环境，提供浏览器 API（window/localStorage/CustomEvent 等），避免 Node 环境下的 localStorage / indexedDB 警告。
+// 2) mock 必须在 import 之前执行，确保被测模块（digestController、storageAdapter、ai/quota）加载到的是模拟版本，防止触发真实的 IndexedDB 迁移逻辑。
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// 先进行模块模拟（mock），再导入被测模块与依赖
+vi.mock('../js/storage/storageAdapter.js');
+vi.mock('../js/services/ai.js');
+vi.mock('../js/services/quota.js');
+vi.mock('../js/utils/url.js', () => ({ normalizeUrl: (u) => u }));
+
 import { digestController } from '../js/controllers/digestController.js';
 import storageAdapter from '../js/storage/storageAdapter.js';
 import { createDigestForWebsite } from '../js/services/ai.js';
 import * as quotaService from '../js/services/quota.js';
-
-// Mock dependencies
-vi.mock('../js/storage/storageAdapter.js');
-vi.mock('../js/services/ai.js');
-vi.mock('../js/services/quota.js');
-vi.mock('../js/utils/url.js', () => ({
-    normalizeUrl: (u) => u
-}));
 
 describe('Digest Controller', () => {
   beforeEach(() => {

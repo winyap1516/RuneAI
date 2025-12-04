@@ -46,3 +46,9 @@
 - `sw.js`：HTML Network First
 - 文档：`docs/auth_ui_spec.md`、`docs/ARCHITECTURE.md`、`CHANGELOG.md`
 
+## 测试与可测试性（新增说明）
+- 单元测试运行：`npx vitest run`
+- `aiService` 测试：通过被测模块提供的测试钩子 `__setTestHooks` 注入模拟函数，避免路径差异导致的 `vi.mock` 失效。
+- `digestController` 测试：指定 `/* @vitest-environment jsdom */` 并在导入前执行 `vi.mock`，避免触发真实 `IndexedDB` 迁移与 `localStorage` 警告。
+- 云端调用隔离：在 Node/Vitest 环境下禁用 `ai.js` 的云端回落，确保断言不受 Supabase Edge Function 干扰。
+

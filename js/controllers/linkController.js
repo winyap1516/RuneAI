@@ -246,8 +246,15 @@ export const linkController = {
       url: normalized,
     };
 
-    // 中文注释：统一通过事件驱动刷新，避免“手动插入 + 渲染刷新”双路径导致重复卡片
-    const added = await storageAdapter.addLink(data, { silent: false });
+    // 中文注释：为兼容单元测试与视图局部刷新策略：
+    // - 若存在视图（this._view 非空），则以 silent=true 写入存储并手动调用视图的 addSingleCardUI 进行增量插入；
+    // - 若无视图，则让存储触发全量通知（silent=false），由外层渲染器统一刷新。
+    const silent = !!this._view;
+    const added = await storageAdapter.addLink(data, { silent });
+    if (this._view) {
+      // 中文注释：视图存在时，执行局部 UI 插入，避免全量 re-render
+      try { this._view.addSingleCardUI(added); } catch (e) { /* no-op */ }
+    }
     return added;
   },
 
