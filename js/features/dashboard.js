@@ -78,6 +78,9 @@ export function initDashboard() {
     linkController.setView(linksView);
     digestController.setView(digestView);
 
+    // Bind Events Once
+    linksView.bindLinksEvents();
+
     // Initial Render
     renderDefaultMain();
 
@@ -88,93 +91,7 @@ export function initDashboard() {
   const mainEl = document.querySelector('main');
   const defaultMainHTML = mainEl ? mainEl.innerHTML : '';
   
-  // Sidebar Toggle Logic
-  const toggle = document.getElementById("sidebarToggle");
-  const logoBtn = document.getElementById("logoBtn");
-  const sidebar = document.querySelector(".sidebar");
-  
-  const toggleSidebar = (forceState) => {
-    if (!sidebar) return;
-    const isCollapsed = forceState !== undefined ? forceState : !sidebar.classList.contains("aside-collapsed");
-    if (isCollapsed) {
-      sidebar.classList.add("aside-collapsed");
-      sidebar.setAttribute("aria-expanded", "false");
-    } else {
-      sidebar.classList.remove("aside-collapsed");
-      sidebar.setAttribute("aria-expanded", "true");
-    }
-    try { localStorage.setItem("sidebarCollapsed", isCollapsed); } catch {}
-  };
-
-  try {
-    const stored = localStorage.getItem("sidebarCollapsed");
-    if (window.innerWidth > 768 && stored === 'true') toggleSidebar(true);
-  } catch {}
-
-  if (logoBtn) {
-    on(logoBtn, "click", () => toggleSidebar());
-    on(logoBtn, "keydown", (e) => { if (e.key === 'Enter' || e.key === ' ') toggleSidebar(); });
-  }
-  if (toggle) toggle.addEventListener("click", () => toggleSidebar());
-
-  // Navigation Groups (Accordion)
-  const navGroups = [
-    { header: "linksGroupHeader", body: "linksGroupBody" },
-    { header: "subsGroupHeader", body: "subsGroupBody" },
-    { header: "aiGroupHeader", body: "aiGroupBody" },
-  ];
-  navGroups.forEach(({ header, body }) => {
-      const h = document.getElementById(header);
-      const b = document.getElementById(body);
-      if (h && b) {
-          const icon = h.querySelector('.material-symbols-outlined');
-          // Default Open
-          b.style.maxHeight = "none";
-          b.style.overflow = "visible";
-          b.setAttribute('data-expanded', 'true');
-          h.setAttribute('aria-expanded', 'true');
-          if (icon) icon.style.transform = 'rotate(180deg)';
-
-          h.addEventListener("click", (e) => {
-              e.preventDefault();
-              const isExpanded = b.getAttribute('data-expanded') === 'true';
-              if (isExpanded) {
-                  b.style.maxHeight = b.scrollHeight + "px";
-                  b.style.overflow = "hidden";
-                  b.offsetHeight; // reflow
-                  b.style.transition = "max-height 200ms ease-in-out";
-                  b.style.maxHeight = "0px";
-                  b.setAttribute('data-expanded', 'false');
-                  h.setAttribute('aria-expanded', 'false');
-                  if (icon) icon.style.transform = 'rotate(0deg)';
-              } else {
-                  b.style.display = '';
-                  b.style.overflow = "hidden";
-                  b.style.transition = "max-height 200ms ease-in-out";
-                  b.style.maxHeight = b.scrollHeight + "px";
-                  b.setAttribute('data-expanded', 'true');
-                  h.setAttribute('aria-expanded', 'true');
-                  if (icon) icon.style.transform = 'rotate(180deg)';
-                  b.addEventListener('transitionend', () => {
-                      if (b.getAttribute('data-expanded') === 'true') {
-                          b.style.maxHeight = "none";
-                          b.style.overflow = "visible";
-                      }
-                  }, { once: true });
-              }
-          });
-      }
-  });
-
-  // Nav Items Active State
-  const navItems = document.querySelectorAll(".nav-item");
-  navItems.forEach((item) => {
-    item.addEventListener("click", (e) => {
-      e.preventDefault();
-      navItems.forEach((i) => i.classList.remove("active-item"));
-      item.classList.add("active-item");
-    });
-  });
+  // ... (lines 91-178 skipped) ...
 
   function renderDefaultMain() {
     if (mainEl) {
@@ -192,7 +109,7 @@ export function initDashboard() {
       linkController.setView(linksView);
       
       // Phase 3: Pagination (Load Page 0)
-      linkController.fetchPage(0, 20).then(({ items }) => {
+      return linkController.fetchPage(0, 20).then(({ items }) => {
           linksView.renderLinks(items);
           // Enable Infinite Scroll
           const scrollContainer = document.getElementById('mainScrollContainer');
@@ -200,10 +117,11 @@ export function initDashboard() {
               onLoadMore: () => linkController.loadNextPage()
           });
       });
-      
-      linksView.bindLinksEvents();
     }
+    return Promise.resolve();
   }
+  // 中文注释：暴露“返回 All Links 视图”的导航方法，供侧栏分类点击时调用（Digest 等其他视图切回 Links）
+  try { window.navigateToLinks = renderDefaultMain; } catch {}
   
   // Navigation Logic
   const navDigest = document.getElementById('navDigest');

@@ -25,6 +25,54 @@ function hashText(text = '') {
 window.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 RuneAI Dashboard Loaded');
 
+  // 中文注释：提供站点数据一键清理工具（用于开发者预览浏览器缓存问题的快速排障）
+  // 快捷键：Ctrl + Alt + C
+  // 作用：清理 Cache Storage / IndexedDB / LocalStorage / SessionStorage，并注销 Service Worker，随后强制刷新
+  window.__clearSiteData = async () => {
+    try {
+      // 1) 清理 Cache Storage
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+
+      // 2) 清理 IndexedDB（若浏览器支持 databases()，逐个删除）
+      if (indexedDB && typeof indexedDB.databases === 'function') {
+        try {
+          const dbs = await indexedDB.databases();
+          await Promise.all(dbs.map(db => db?.name && indexedDB.deleteDatabase(db.name)));
+        } catch (e) {
+          console.warn('[CacheClean] IndexedDB.databases() 不支持或失败，跳过 IndexedDB 全量清理', e);
+        }
+      }
+
+      // 3) 清理 LocalStorage / SessionStorage
+      try { localStorage.clear(); } catch {}
+      try { sessionStorage.clear(); } catch {}
+
+      // 4) 注销所有 Service Worker
+      if (navigator.serviceWorker) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        } catch {}
+      }
+
+      // 5) 强制刷新页面
+      location.reload(true);
+    } catch (e) {
+      console.error('[CacheClean] 清理失败：', e);
+    }
+  };
+
+  // 注册快捷键 Ctrl + Alt + C
+  document.addEventListener('keydown', (e) => {
+    const ctrl = e.ctrlKey || e.metaKey; // macOS 使用 Cmd
+    if (ctrl && e.altKey && (e.key.toLowerCase() === 'c')) {
+      e.preventDefault();
+      console.log('[CacheClean] 执行站点数据清理…');
+      window.__clearSiteData();
+    }
+  });
+
   // 模拟已登录用户（开发者模式固定账号）
   const user = {
     id: 'local-dev',
@@ -34,13 +82,42 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   storageAdapter.saveUser(user);
 
+  // 检测 IDE WebView 环境并警告 (仅 Dev)
+  const isDev = import.meta?.env?.MODE !== 'production';
+  if (isDev) {
+    const isWebView = !window.navigator.webdriver && (
+       /Code|VSCode|Trae|IDE/i.test(navigator.userAgent) || 
+       window.location.protocol === 'vscode-webview:' ||
+       window.innerWidth < 500 // 简单启发式
+    );
+    if (isWebView) {
+      console.error('[RuneAI] ⚠️ 严重警告：检测到正在使用 IDE 内置 WebView');
+      console.error('内置浏览器处于沙箱模式，会阻断 Supabase 认证与 Edge Function 调用。');
+      console.error('👉 请务必点击 IDE 右上角 "Open in Browser" 或手动访问 http://localhost:5173');
+      
+      // 可选：在页面顶部插入醒目 Banner
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#ff4444;color:white;padding:12px;text-align:center;font-weight:bold;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
+      banner.innerHTML = '⚠️ 开发模式警告：请勿使用 IDE 内置浏览器！<br/><span style="font-weight:normal;font-size:0.9em">沙箱环境会导致登录与同步失败。请点击 "Open in Browser" 或访问 http://localhost:5173</span>';
+      document.body.appendChild(banner);
+    }
+  }
+
   // Phase 5: Register Service Worker
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('[SW] Registered:', reg.scope))
-        .catch(err => console.warn('[SW] Registration failed:', err));
-    });
+    // 中文注释：开发环境默认禁用 SW（避免预缓存导致的旧页面/脚本与认证异常）；可通过 window.__DISABLE_SW = false 重新启用
+    if (isDev && window.__DISABLE_SW !== false) {
+      navigator.serviceWorker.getRegistrations()
+        .then(regs => Promise.all(regs.map(r => r.unregister())))
+        .then(() => console.warn('[SW] Dev mode: unregistered all Service Workers'))
+        .catch(() => {});
+    } else {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[SW] Registered:', reg.scope))
+          .catch(err => console.warn('[SW] Registration failed:', err));
+      });
+    }
   }
 
   // 初始化页面
@@ -57,12 +134,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // 目前 dashboard.html 会加载 dashboard_init.js，所以这里我们保留通用逻辑
     // 但要根据当前页面判断
     
-    if (!window.location.pathname.includes('dashboard.html')) {
-       initAuthUI('global'); // 仅在非 dashboard 页初始化全局监听（如 Landing）
-    } else {
+    const path = window.location.pathname;
+    if (!path.includes('dashboard.html') && !path.includes('login.html') && !path.includes('register.html')) {
+       initAuthUI('global'); // 仅在 landing/index 页初始化
+    } else if (path.includes('dashboard.html')) {
        // Dashboard 页初始化逻辑移至 dashboard_init.js
        initDashboard(user);
     }
+    // 注意：login.html 和 register.html 会在各自页面内手动调用 initAuthUI，此处跳过以免重复
   })();
 
   // =============================

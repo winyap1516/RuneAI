@@ -13,6 +13,8 @@ try { config.validate(); } catch (e) { logger.error('[Config] 校验失败：', 
 // 初始化 SDK 实例
 // 注意：在 CDN 模式下，supabase 是挂载在 window 上的全局对象
 let supabase = null;
+// 中文注释：记录最近一次认证信息来源，便于 Sync 层打印失败上下文（仅 dev 环境使用）
+let __lastAuthInfo = { source: 'unknown', preview: null };
 if (typeof window !== 'undefined' && window.supabase) {
     try {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -22,6 +24,8 @@ if (typeof window !== 'undefined' && window.supabase) {
                 detectSessionInUrl: true
             }
         });
+        // 暴露实例供控制台调试
+        window.supabaseClient = supabase;
         logger.info('[Supabase] Client initialized');
     } catch (e) {
         logger.error('[Supabase] Init failed:', e);
@@ -87,12 +91,54 @@ export async function isLoggedIn() {
  * @returns {Promise<Record<string,string>>}
  */
 export async function getAuthHeaders() {
-    const token = await getJWT();
+    // 中文注释：优先从 SDK 拿到用户 Token；开发环境下提供 localStorage 兜底
     const headers = { 'Content-Type': 'application/json' };
+    const isDev = typeof import.meta !== 'undefined' ? (import.meta.env?.MODE !== 'production') : true;
+
+    let source = 'anon';
+    let token = await getJWT();
+    if (token) {
+        source = 'SDK';
+    } else if (isDev && typeof window !== 'undefined' && !window.__DISABLE_AUTH_FALLBACK__) {
+        try {
+            // 中文注释：兜底读取 localStorage 中的 supabase 会话（仅 dev）
+            let parsed = null;
+            // 常见 key：sb-<project-ref>-auth-token 或 supabase.auth.token
+            const direct = window.localStorage.getItem('supabase.auth.token');
+            if (direct) {
+                parsed = JSON.parse(direct);
+            } else {
+                // 遍历查找 sb-*-auth-token
+                for (let i = 0; i < window.localStorage.length; i++) {
+                    const k = window.localStorage.key(i);
+                    if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                        const raw = window.localStorage.getItem(k);
+                        parsed = raw ? JSON.parse(raw) : null;
+                        if (parsed) break;
+                    }
+                }
+            }
+            if (parsed?.access_token) {
+                token = parsed.access_token;
+                source = 'localStorage';
+            }
+        } catch {}
+    }
+
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     } else if (SUPABASE_ANON_KEY) {
         headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+    }
+
+    // 记录最近一次认证信息（仅预览前 8 位，避免泄露完整 Token）
+    const authVal = headers['Authorization'] || '';
+    const preview = authVal.startsWith('Bearer ') ? (authVal.slice(7, 15) + '…') : null;
+    __lastAuthInfo = { source, preview };
+
+    // 开发环境调试日志
+    if (isDev) {
+        logger.debug('[AuthHdr] source=', source, 'preview=', preview);
     }
     return headers;
 }
@@ -103,25 +149,55 @@ export async function getAuthHeaders() {
  * @param {RequestInit} init 
  */
 export async function callFunction(name, init = {}) {
-    if (!SUPABASE_URL) throw new Error('SUPABASE_URL 未配置');
+    // 中文注释：云端未就绪时直接跳过，避免浏览器报错（net::ERR_ABORTED）
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !supabase) {
+        logger.warn('[EdgeFn] 云端未就绪，跳过调用：', name);
+        // 返回一个可消费的空响应，防止上层逻辑崩溃
+        return new Response(JSON.stringify({ skipped: true }), { status: 499, headers: { 'Content-Type': 'application/json' } });
+    }
     const endpoint = `${SUPABASE_URL}/functions/v1/${name}`;
     // 获取 Headers (await)
     const authHeaders = await getAuthHeaders();
-    const headers = { ...(init.headers || {}), ...authHeaders };
-    logger.debug('[EdgeFn] callFunction:', name, headers);
+    // 中文注释：Supabase Edge Functions 推荐附带 apikey 头；同时保持 Authorization 为用户 JWT（若已登录）
+    const headers = { ...(init.headers || {}), ...authHeaders, apikey: SUPABASE_ANON_KEY };
+    
+    // Debug：打印来源与预览（仅 dev）
+    const isDev = typeof import.meta !== 'undefined' ? (import.meta.env?.MODE !== 'production') : true;
+    if (isDev) {
+        logger.debug(`[EdgeFn] callFunction: ${name}`, { authSource: __lastAuthInfo.source, authPreview: __lastAuthInfo.preview });
+    }
+    
     return fetch(endpoint, { ...init, headers });
+}
+
+/**
+ * 获取最近一次认证信息（供 Sync 层在失败时记录上下文）
+ */
+export function getLastAuthInfo() {
+    return __lastAuthInfo;
 }
 
 /**
  * 调用 REST API (兼容旧版签名)
  */
 export async function callRest(path, init = {}) {
-    if (!SUPABASE_URL) throw new Error('SUPABASE_URL 未配置');
+    // 中文注释：云端未就绪时直接跳过 REST，避免报错
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !supabase) {
+        logger.warn('[REST] 云端未就绪，跳过请求：', path);
+        return new Response(JSON.stringify({ skipped: true }), { status: 499, headers: { 'Content-Type': 'application/json' } });
+    }
     const endpoint = `${SUPABASE_URL}${path}`;
     const authHeaders = await getAuthHeaders();
     const headers = { ...(init.headers || {}), ...authHeaders, apikey: SUPABASE_ANON_KEY || '' };
     logger.debug('[REST] callRest:', path, headers);
     return fetch(endpoint, { ...init, headers });
+}
+
+/**
+ * 中文注释：云端可用性检测（URL + ANON_KEY + SDK 实例）
+ */
+export function isCloudReady() {
+    return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && supabase);
 }
 
 export default { supabase, getSession, getUser, getJWT, setJWT, isLoggedIn, getAuthHeaders, callFunction, callRest };
