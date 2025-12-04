@@ -21,6 +21,7 @@
 - 登录成功：触发 `linkController.initSyncAfterLogin()` 并跳转 `dashboard.html`
 - 注册成功：立即 `signOut()`，显示“请查收邮箱验证”提示卡片，用户返回登录页
 - 会话监听：`supabase.auth.onAuthStateChange` 处理 `SIGNED_IN`/`SIGNED_OUT` 事件
+- ⚠️ **初始化约定**：遵循单例模式，避免重复绑定。详见 [AUTH_INIT_GUIDE.md](AUTH_INIT_GUIDE.md)。
 
 ### 开发环境临时说明（Auth Fallback）
 - 在部分 IDE 内置浏览器中，SDK 会话恢复可能失败导致 401。已在开发环境实现受控兜底：从 `localStorage` 读取 Token 并附加到 `Authorization`。

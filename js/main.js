@@ -134,12 +134,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // 目前 dashboard.html 会加载 dashboard_init.js，所以这里我们保留通用逻辑
     // 但要根据当前页面判断
     
-    if (!window.location.pathname.includes('dashboard.html')) {
-       initAuthUI('global'); // 仅在非 dashboard 页初始化全局监听（如 Landing）
-    } else {
+    const path = window.location.pathname;
+    if (!path.includes('dashboard.html') && !path.includes('login.html') && !path.includes('register.html')) {
+       initAuthUI('global'); // 仅在 landing/index 页初始化
+    } else if (path.includes('dashboard.html')) {
        // Dashboard 页初始化逻辑移至 dashboard_init.js
        initDashboard(user);
     }
+    // 注意：login.html 和 register.html 会在各自页面内手动调用 initAuthUI，此处跳过以免重复
   })();
 
   // =============================
