@@ -7,7 +7,8 @@ import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFet
 
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
-const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+// 中文注释：在 Node/Vitest 环境（无 window）下强制关闭云端调用，保证单测可控
+const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && typeof window !== 'undefined');
 
 async function fetchAIFromCloud(url) {
   const endpoint = `${SUPABASE_URL}/functions/v1/super-endpoint`;
@@ -20,9 +21,22 @@ async function fetchAIFromCloud(url) {
   return res.json();
 }
 
+// 中文注释：测试友好注入点（仅用于单测环境覆盖下述两项）
+let __mockAIFromUrl = mockAIFromUrlExternal;
+let __mockFetchSiteContent = mockFetchSiteContentExternal;
+
+/**
+ * 中文注释：单测注入钩子，用于替换内部 Mock 实现，避免路径解析差异导致的 vi.mock 失败
+ * @param {{ mockAIFromUrl?: Function, mockFetchSiteContent?: Function }} hooks
+ */
+export function __setTestHooks(hooks = {}) {
+  if (typeof hooks.mockAIFromUrl === 'function') __mockAIFromUrl = hooks.mockAIFromUrl;
+  if (typeof hooks.mockFetchSiteContent === 'function') __mockFetchSiteContent = hooks.mockFetchSiteContent;
+}
+
 export async function fetchSiteContent(url) {
   const nurl = normalizeUrl(url);
-  try { return await mockFetchSiteContentExternal(nurl); } catch { return { content: '' }; }
+  try { return await __mockFetchSiteContent(nurl); } catch { return { content: '' }; }
 }
 
 /**
@@ -40,8 +54,8 @@ export async function createDigestForWebsite(website, type) {
     if (useCloud) {
       aiResult = await fetchAIFromCloud(nurl);
     } else {
-      // Mock AI
-      aiResult = await mockAIFromUrlExternal(nurl);
+      // Mock AI（可被单测注入覆盖）
+      aiResult = await __mockAIFromUrl(nurl);
     }
 
     // 成功格式（必须统一）

@@ -62,7 +62,8 @@ graph TD
     *   `controllers/linkController.js`: 处理 CRUD、导入、校验。
     *   `controllers/digestController.js`: 处理手动生成、重试逻辑。
 *   **Services**: 封装复杂业务或外部调用。
-    *   `services/ai.js`: 统一 AI 摘要生成接口（Mock/Cloud 切换）。
+    *   `services/ai.js`: 统一 AI 摘要生成接口（Mock/Cloud 切换，统一返回 `{ ok, summary|error, metadata }`）。
+        *   可测试性：提供测试钩子 `__setTestHooks({ mockAIFromUrl })` 用于单测注入依赖，避免路径 mock 与云端干扰。
     *   `services/scheduler.js`: 处理定时任务（自动日报生成）。
 
 ### 3.3 数据持久层 (Data Layer)

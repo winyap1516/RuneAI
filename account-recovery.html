@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!-- 中文注释：账户恢复页面（不需要登录） -->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rune AI – 账户恢复</title>
+    <base href="./">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      .form-input { @apply w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all; }
+      .btn-primary { @apply w-full bg-primary text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed; }
+    </style>
+    <script>
+      tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#6e57e0','primary-hover':'#5a46c0','background-light':'#f6f6f8','background-dark':'#141220' }, fontFamily: { display: ['Inter','sans-serif'] } } } };
+    </script>
+  </head>
+  <body class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+    <!-- 顶部导航 -->
+    <header class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-10 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-sm sticky top-0 z-50">
+      <div class="flex items-center gap-3">
+        <div class="size-8 text-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z"/></svg>
+        </div>
+        <a href="index.html" class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Rune AI</a>
+      </div>
+      <div><a href="index.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">返回首页</a></div>
+    </header>
+
+    <!-- 主体内容：恢复卡片 -->
+    <main class="flex-1 flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-[480px] bg-white dark:bg-[#1A1828] rounded-2xl shadow-card border border-gray-100 dark:border-gray-800 p-8">
+        <div class="mb-6">
+          <h1 class="text-xl font-bold">账户恢复</h1>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">无法使用 Google/Apple 登录？请输入绑定的备用邮箱，我们将发送一次性验证链接到该邮箱来恢复账户。</p>
+        </div>
+
+        <form id="recovery-form" class="space-y-4">
+          <div>
+            <label for="identifier" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">绑定的备用邮箱</label>
+            <input id="identifier" name="identifier" type="email" required autocomplete="email" class="form-input" placeholder="your.recovery@example.com" />
+          </div>
+          <button id="btn-recover" type="button" class="btn-primary">发送验证链接</button>
+        </form>
+
+        <div id="recovery-result" class="hidden mt-4 text-sm"></div>
+      </div>
+    </main>
+
+    <script type="module">
+      // 中文注释：为避免生产环境强制要求 JWT，这里直接以 apikey 调用 Edge Functions
+      import config from './js/services/config.js';
+
+      const form = document.getElementById('recovery-form');
+      const btn = document.getElementById('btn-recover');
+      const result = document.getElementById('recovery-result');
+
+      async function requestRecovery() {
+        const identifier = form.identifier?.value?.trim();
+        if (!identifier) { result.className = 'mt-4 text-sm text-red-600'; result.textContent = '请填写备用邮箱'; result.classList.remove('hidden'); return; }
+        btn.disabled = true; btn.textContent = '发送中…';
+        try {
+          const endpoint = `${config.supabaseUrl}/functions/v1/request-recovery`;
+          const resp = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: config.supabaseAnonKey }, body: JSON.stringify({ identifier, client_req_id: crypto.randomUUID() }) });
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok || payload?.error) throw new Error(payload?.error?.message || `HTTP ${resp.status}`);
+          result.className = 'mt-4 text-sm text-green-600';
+          result.classList.remove('hidden');
+          result.textContent = '验证邮件已发送（若为开发环境，下面提供预览链接）';
+          const preview = payload?.data?.preview_link;
+          if (preview) {
+            const a = document.createElement('a'); a.href = preview; a.target = '_blank'; a.textContent = '预览恢复链接'; a.className = 'block mt-2 text-primary hover:text-primary-hover';
+            result.appendChild(a);
+          }
+        } catch (e) {
+          result.className = 'mt-4 text-sm text-red-600';
+          result.classList.remove('hidden');
+          result.textContent = e.message || '发送失败：请联系客服';
+        } finally {
+          btn.disabled = false; btn.textContent = '发送验证链接';
+        }
+      }
+
+      btn.addEventListener('click', (e) => { e.preventDefault(); requestRecovery(); });
+      form.addEventListener('submit', (e) => { e.preventDefault(); requestRecovery(); });
+    </script>
+  </body>
+</html>
+

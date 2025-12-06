@@ -1,5 +1,35 @@
 # 更新日志 (CHANGELOG)
 
+## v0.3.15 - 2025-12-06
+### Added（新增）
+- 账号恢复全链路：`request-recovery` / `confirm-recovery` / `set-password` 三个 Edge Functions，实现一次性令牌与强密码设置。
+- 前端页面：`account-recovery.html` 与 `set-password.html`，开发模式返回 `preview_link` 便于端到端联调。
+- 登录页 OAuth-first 行为：仅在社媒登录失败时显示灰色小入口“需要帮助登录？账号恢复”。
+
+### Changed（修改）
+- `login.html` 采用极简白卡片与主色强调的 Google 登录主按钮；邮箱登录折叠为备用入口。
+- `js/features/auth_ui.js` 新增 Google 登录失败时展示恢复入口的逻辑，统一重定向到 `oauth-callback.html`。
+
+### Removed（移除）
+- 登录页移除“重发验证邮件”与“未验证邮箱”提示文案，敏感提示由后端/Toast 控制。
+
+### Docs（文档）
+- `README.md` 新增“账户恢复流程（Account Recovery）”与环境变量说明，补充手动测试步骤。
+
+## v0.3.14 - 2025-12-04
+### Fixed（修复）
+- 测试稳定性：修复 `aiService` 与 `digestController` 单测在 Node 环境下的 `localStorage / indexedDB` 警告与云端干扰问题。
+  - `tests/digestController.test.js` 指定 `jsdom` 环境并将 `vi.mock(...)` 提前到 import 前，防止真实 `IndexedDB` 迁移逻辑执行。
+  - `js/services/ai.js` 在 Node/Vitest 环境禁用云端调用，避免 Supabase Edge Function 回落影响断言。
+
+### Changed（修改）
+- `js/controllers/linkController.js`：`addLink` 根据视图态自动使用 `silent` 并触发 `addSingleCardUI`，避免重复渲染与重复卡片。
+- `tests/aiService.test.js`：采用被测模块的测试钩子 `__setTestHooks` 替代路径 mock，提升跨环境可靠性。
+
+### Docs（文档）
+- `docs/README.md`：新增“测试与可测试性”说明，覆盖 `jsdom` 环境与 Service 层测试钩子用法。
+- `docs/ARCHITECTURE.md`：在服务层标准化章节补充“统一返回结构与测试钩子（`__setTestHooks`）”说明。
+
 ## v0.3.13 - 2025-12-04
 ### Added（新增）
 - 登录页引入 Supabase SDK 并初始化 `initAuthUI('login')`。

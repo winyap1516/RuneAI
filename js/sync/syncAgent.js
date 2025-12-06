@@ -4,7 +4,7 @@
 
 import { getPendingChanges, markSynced } from './changeLog.js';
 import { setMapping } from './idMapping.js';
-import { callFunction } from '../services/supabaseClient.js';
+import { callFunction, isCloudReady, getLastAuthInfo, isLoggedIn } from '../services/supabaseClient.js';
 import { showToast } from '../utils/ui-helpers.js';
 import db from '../storage/db.js';
 import { logger } from '../services/logger.js';
@@ -23,6 +23,13 @@ let timer = null;
  * 执行一次 push（上传本地变更）
  */
 async function pushOnce() {
+  // 中文注释：云端未就绪（本地模式或未配置密钥）时直接跳过 Push，避免报错
+  if (!isCloudReady()) return true;
+  // 中文注释：用户未登录时跳过 Push，避免匿名请求导致 401 / ERR_ABORTED
+  try {
+    const logged = await isLoggedIn();
+    if (!logged) return true;
+  } catch {}
   const changes = await getPendingChanges(BATCH_LIMIT);
   if (!changes || changes.length === 0) return true; // 无变更则视为成功
 
@@ -36,7 +43,17 @@ async function pushOnce() {
     method: 'POST',
     body: JSON.stringify({ changes: enriched }),
   });
-  if (!res.ok) throw new Error(`sync-push failed: ${res.status}`);
+  // 中文注释：若未登录或权限不足（401/403），提示用户并跳过同步，以免误以为“数据不同步”
+  if (!res.ok) {
+    let bodyText = '';
+    try { bodyText = await res.text(); } catch {}
+    const authCtx = getLastAuthInfo();
+    logger.warn('[Sync] push failed ->', { status: res.status, body: bodyText, authSource: authCtx.source, authPreview: authCtx.preview });
+    if (res.status === 401 || res.status === 403) {
+      showToast('云同步需要登录账号，请在两端均登录后重试', 'error');
+    }
+    throw new Error(`sync-push failed: ${res.status}`);
+  }
   const data = await res.json();
 
   // 处理成功的 applied
@@ -60,16 +77,51 @@ async function pushOnce() {
   // UI 冲突处理（若返回 conflicts 并启用 UI）
   const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
   if (conflicts.length > 0 && config.uiConflictEnabled) {
-    logger.warn('[Sync] 检测到冲突，进入 UI 选择流程', conflicts.length);
+    // 中文注释：增强冲突检测，避免无效弹窗（如两端均为空或相同）
     const c = conflicts[0];
-    const choice = await showConflictModal({ local: c?.local_snapshot, server: c?.server_snapshot });
-    if (choice === 'keepLocal') {
-      showToast('已选择保留本地版本，队列继续', 'info');
-    } else if (choice === 'useServer') {
-      if (c?.server_snapshot) await applyMergedRecordLocally({ resource_type: 'website', data: c.server_snapshot.data, deleted: c.server_snapshot.deleted });
-      showToast('已选择使用服务器版本', 'success');
-    } else {
-      showToast('已取消处理，稍后重试', 'warn');
+    const localSnap = c?.local_snapshot;
+    const serverSnap = c?.server_snapshot;
+
+    // 辅助：判断快照是否为空（无 data 或空对象）
+    const isEmpty = (s) => !s || !s.data || Object.keys(s.data).length === 0;
+    const localEmpty = isEmpty(localSnap);
+    const serverEmpty = isEmpty(serverSnap);
+
+    let shouldShowModal = true;
+
+    // Case 1: 两端均为空 -> 忽略（无冲突）
+    if (localEmpty && serverEmpty) {
+      logger.info('[Sync] Conflict ignored: both empty');
+      shouldShowModal = false;
+    }
+    // Case 2: 本地空，服务端有数据 -> 自动使用服务端（视为拉取）
+    else if (localEmpty && !serverEmpty) {
+      logger.info('[Sync] Conflict auto-resolved: using server data');
+      await applyMergedRecordLocally({ resource_type: 'website', data: serverSnap.data, deleted: serverSnap.deleted });
+      shouldShowModal = false;
+    }
+    // Case 3: 本地有数据，服务端空 -> 自动保留本地（视为推送）
+    else if (!localEmpty && serverEmpty) {
+      logger.info('[Sync] Conflict auto-resolved: keeping local data');
+      shouldShowModal = false;
+    }
+    // Case 4: 两端数据深度一致 -> 忽略
+    else if (JSON.stringify(localSnap?.data) === JSON.stringify(serverSnap?.data)) {
+      logger.info('[Sync] Conflict ignored: data identical');
+      shouldShowModal = false;
+    }
+
+    if (shouldShowModal) {
+      logger.warn('[Sync] 检测到冲突，进入 UI 选择流程', conflicts.length);
+      const choice = await showConflictModal({ local: localSnap, server: serverSnap });
+      if (choice === 'keepLocal') {
+        showToast('已选择保留本地版本，队列继续', 'info');
+      } else if (choice === 'useServer') {
+        if (c?.server_snapshot) await applyMergedRecordLocally({ resource_type: 'website', data: c.server_snapshot.data, deleted: c.server_snapshot.deleted });
+        showToast('已选择使用服务器版本', 'success');
+      } else {
+        showToast('已取消处理，稍后重试', 'warn');
+      }
     }
   }
   const conflictsLogged = Number(data.conflicts_logged || 0);
@@ -86,6 +138,10 @@ async function pushOnce() {
  */
 async function pullChanges() {
   try {
+    // 中文注释：云端未就绪时跳过 Pull，避免 net::ERR_ABORTED
+    if (!isCloudReady()) return;
+    // 中文注释：用户未登录时跳过 Pull，避免匿名请求与不必要的流量
+    try { const logged = await isLoggedIn(); if (!logged) return; } catch {}
     const lastPullTs = localStorage.getItem('rune_last_pull_ts') || new Date(0).toISOString();
     const res = await callFunction(`sync-pull?since=${lastPullTs}`, { method: 'GET' });
     if (!res.ok) return;
@@ -112,6 +168,8 @@ async function pullChanges() {
 async function loop() {
   if (!running) return;
   try {
+    // 中文注释：云端未就绪时仅排队等待，下次重试（不报错）
+    if (!isCloudReady()) { scheduleNext(30000); return; }
     await pushOnce();
     await pullChanges();
     // 成功后重置退避

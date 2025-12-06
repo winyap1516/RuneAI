@@ -6,12 +6,19 @@ import { supabase, getSession } from '../services/supabaseClient.js';
 import { showToast } from '../utils/ui-helpers.js';
 import { linkController } from '../controllers/linkController.js';
 import storageAdapter from '../storage/storageAdapter.js';
+import config from '../services/config.js';
 
 /**
  * 初始化 Auth UI 监听
  * @param {string} mode 'login' | 'register' | 'global'
  */
 export async function initAuthUI(mode = 'global') {
+  // 单例保护：防止重复初始化导致多次绑定 onAuthStateChange
+  if (window.__AUTH_UI_INIT__) {
+    console.log(`[AuthUI] init mode=${mode} (skipped: already initialized)`);
+    return;
+  }
+  window.__AUTH_UI_INIT__ = true;
   console.log(`[Auth] Initializing UI in ${mode} mode`);
 
     // 1. 检查当前 Session（仅在登录/注册页检查，避免重复跳转）
@@ -37,9 +44,16 @@ export async function initAuthUI(mode = 'global') {
 
   // 2. 监听 Auth 状态变更 (全局监听)
   if (supabase) {
+    // 移除旧监听（如果有）
+    // 注意：supabase-js v2 没有 removeAuthStateListener，但我们可以通过 subscription.unsubscribe()
+    // 但为了简单，我们依赖上方的 window.__AUTH_UI_INIT__ 单例保护
+    
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth] State change:', event, session?.user?.id);
       
+      // 过滤 INITIAL_SESSION 事件（页面加载时的初始状态，不需要重复欢迎）
+      if (event === 'INITIAL_SESSION') return;
+
       if (event === 'SIGNED_IN' && session) {
         // 登录成功：保存用户状态，触发同步
         await handleLoginSuccess(session.user);
@@ -54,6 +68,9 @@ export async function initAuthUI(mode = 'global') {
   if (mode === 'login') {
     bindLoginForm();
     bindGoogleLogin();
+    bindForgotPassword();
+    // 中文注释：绑定“重发验证邮件”交互
+    bindResendVerification();
   } else if (mode === 'register') {
     bindSignupForm();
   }
@@ -98,10 +115,17 @@ async function handleLoginSuccess(user) {
  */
 async function handleLogoutSuccess() {
   localStorage.removeItem('rune_user'); // 清理本地 User
-  localStorage.removeItem('runeai_jwt'); // 清理旧 JWT (SDK 也会自动清理)
+  localStorage.removeItem('runeai_jwt'); // 清理旧 JWT
   
-  // 跳转到 Login
-  if (!window.location.pathname.includes('login.html') && !window.location.pathname.includes('index.html')) {
+  // 强力清理 Supabase SDK 可能残留的 Token
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+      localStorage.removeItem(key);
+    }
+  });
+
+  // 中文注释（P0 修复）：统一登出后跳转到登录页 login.html，保持与 Dashboard 守卫一致
+  if (!window.location.pathname.includes('login.html')) {
     window.location.href = 'login.html';
   }
 }
@@ -184,6 +208,54 @@ function bindLoginForm() {
 }
 
 /**
+ * 绑定“忘记密码”链接（login.html）
+ * 行为：读取邮箱，调用 Supabase 的 resetPasswordForEmail，重定向到 reset-password 页面
+ */
+function bindForgotPassword() {
+  const link = document.getElementById('forgotPwdLink');
+  const emailInput = document.getElementById('loginEmail');
+  if (!link) return;
+  link.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!supabase) return showToast('认证服务未初始化', 'error');
+    const email = String(emailInput?.value || '').trim();
+    if (!email) return showToast('请输入邮箱地址后再点击“忘记密码”', 'error');
+    try {
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${config.frontendBaseUrl}/reset-password.html`
+      });
+      showToast('重置邮件已发送，请检查邮箱', 'success');
+    } catch (err) {
+      showToast(err?.message || '发送失败', 'error');
+    }
+  });
+}
+
+/**
+ * 绑定“重发验证邮件”链接（login.html）
+ * 行为：读取邮箱，调用 Supabase 的 resend 接口发送注册验证邮件
+ */
+function bindResendVerification() {
+  const link = document.getElementById('resendVerifyLink');
+  const emailInput = document.getElementById('loginEmail');
+  if (!link) return;
+  link.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!supabase) return showToast('认证服务未初始化', 'error');
+    const email = String(emailInput?.value || '').trim();
+    if (!email) return showToast('请输入邮箱地址后再点击“重发验证邮件”', 'error');
+    try {
+      // 中文注释：统一使用前端基址进行验证后回跳；去除 window.location.origin 兜底以强制配置完整域
+      const { error } = await supabase.auth.resend({ type: 'signup', email, options: { redirectTo: `${config.frontendBaseUrl}/dashboard.html` } });
+      if (error) throw error;
+      showToast('验证邮件已重新发送，请检查邮箱', 'success');
+    } catch (err) {
+      showToast(err?.message || '发送失败', 'error');
+    }
+  });
+}
+
+/**
  * 绑定 Google 登录按钮
  */
 function bindGoogleLogin() {
@@ -192,15 +264,22 @@ function bindGoogleLogin() {
   
   btn.addEventListener('click', async () => {
     try {
+      // 中文注释：统一 OAuth 登录流程重定向到 oauth-callback 页面进行登录映射
+      // 说明：登录场景使用 action=login，回调页将根据 auth_providers 映射到主账号
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/dashboard.html'
+          redirectTo: `${config.frontendBaseUrl}/oauth-callback.html?action=login`
         }
       });
       if (error) throw error;
     } catch (e) {
       showToast(e.message, 'error');
+      // 中文注释：当社媒登录失败时，显示登录页上的 Recovery 小入口（低曝光灰字）
+      const area = document.getElementById('recoveryFailArea');
+      if (area) {
+        area.classList.remove('hidden');
+      }
     }
   });
 }
@@ -292,12 +371,24 @@ function bindLogoutButton() {
 
     e.preventDefault();
     if (confirm('确定要退出登录吗？')) {
+      // 中文注释：若当前无 Session/Token，直接本地清理，避免触发网络请求导致 ERR_ABORTED
       try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        // onAuthStateChange 会处理跳转
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        if (!token) {
+          console.warn('[Auth] logout -> no session, doing local cleanup');
+          await handleLogoutSuccess();
+          return;
+        }
+      } catch {}
+      try {
+        // 尝试网络登出
+        await supabase.auth.signOut();
       } catch (e) {
-        showToast(e.message, 'error');
+        console.warn('[Auth] Network signOut failed, forcing local cleanup:', e);
+      } finally {
+        // 无论网络请求是否成功，都强制执行本地登出
+        await handleLogoutSuccess();
       }
     }
   });
