@@ -70,78 +70,155 @@
 
     <!-- 主体内容：登录卡片 -->
     <main class="flex-1 flex items-center justify-center px-4 py-12">
-      <div class="w-full max-w-[400px] bg-white dark:bg-[#1A1828] rounded-2xl shadow-card border border-gray-100 dark:border-gray-800 p-8">
+      <div class="w-full max-w-[360px] bg-white dark:bg-[#1A1828] rounded-2xl shadow-card border border-gray-100 dark:border-gray-800 p-8">
         <div class="text-center mb-8">
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">欢迎回来</h1>
-          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">登录您的 Rune AI 账号</p>
+          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">使用社媒账号快速登录，邮箱为备用方式</p>
         </div>
 
-        <!-- 登录表单 -->
-        <form id="login-form" class="space-y-5" method="POST" onsubmit="return false;">
-          <!-- 邮箱 -->
-          <div>
-            <label for="loginEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">邮箱地址</label>
-            <input id="loginEmail" name="email" type="email" required autocomplete="email"
-                   class="form-input"
-                   placeholder="name@example.com" />
-          </div>
-          
-          <!-- 密码 -->
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <label for="loginPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
-              <a href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">忘记密码？</a>
-            </div>
-            <input id="loginPassword" name="password" type="password" required minlength="6" autocomplete="current-password"
-                   class="form-input"
-                   placeholder="••••••••" />
-          </div>
-
-          <!-- 记住我 -->
-          <div class="flex items-center">
-            <input id="loginRemember" name="remember" type="checkbox" 
-                   class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer" />
-            <label for="loginRemember" class="ml-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">记住我</label>
-          </div>
-
-          <!-- 登录按钮 -->
-          <button type="button" id="btn-login" class="btn-primary">
-            登录
-          </button>
-        </form>
-
-        <!-- 分割线 -->
-        <div class="mt-6 relative">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
-          </div>
-          <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white dark:bg-[#1A1828] px-3 text-gray-500">或者</span>
-          </div>
-        </div>
-
-        <!-- OAuth -->
-        <div class="mt-6">
+        <!-- OAuth（优先显示） -->
+        <div class="mt-1">
           <button id="btn-google-login" type="button" class="btn-oauth group">
             <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-5 w-5 mr-2" alt="Google" />
             <span class="group-hover:text-gray-900 dark:group-hover:text-white transition-colors">使用 Google 登录</span>
           </button>
+          <!-- 预留 Apple/其他 Provider（未来可启用） -->
+          <!-- <button id="btn-apple-login" type="button" class="btn-oauth group mt-3">使用 Apple 登录</button> -->
         </div>
 
-        <!-- 底部链接 -->
-        <p class="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-          还没有账号？
-          <a href="register.html" class="font-semibold text-primary hover:text-primary-hover hover:underline">
-            立即注册
-          </a>
+        <!-- 小字入口：邮箱登录（折叠式，低曝光） -->
+        <div class="mt-4 text-center">
+          <button id="openEmailLoginModal" type="button" class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-primary hover:underline">
+            使用备用邮箱登录
+          </button>
+        </div>
+
+        <!-- 社媒失败后出现的小入口（默认隐藏；低曝光灰字） -->
+        <div id="recoveryFailArea" class="mt-3 text-center hidden">
+          <button id="openRecoveryModalLink" type="button" class="text-xs text-gray-500 hover:text-primary hover:underline">需要帮助登录？账号恢复</button>
+        </div>
+
+        <!-- 邮箱登录 Modal（默认隐藏；保留原有表单 ID，便于现有单测） -->
+        <div id="emailLoginModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+          <div class="w-full max-w-md rounded-2xl bg-white dark:bg-[#1A1828] border border-gray-200 dark:border-gray-800 p-6 mx-4">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold">邮箱登录</h3>
+              <button id="closeEmailLoginModal" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/10">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <!-- 登录表单（保持 ID 和结构一致） -->
+            <form id="login-form" class="space-y-4" method="POST" onsubmit="return false;">
+              <!-- 邮箱 -->
+              <div>
+                <label for="loginEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">邮箱地址</label>
+                <input id="loginEmail" name="email" type="email" required autocomplete="email" class="form-input" placeholder="name@example.com" />
+              </div>
+              <!-- 密码 -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label for="loginPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
+                  <a id="forgotPwdLink" href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">忘记密码？</a>
+                </div>
+                <input id="loginPassword" name="password" type="password" required minlength="6" autocomplete="current-password" class="form-input" placeholder="••••••••" />
+              </div>
+              <!-- 记住我 -->
+              <div class="flex items-center">
+                <input id="loginRemember" name="remember" type="checkbox" class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer" />
+                <label for="loginRemember" class="ml-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">记住我</label>
+              </div>
+              <!-- 登录按钮 -->
+              <button type="button" id="btn-login" class="btn-primary">登录</button>
+            </form>
+            <!-- 底部小字提醒（中性文案，不泄露信息） -->
+            <p class="mt-3 text-xs text-gray-500">邮箱仅作为登录回退方式。</p>
+          </div>
+        </div>
+
+        <!-- Recovery 小型 Modal（默认隐藏；仅在社媒登录失败后启用） -->
+        <div id="recoveryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+          <div class="w-full max-w-[340px] rounded-2xl bg-white dark:bg-[#1A1828] border border-gray-200 dark:border-gray-800 p-6 mx-4">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold">账号恢复</h3>
+              <button id="closeRecoveryModal" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/10">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <!-- 中文注释：说明文案保持中性与模糊，不泄露账号是否存在 -->
+            <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">如果该邮箱已关联账户，我们已发送恢复邮件。</p>
+            <form id="recovery-inline-form" class="space-y-3" onsubmit="return false;">
+              <div>
+                <label for="recoveryEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">绑定邮箱</label>
+                <input id="recoveryEmail" type="email" required class="form-input" placeholder="your.recovery@example.com" />
+              </div>
+              <button id="btn-send-recovery" type="button" class="btn-primary">发送恢复邮件</button>
+            </form>
+            <p id="recovery-inline-result" class="mt-3 hidden text-xs"></p>
+            <p class="mt-2 text-xs text-gray-500">提示：若未收到，请检查垃圾箱。</p>
+          </div>
+        </div>
+
+        <!-- 底部提示（取消注册入口；强调 OAuth 登录） -->
+        <p class="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
+          提示：请使用上方社媒账号（如 Google）登录；邮箱仅用于已有账号登录或恢复。
         </p>
       </div>
     </main>
     <script type="module">
-      // 中文注释：初始化登录页的 Auth 逻辑与 SDK 客户端
+      // 中文注释：初始化登录页的 Auth 逻辑与 SDK 客户端；绑定邮箱登录 Modal 开关
       import { initAuthUI } from './js/features/auth_ui.js';
       import './js/services/supabaseClient.js';
+      import config from './js/services/config.js';
       initAuthUI('login');
+      const modal = document.getElementById('emailLoginModal');
+      const openBtn = document.getElementById('openEmailLoginModal');
+      const closeBtn = document.getElementById('closeEmailLoginModal');
+      const onOpen = () => { modal.classList.remove('hidden'); modal.classList.add('flex'); };
+      const onClose = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+      if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); onOpen(); });
+      if (closeBtn) closeBtn.addEventListener('click', (e) => { e.preventDefault(); onClose(); });
+      modal?.addEventListener('click', (e) => { if (e.target === modal) onClose(); });
+
+      // 中文注释：Recovery Modal 逻辑（默认隐藏，仅在社媒失败时显示入口）
+      const recoveryArea = document.getElementById('recoveryFailArea');
+      const recoveryModal = document.getElementById('recoveryModal');
+      const openRecoveryLink = document.getElementById('openRecoveryModalLink');
+      const closeRecoveryBtn = document.getElementById('closeRecoveryModal');
+      const recoveryForm = document.getElementById('recovery-inline-form');
+      const recoveryResult = document.getElementById('recovery-inline-result');
+      const btnSendRecovery = document.getElementById('btn-send-recovery');
+      const openRecovery = () => { recoveryModal.classList.remove('hidden'); recoveryModal.classList.add('flex'); };
+      const closeRecovery = () => { recoveryModal.classList.add('hidden'); recoveryModal.classList.remove('flex'); };
+      openRecoveryLink?.addEventListener('click', (e) => { e.preventDefault(); openRecovery(); });
+      closeRecoveryBtn?.addEventListener('click', (e) => { e.preventDefault(); closeRecovery(); });
+      recoveryModal?.addEventListener('click', (e) => { if (e.target === recoveryModal) closeRecovery(); });
+
+      async function requestInlineRecovery() {
+        const emailInput = document.getElementById('recoveryEmail');
+        const identifier = String(emailInput?.value || '').trim();
+        if (!identifier) { recoveryResult.className = 'mt-3 text-xs text-red-600'; recoveryResult.textContent = '请填写绑定邮箱'; recoveryResult.classList.remove('hidden'); return; }
+        btnSendRecovery.disabled = true; btnSendRecovery.textContent = '发送中…';
+        try {
+          const endpoint = `${config.supabaseUrl}/functions/v1/request-recovery`;
+          const resp = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: config.supabaseAnonKey }, body: JSON.stringify({ identifier, client_req_id: crypto.randomUUID() }) });
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok || payload?.error) throw new Error(payload?.error?.message || `HTTP ${resp.status}`);
+          recoveryResult.className = 'mt-3 text-xs text-green-600';
+          recoveryResult.classList.remove('hidden');
+          recoveryResult.textContent = '如果该邮箱已关联账户，我们已发送恢复邮件。';
+          const preview = payload?.data?.preview_link;
+          if (preview) {
+            const a = document.createElement('a'); a.href = preview; a.target = '_blank'; a.textContent = '预览恢复链接'; a.className = 'block mt-2 text-primary hover:text-primary-hover'; recoveryResult.appendChild(a);
+          }
+        } catch (e) {
+          recoveryResult.className = 'mt-3 text-xs text-red-600';
+          recoveryResult.classList.remove('hidden');
+          recoveryResult.textContent = '发送失败：请稍后再试或联系客服';
+        } finally {
+          btnSendRecovery.disabled = false; btnSendRecovery.textContent = '发送恢复邮件';
+        }
+      }
+      btnSendRecovery?.addEventListener('click', (e) => { e.preventDefault(); requestInlineRecovery(); });
     </script>
   </body>
 </html>

@@ -1,5 +1,21 @@
 # 更新日志 (CHANGELOG)
 
+## v0.3.15 - 2025-12-06
+### Added（新增）
+- 账号恢复全链路：`request-recovery` / `confirm-recovery` / `set-password` 三个 Edge Functions，实现一次性令牌与强密码设置。
+- 前端页面：`account-recovery.html` 与 `set-password.html`，开发模式返回 `preview_link` 便于端到端联调。
+- 登录页 OAuth-first 行为：仅在社媒登录失败时显示灰色小入口“需要帮助登录？账号恢复”。
+
+### Changed（修改）
+- `login.html` 采用极简白卡片与主色强调的 Google 登录主按钮；邮箱登录折叠为备用入口。
+- `js/features/auth_ui.js` 新增 Google 登录失败时展示恢复入口的逻辑，统一重定向到 `oauth-callback.html`。
+
+### Removed（移除）
+- 登录页移除“重发验证邮件”与“未验证邮箱”提示文案，敏感提示由后端/Toast 控制。
+
+### Docs（文档）
+- `README.md` 新增“账户恢复流程（Account Recovery）”与环境变量说明，补充手动测试步骤。
+
 ## v0.3.14 - 2025-12-04
 ### Fixed（修复）
 - 测试稳定性：修复 `aiService` 与 `digestController` 单测在 Node 环境下的 `localStorage / indexedDB` 警告与云端干扰问题。

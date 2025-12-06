@@ -1,0 +1,25 @@
+<!-- 中文注释：OAuth 回调页（用于链接与登录映射）
+  职责：
+  - 解析查询参数 action/state
+  - 从 Supabase 获取当前 OAuth 登录的用户与身份信息
+  - 调用 Edge Function `/oauth-link-callback` 完成绑定（action=link）或登录映射（action=login）
+  - 根据返回值跳转到 Dashboard 或显示提示
+-->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OAuth Callback</title>
+    <!-- 中文注释：静态路径采用相对路径，避免以 /js/ 开头的绝对路径触发校验失败 -->
+    <link rel="stylesheet" href="./styles/main.css" />
+  </head>
+  <body>
+    <div class="max-w-lg mx-auto mt-16 p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black">
+      <h1 class="text-xl font-bold mb-2">正在处理 OAuth 回调</h1>
+      <p id="msg" class="text-sm text-gray-600 dark:text-gray-400">请稍候…</p>
+    </div>
+    <!-- 中文注释：脚本路径使用相对路径，保持与 lint:paths 规则一致 -->
+    <script type="module" src="./js/views/oauth_callback.js"></script>
+  </body>
+  </html>
