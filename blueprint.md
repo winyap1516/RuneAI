@@ -285,7 +285,35 @@ Phase 9 — 用户体验升级
 时间线视图（Timeline）
 
 推荐系统（AI Insights）
+# RuneAI (yinGAN-collector)
 
+**RuneAI** 是一款本地优先（Local-First）的智能知识库应用，旨在帮助用户高效收藏网页、自动生成 AI 摘要（Runes），并支持按需订阅内容更新。
+
+## 核心特性
+- **本地优先**：基于 IndexedDB 构建，离线可用，通过后台 Sync Agent 实现多端数据最终一致性。
+- **AI 驱动**：自动提取网页核心内容并生成结构化摘要（Rune），支持每日/每周聚合推送。
+- **安全隐私**：采用 Supabase RLS（行级安全策略）确保数据隔离，敏感配额操作仅通过 Edge Functions 执行。
+
+## 快速开始
+
+### 1. 安装依赖
+```bash
+npm install
+```
+
+### 2. 本地开发
+启动前端开发服务器（支持热重载）：
+```bash
+npm run dev
+```
+
+### 3. 部署
+项目构建产物位于 `dist/`，可直接部署至任何静态托管服务（Vercel/Netlify）。后端依赖 Supabase，请参考 `supabase/migrations` 目录初始化数据库。
+
+## 技术栈
+- **Frontend**: Vite + Vanilla JS (ES Modules)
+- **Backend**: Supabase (Postgres, Edge Functions, Auth)
+- **Storage**: IndexedDB (Local) + Postgres (Cloud)
 11. 验收标准（Acceptance Criteria）
 系统级
 
