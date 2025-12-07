@@ -1,8 +1,8 @@
-import storageAdapter from "../storage/storageAdapter.js";
-import { createDigestForWebsite } from "../services/ai.js";
-import * as quotaService from "../services/quota.js";
-import { DIGEST_TYPE, USER_ID } from "../config/constants.js";
-import { normalizeUrl } from "../utils/url.js";
+import storageAdapter from "/src/js/storage/storageAdapter.js";
+import { createDigestForWebsite } from "/src/js/services/ai.js";
+import * as quotaService from "/src/js/services/quota.js";
+import { DIGEST_TYPE, USER_ID } from "/src/js/config/constants.js";
+import { normalizeUrl } from "/src/js/utils/url.js";
 
 /**
  * Digest Controller

@@ -1,0 +1,46 @@
+<!-- modal_digest.html -->
+<!-- 中文注释：AI Digest 最小可用弹窗组件（迁移至 public/components；纯 HTML，无内联脚本）
+  使用说明：
+  1. 由入口脚本加载到容器 #digestModalContainer 中
+  2. 点击侧栏 AI Digest 导航项 #navDigest 打开
+  3. 生成按钮触发 mockFunctions.js 的 mockAIFromUrl 返回模板化摘要（开发态）
+  4. 保存为符文卡片写入 localStorage.runes（最小占位实现）
+-->
+
+<div id="digestModal" class="hidden fixed inset-0 z-50 items-center justify-center">
+  <!-- 背景遮罩 -->
+  <div id="digestBackdrop" class="absolute inset-0 bg-black/40"></div>
+
+  <!-- 弹窗主体 -->
+  <div class="relative w-full max-w-2xl rounded-xl bg-white shadow-xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-bold" data-i18n="aiDigestTitle">AI 摘要</h3>
+      <button id="digestCloseBtn" class="text-gray-500 hover:text-gray-700" title="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- 说明与输入区 -->
+    <p class="text-sm text-gray-600 mb-2" data-i18n="aiDigestHint">输入一个主题或链接，生成 Mock 摘要。</p>
+    <div class="grid grid-cols-1 gap-3 mb-4">
+      <label class="text-sm" data-i18n="aiDigestInputLabel">主题或链接
+        <input id="digestInput" class="mt-1 w-full form-input rounded-lg bg-gray-100 border-none focus:ring-2 focus:ring-blue-500" placeholder="例如：LLM 安全最佳实践 或 https://example.com/article" />
+      </label>
+    </div>
+
+    <!-- 操作区 -->
+    <div class="flex gap-3 mb-4">
+      <button id="digestGenerateBtn" class="h-10 px-4 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700" data-i18n="generateDigest">生成摘要</button>
+      <button id="digestSaveRuneBtn" class="h-10 px-4 rounded-lg bg-gray-100 text-sm font-semibold disabled:opacity-50" disabled data-i18n="saveAsRune">保存为符文卡片</button>
+    </div>
+
+    <!-- 结果区 -->
+    <div id="digestResult" class="rounded-lg border border-gray-200 bg-gray-50 p-4 min-h-32">
+      <p class="text-sm text-gray-500" data-i18n="digestResultPlaceholder">生成的摘要将显示在这里。</p>
+    </div>
+
+    <!-- 底部提示 -->
+    <p class="text-xs text-gray-500 mt-3" data-i18n="digestFooterHint">当前为本地 Mock 展示；接入后端后将展示真实摘要。</p>
+  </div>
+</div>
+

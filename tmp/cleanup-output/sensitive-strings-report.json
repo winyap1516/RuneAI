@@ -1,0 +1,52 @@
+[
+  {
+    "file": "CHANGELOG.md",
+    "line": 21,
+    "snippet": "重发验证邮件”与“未验证邮箱”提示文案，敏感提示由后端/Toast 控制。  ### Docs（文档） - `README.md` 新增“账户恢复流程（Account Recovery）”与环境变量说明，补充手动测试步骤。  ##"
+  },
+  {
+    "file": "public/components/modal_login.html",
+    "line": 73,
+    "snippet": "重发验证邮件 / 注册新账号 -->     <div class=\"mt-4 text-center text-sm text-gray-600\">       <a id=\"forgotPwdLink\" href=\"#\" class=\""
+  },
+  {
+    "file": "public/components/modal_login.html",
+    "line": 77,
+    "snippet": "重发验证邮件</a>       <span class=\"mx-2\">·</span>       <a href=\"#\" onclick=\"switchToSignupModal()\" class=\"text-blue-600 hove"
+  },
+  {
+    "file": "public/login.html",
+    "line": 124,
+    "snippet": "重发验证邮件</a>                   </div>                 </div>                 <input id=\"loginPassword\" name=\"password\" typ"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 72,
+    "snippet": "重发验证邮件”交互     bindResendVerification();   } else if (mode === 'register') {     bindSignupForm();   }      // 全局绑定"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 199,
+    "snippet": "重发验证邮件”后再登录';         const resend = document.getElementById('resendVerifyLink');         if (resend) {           res"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 261,
+    "snippet": "重发验证邮件”链接（login.html）  * 行为：读取邮箱，调用 Supabase 的 resend 接口发送注册验证邮件  */ function bindResendVerification() {   const lin"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 272,
+    "snippet": "重发验证邮件”', 'error');     try {       // 中文注释：统一使用前端基址进行验证后回跳；去除 window.location.origin 兜底以强制配置完整域       const { error "
+  },
+  {
+    "file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 3,
+    "snippet": "重发验证邮件 + 忘记密码链接行为  import { describe, it, expect, vi, beforeEach } from 'vitest';  // Mock Supabase Client // 中文注释：统一到 s"
+  },
+  {
+    "file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 31,
+    "snippet": "重发验证邮件</a>     <a id=\"forgotPwdLink\" href=\"#\">忘记密码</a>     <button id=\"btn-google-login\" type=\"button\">Google</button>  "
+  }
+]

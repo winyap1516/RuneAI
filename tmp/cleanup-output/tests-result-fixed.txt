@@ -1,0 +1,7 @@
+Vitest 结果（修复后）：22 passed | 1 skipped（共 46 用例，全部通过/跳过）
+
+关键修复：
+- 注入 indexedDB shim（fake-indexeddb）
+- Supabase 客户端模块 mock：提供 auth.getSession/signInWithOAuth/signOut 等桩
+- account_settings_link.test：异步获取会话改为渲染后更新，保证按钮立即存在
+- aiService.test：禁用云端路径，走本地 Mock 钩子

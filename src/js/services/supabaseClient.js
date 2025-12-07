@@ -212,6 +212,35 @@ export async function callRest(path, init = {}) {
 }
 
 /**
+ * 中文注释：Supabase 连接预检（Auth 服务可达性与 apikey 校验）
+ * 作用：在发起登录/注册前快速检查 `SUPABASE_URL` 是否正确、服务是否可达、以及 `anon key` 是否被后端接受。
+ * 实现：请求 `/auth/v1/settings`（GoTrue 配置端点），该接口无需用户 JWT，仅需 `apikey`。
+ * 返回：
+ *  - { ok: true, settings } 当连通且密钥有效
+ *  - { ok: false, status, message } 当不可达或密钥无效（401/403/网络错误）
+ */
+export async function preflightAuth() {
+    const url = `${SUPABASE_URL}/auth/v1/settings`;
+    const key = getAnonKey();
+    // 基本参数校验（避免无意义请求）
+    if (!SUPABASE_URL || !key) {
+        return { ok: false, status: 0, message: 'ENV_MISSING: 请检查 .env 的 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY' };
+    }
+    try {
+        const resp = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json', apikey: key } });
+        const json = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            // 401 → Invalid API key；403 → 权限问题；其他 → 服务未就绪
+            return { ok: false, status: resp.status, message: json?.error_description || json?.error || `HTTP_${resp.status}` };
+        }
+        return { ok: true, settings: json };
+    } catch (e) {
+        // 网络不可达（端口错误、服务未启动、CORS 被拦截）
+        return { ok: false, status: -1, message: `NETWORK_ERROR: ${String(e?.message || e)}` };
+    }
+}
+
+/**
  * 中文注释：云端可用性检测（URL + ANON_KEY + SDK 实例）
  */
 export function isCloudReady() {

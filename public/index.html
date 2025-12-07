@@ -174,7 +174,7 @@
       <div id="signupModalContainer"></div>
     </div>
 
-    <!-- 中文注释：入口脚本与组件加载逻辑（仅加载存在的容器对应组件） -->
-    <script type="module" src="js/main.js"></script>
+    <!-- 中文注释：统一使用 public/entry.js 作为入口，确保经过 Vite 处理与 env 注入 -->
+    <script type="module" src="./entry.js"></script>
   </body>
 </html>

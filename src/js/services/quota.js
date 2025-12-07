@@ -1,5 +1,5 @@
-import storageAdapter from '../storage/storageAdapter.js';
-import { LIMITS } from '../config/constants.js';
+import storageAdapter from '/src/js/storage/storageAdapter.js';
+import { LIMITS } from '/src/js/config/constants.js';
 
 /**
  * Get usage count for a specific user and date

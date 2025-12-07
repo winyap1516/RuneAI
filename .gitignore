@@ -4,20 +4,38 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# 环境变量文件
+# environment
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# 构建输出
+# Build
 dist/
+.vite/
 build/
 
-# 日志文件
+# Supabase secrets
+supabase/.temp
+supabase/functions/*/secrets.env
+
+# OS/Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Debug / temporary
 *.log
+*.tmp
 logs/
+mock/
+mock-data/
+file-list.txt
+deploy-report.txt
+missing-files.log
+screen.png
+archive/
 
 # 运行时文件
 *.pid
@@ -31,34 +49,3 @@ coverage/
 # 依赖锁定文件 (可以根据需要选择是否忽略)
 # package-lock.json
 # yarn.lock
-
-# 操作系统生成的文件
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE 文件
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# 临时文件
-.tmp/
-.temp/
-
-# 本地开发服务器
-.local-server/
-
-# 截图文件
-screen.png
-
-# Trae AI 相关文件
-.trae/
-
-.mymd/

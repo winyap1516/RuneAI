@@ -1,0 +1,186 @@
+[
+  {
+    "path": "public/account-recovery.html",
+    "size": 6095
+  },
+  {
+    "path": "public/components/card_userinfo.html",
+    "size": 3185
+  },
+  {
+    "path": "public/components/dropdown_user.html",
+    "size": 7624
+  },
+  {
+    "path": "public/components/modal_digest.html",
+    "size": 2450
+  },
+  {
+    "path": "public/components/modal_login.html",
+    "size": 4134
+  },
+  {
+    "path": "public/components/modal_signup.html",
+    "size": 4158
+  },
+  {
+    "path": "public/components/profile_form.html",
+    "size": 5472
+  },
+  {
+    "path": "public/components/rune_space.css",
+    "size": 943
+  },
+  {
+    "path": "public/components/settings_panel.html",
+    "size": 9420
+  },
+  {
+    "path": "public/components/welcome_card.css",
+    "size": 5601
+  },
+  {
+    "path": "public/dashboard.html",
+    "size": 44814
+  },
+  {
+    "path": "public/dist/account-recovery.html",
+    "size": 3913
+  },
+  {
+    "path": "public/dist/assets/account_settings-C--ZHAgS.js",
+    "size": 8649
+  },
+  {
+    "path": "public/dist/assets/card_userinfo-01HmTEAv.html",
+    "size": 3185
+  },
+  {
+    "path": "public/dist/assets/config-Cg9b8gVM.js",
+    "size": 1595
+  },
+  {
+    "path": "public/dist/assets/dashboard-BU6PLNM_.css",
+    "size": 5210
+  },
+  {
+    "path": "public/dist/assets/dashboard_init-C8aW-Lbn.js",
+    "size": 776
+  },
+  {
+    "path": "public/dist/assets/entry-gKXteLC8.js",
+    "size": 115275
+  },
+  {
+    "path": "public/dist/assets/login-BEQTh4_O.js",
+    "size": 2563
+  },
+  {
+    "path": "public/dist/assets/oauth_callback-U_2ddYpj.js",
+    "size": 1567
+  },
+  {
+    "path": "public/dist/assets/recovery-CeZDTxlU.js",
+    "size": 1540
+  },
+  {
+    "path": "public/dist/assets/register-DpSEo0Fj.js",
+    "size": 116
+  },
+  {
+    "path": "public/dist/assets/resetpwd-DBnFAWhm.js",
+    "size": 1478
+  },
+  {
+    "path": "public/dist/assets/setpwd-DiyRThp6.js",
+    "size": 1849
+  },
+  {
+    "path": "public/dist/assets/supabaseClient-CXBE7K6-.js",
+    "size": 4279
+  },
+  {
+    "path": "public/dist/dashboard.html",
+    "size": 44527
+  },
+  {
+    "path": "public/dist/index.html",
+    "size": 11943
+  },
+  {
+    "path": "public/dist/login.html",
+    "size": 10601
+  },
+  {
+    "path": "public/dist/oauth-callback.html",
+    "size": 1395
+  },
+  {
+    "path": "public/dist/register.html",
+    "size": 7006
+  },
+  {
+    "path": "public/dist/reset-password.html",
+    "size": 2157
+  },
+  {
+    "path": "public/dist/set-password.html",
+    "size": 4246
+  },
+  {
+    "path": "public/dist/signup.html",
+    "size": 5908
+  },
+  {
+    "path": "public/dist/sw.js",
+    "size": 1572
+  },
+  {
+    "path": "public/entry.js",
+    "size": 1571
+  },
+  {
+    "path": "public/index.html",
+    "size": 11739
+  },
+  {
+    "path": "public/languages/en.json",
+    "size": 1218
+  },
+  {
+    "path": "public/languages/ms.json",
+    "size": 1237
+  },
+  {
+    "path": "public/languages/zh.json",
+    "size": 1177
+  },
+  {
+    "path": "public/login.html",
+    "size": 14625
+  },
+  {
+    "path": "public/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json",
+    "size": 1969
+  },
+  {
+    "path": "public/oauth-callback.html",
+    "size": 1209
+  },
+  {
+    "path": "public/register.html",
+    "size": 7057
+  },
+  {
+    "path": "public/reset-password.html",
+    "size": 4859
+  },
+  {
+    "path": "public/set-password.html",
+    "size": 6765
+  },
+  {
+    "path": "public/signup.html",
+    "size": 5714
+  }
+]

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { linkController } from '../js/controllers/linkController.js';
-import * as linksView from '../js/views/linksView.js';
-import storageAdapter from '../js/storage/storageAdapter.js';
+// 中文注释：统一到 src/js 路径，避免旧路径找不到模块
+import { linkController } from '../src/js/controllers/linkController.js';
+import * as linksView from '../src/js/views/linksView.js';
+import storageAdapter from '../src/js/storage/storageAdapter.js';
 import 'fake-indexeddb/auto';
 
 // Mock localStorage
@@ -32,7 +33,7 @@ const container = {
 describe('Phase 3 - Virtual Scrolling', () => {
     beforeEach(async () => {
         // Reset DB
-        const db = await import('../js/storage/db.js');
+        const db = await import('../src/js/storage/db.js');
         const conn = await db.default.openDB();
         const tx = conn.transaction(['websites'], 'readwrite');
         tx.objectStore('websites').clear();

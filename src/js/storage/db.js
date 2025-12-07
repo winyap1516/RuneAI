@@ -6,7 +6,7 @@
 // - 未来如需替换为 Dexie，仅需在此模块保持同名方法，实现内部迁移即可
 
 const DB_NAME = 'runeai-db'
-const DB_VERSION = 3
+const DB_VERSION = 4
 const DEFAULT_USER_ID = 'local-dev'
 
 // 打开数据库（带版本升级）
@@ -36,6 +36,20 @@ function openDB() {
         const store = db.createObjectStore('subscriptions', { keyPath: 'subscription_id', autoIncrement: true })
         store.createIndex('by_user', 'user_id', { unique: false })
         store.createIndex('by_website_user', ['website_id', 'user_id'], { unique: true })
+      }
+      // website_contents：长文本与摘要（与网站分表存储）
+      if (!db.objectStoreNames.contains('website_contents')) {
+        const store = db.createObjectStore('website_contents', { keyPath: 'content_id', autoIncrement: true })
+        store.createIndex('by_user', 'user_id', { unique: false })
+        store.createIndex('by_website', 'website_id', { unique: false })
+        store.createIndex('by_created', 'created_at', { unique: false })
+      }
+      // digest_contents：长文本与摘要（与摘要分表存储）
+      if (!db.objectStoreNames.contains('digest_contents')) {
+        const store = db.createObjectStore('digest_contents', { keyPath: 'content_id', autoIncrement: true })
+        store.createIndex('by_user', 'user_id', { unique: false })
+        store.createIndex('by_digest', 'digest_id', { unique: false })
+        store.createIndex('by_created', 'created_at', { unique: false })
       }
       // locations：收藏地点（未来功能）
       if (!db.objectStoreNames.contains('locations')) {
@@ -324,6 +338,7 @@ export const digests = {
 export const subscriptions = {
   // 获取用户全部订阅
   async getAll(userId = DEFAULT_USER_ID) {
+    // 中文注释：读取当前用户的订阅列表，返回原始记录（包含扩展字段）
     return withStore('subscriptions', 'readonly', store => new Promise((resolve, reject) => {
       const idx = store.index('by_user')
       const req = idx.getAll(userId)
@@ -342,7 +357,14 @@ export const subscriptions = {
   },
   // 创建或更新订阅（按 website+user 唯一）
   async upsert(data) {
-    const record = normalizeRecord(data, { last_generated_at: data.last_generated_at || null })
+    // 中文注释：支持扩展字段：channel、target_id、consent_time、frequency
+    const record = normalizeRecord(data, {
+      last_generated_at: data.last_generated_at || null,
+      channel: data.channel || (data.channel === null ? null : 'none'),
+      target_id: data.target_id || null,
+      consent_time: data.consent_time || null,
+      frequency: data.frequency || data.frequency === null ? data.frequency : 'daily'
+    })
     const existed = await subscriptions.getByWebsite(record.website_id, record.user_id)
     if (existed) {
       const merged = { ...existed, ...record, updated_at: new Date().toISOString() }
@@ -415,6 +437,67 @@ export const locations = {
   },
 }
 
+// Website Contents 表接口（长文本与摘要）
+export const websiteContents = {
+  async getByWebsite(website_id) {
+    return withStore('website_contents', 'readonly', store => new Promise((resolve, reject) => {
+      const idx = store.index('by_website')
+      const req = idx.getAll(website_id)
+      req.onsuccess = () => resolve(req.result || [])
+      req.onerror = () => reject(req.error)
+    }))
+  },
+  async upsert(data) {
+    const record = normalizeRecord(data)
+    // 简化：同一 website_id + user_id 仅保留一条最新记录（取第一条更新）
+    const existedList = await websiteContents.getByWebsite(record.website_id)
+    const existed = existedList.find(r => r.user_id === record.user_id)
+    if (existed) {
+      const merged = { ...existed, ...record, content_id: existed.content_id, updated_at: new Date().toISOString() }
+      return withStore('website_contents', 'readwrite', store => new Promise((resolve, reject) => {
+        const req = store.put(merged)
+        req.onsuccess = () => resolve(merged)
+        req.onerror = () => reject(req.error)
+      }))
+    }
+    return withStore('website_contents', 'readwrite', store => new Promise((resolve, reject) => {
+      const req = store.add(record)
+      req.onsuccess = () => resolve({ ...record, content_id: req.result })
+      req.onerror = () => reject(req.error)
+    }))
+  }
+}
+
+// Digest Contents 表接口（长文本与摘要）
+export const digestContents = {
+  async getByDigest(digest_id) {
+    return withStore('digest_contents', 'readonly', store => new Promise((resolve, reject) => {
+      const idx = store.index('by_digest')
+      const req = idx.getAll(digest_id)
+      req.onsuccess = () => resolve(req.result || [])
+      req.onerror = () => reject(req.error)
+    }))
+  },
+  async upsert(data) {
+    const record = normalizeRecord(data)
+    const list = await digestContents.getByDigest(record.digest_id)
+    const existed = list.find(r => r.user_id === record.user_id)
+    if (existed) {
+      const merged = { ...existed, ...record, content_id: existed.content_id, updated_at: new Date().toISOString() }
+      return withStore('digest_contents', 'readwrite', store => new Promise((resolve, reject) => {
+        const req = store.put(merged)
+        req.onsuccess = () => resolve(merged)
+        req.onerror = () => reject(req.error)
+      }))
+    }
+    return withStore('digest_contents', 'readwrite', store => new Promise((resolve, reject) => {
+      const req = store.add(record)
+      req.onsuccess = () => resolve({ ...record, content_id: req.result })
+      req.onerror = () => reject(req.error)
+    }))
+  }
+}
+
 // 导出默认对象，便于按需注入与替换
-const db = { websites, digests, subscriptions, locations, openDB }
+const db = { websites, digests, subscriptions, locations, websiteContents, digestContents, openDB }
 export default db

@@ -2,9 +2,9 @@
 // 职责：解析 action/state，读取当前 Supabase 会话用户身份，调用 Edge Function 完成链接或登录映射
 // 重定向策略：统一使用 config.frontendBaseUrl 作为前端基址；缺失时回退 window.location.origin，确保本地与生产一致
 
-import { supabase } from '../services/supabaseClient.js';
-import { invokeJSON } from '../services/api.js';
-import config from '../services/config.js';
+import { supabase } from '/src/js/services/supabaseClient.js';
+import { invokeJSON } from '/src/js/services/api.js';
+import config from '/src/js/services/config.js';
 
 function setMsg(t) {
   const el = document.getElementById('msg');

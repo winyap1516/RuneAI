@@ -1,0 +1,78 @@
+*** Update File: src/js/controllers/linkController.js
+@@
+-import storageAdapter from "/src/js/storage/storageAdapter.js";
++// 中文注释：统一静态导入 storageAdapter 及其扩展函数，避免动态导入导致模块重复打包
++import storageAdapter, { saveWebsiteContent } from "/src/js/storage/storageAdapter.js";
+@@
+-        // 延迟保存，避免阻塞 UI
+-        Promise.resolve().then(() => import('../storage/storageAdapter.js')).then(mod => {
+-          const fn = mod.saveWebsiteContent;
+-          if (typeof fn === 'function') fn(added.id, { content: siteData.content, summary: summaryText });
+-        }).catch(() => {});
++        // 中文注释：延迟调用已静态导入的 saveWebsiteContent，避免阻塞 UI 且消除动态导入重复模块问题
++        Promise.resolve().then(() => {
++          return saveWebsiteContent(added.id, { content: siteData.content, summary: summaryText })
++        }).catch(() => {});
+
+*** Update File: public/login.html
+@@
+-    <script type="module" src="./entry.js"></script>
+-    <script type="module">
+-      // 中文注释：初始化登录页的 Auth 逻辑与 SDK 客户端；绑定邮箱登录 Modal 开关
+-      // 目录重组后，所有前端脚本统一放入 ../src/js 下（相对路径），以兼容 Vite 构建解析
+-      import { initAuthUI } from '../src/js/features/auth_ui.js';
+-      import '../src/js/services/supabaseClient.js';
+-      import config from '../src/js/services/config.js';
+-      initAuthUI('login');
+-      const modal = document.getElementById('emailLoginModal');
+-      const openBtn = document.getElementById('openEmailLoginModal');
+-      const closeBtn = document.getElementById('closeEmailLoginModal');
+-      const onOpen = () => { modal.classList.remove('hidden'); modal.classList.add('flex'); };
+-      const onClose = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+-      if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); onOpen(); });
+-      if (closeBtn) closeBtn.addEventListener('click', (e) => { e.preventDefault(); onClose(); });
+-      modal?.addEventListener('click', (e) => { if (e.target === modal) onClose(); });
+-
+-      // 中文注释：Recovery Modal 逻辑（默认隐藏，仅在社媒登录失败后启用）
+-      const recoveryArea = document.getElementById('recoveryFailArea');
+-      const recoveryModal = document.getElementById('recoveryModal');
+-      const openRecoveryLink = document.getElementById('openRecoveryModalLink');
+-      const closeRecoveryBtn = document.getElementById('closeRecoveryModal');
+-      const recoveryForm = document.getElementById('recovery-inline-form');
+-      const recoveryResult = document.getElementById('recovery-inline-result');
+-      const btnSendRecovery = document.getElementById('btn-send-recovery');
+-      const openRecovery = () => { recoveryModal.classList.remove('hidden'); recoveryModal.classList.add('flex'); };
+-      const closeRecovery = () => { recoveryModal.classList.add('hidden'); recoveryModal.classList.remove('flex'); };
+-      openRecoveryLink?.addEventListener('click', (e) => { e.preventDefault(); openRecovery(); });
+-      closeRecoveryBtn?.addEventListener('click', (e) => { e.preventDefault(); closeRecovery(); });
+-      recoveryModal?.addEventListener('click', (e) => { if (e.target === recoveryModal) closeRecovery(); });
+-
+-      async function requestInlineRecovery() {
+-        const emailInput = document.getElementById('recoveryEmail');
+-        const identifier = String(emailInput?.value || '').trim();
+-        if (!identifier) { recoveryResult.className = 'mt-3 text-xs text-red-600'; recoveryResult.textContent = '请填写绑定邮箱'; recoveryResult.classList.remove('hidden'); return; }
+-        btnSendRecovery.disabled = true; btnSendRecovery.textContent = '发送中…';
+-        try {
+-          const endpoint = `${config.supabaseUrl}/functions/v1/request-recovery`;
+-          const resp = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: config.supabaseAnonKey }, body: JSON.stringify({ identifier, client_req_id: crypto.randomUUID() }) });
+-          const payload = await resp.json().catch(() => ({}));
+-          if (!resp.ok || payload?.error) throw new Error(payload?.error?.message || `HTTP ${resp.status}`);
+-          recoveryResult.className = 'mt-3 text-xs text-green-600';
+-          recoveryResult.classList.remove('hidden');
+-          recoveryResult.textContent = '如果该邮箱已关联账户，我们已发送恢复邮件。';
+-          const preview = payload?.data?.preview_link;
+-          if (preview) {
+-            const a = document.createElement('a'); a.href = preview; a.target = '_blank'; a.textContent = '预览恢复链接'; a.className = 'block mt-2 text-primary hover:text-primary-hover'; recoveryResult.appendChild(a);
+-          }
+-        } catch (e) {
+-          recoveryResult.className = 'mt-3 text-xs text-red-600';
+-          recoveryResult.classList.remove('hidden');
+-          recoveryResult.textContent = '发送失败：请稍后再试或联系客服';
+-        } finally {
+-          btnSendRecovery.disabled = false; btnSendRecovery.textContent = '发送恢复邮件';
+-        }
+-      }
+-      btnSendRecovery?.addEventListener('click', (e) => { e.preventDefault(); requestInlineRecovery(); });
+-    </script>
+    <script type="module" src="./entry.js"></script>
+    <!-- 中文注释：移除页面内对 ../src/* 的静态导入，统一由 entry.js 动态加载与初始化，避免与多处静态导入产生重复模块问题 -->

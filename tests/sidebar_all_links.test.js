@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import * as linksView from '../js/views/linksView.js'
+// 中文注释：统一到 src/js 路径
+import * as linksView from '../src/js/views/linksView.js'
 
 // 中文注释：侧栏“All Links”点击切换视图与事件绑定自动化测试
 

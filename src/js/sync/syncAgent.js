@@ -2,14 +2,14 @@
 // 作用：批量推送本地变更到云端（/sync/push），并定期拉取云端增量（/sync/pull）
 // 特性：支持离线自动重试、指数退避、批量上限 50、幂等（由服务端按 client_change_id 去重）
 
-import { getPendingChanges, markSynced } from './changeLog.js';
-import { setMapping } from './idMapping.js';
-import { callFunction, isCloudReady, getLastAuthInfo, isLoggedIn } from '../services/supabaseClient.js';
-import { showToast } from '../utils/ui-helpers.js';
-import db from '../storage/db.js';
-import { logger } from '../services/logger.js';
-import { config } from '../services/config.js';
-import { showConflictModal } from '../components/modal-conflict.js';
+import { getPendingChanges, markSynced } from '/src/js/sync/changeLog.js';
+import { setMapping } from '/src/js/sync/idMapping.js';
+import { callFunction, isCloudReady, getLastAuthInfo, isLoggedIn } from '/src/js/services/supabaseClient.js';
+import { showToast } from '/src/js/utils/ui-helpers.js';
+import db from '/src/js/storage/db.js';
+import { logger } from '/src/js/services/logger.js';
+import { config } from '/src/js/services/config.js';
+import { showConflictModal } from '/src/js/components/modal-conflict.js';
 
 // 指数退避序列（毫秒）
 const BACKOFF_STEPS = [2000, 4000, 8000, 16000, 30000];

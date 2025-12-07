@@ -1,0 +1,19 @@
+{
+  "assets": [
+    "/src/js/main.js",
+    "/src/js/features/auth_ui.js",
+    "/src/js/features/dashboard.js",
+    "/src/js/storage/db.js",
+    "/src/js/storage/storageAdapter.js",
+    "/src/js/sync/syncAgent.js",
+    "/src/js/sync/changeLog.js",
+    "/src/js/utils/ui-helpers.js",
+    "/src/js/services/supabaseClient.js",
+    "/manifest.json",
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap",
+    "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+  ],
+  "comments": "仅列出字符串项；已忽略注释行",
+  "HTML_in_cache": false
+}

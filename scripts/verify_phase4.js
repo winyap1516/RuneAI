@@ -6,11 +6,13 @@ import assert from 'assert';
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 
+// 中文注释：环境变量解析（优先使用本地 .env/.env.local）
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
+// 中文注释：在本地开发场景允许缺失 service_role_key，仅进行用户态与函数验证
+if (!SUPABASE_URL || !ANON_KEY) {
   console.error('Error: Missing environment variables. Please check .env or .env.local');
   console.error('Current vars:', { 
     SUPABASE_URL: !!SUPABASE_URL, 
@@ -19,11 +21,14 @@ if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
   });
   process.exit(1);
 }
+if (!SERVICE_KEY) {
+  console.warn('Warn: SUPABASE_SERVICE_ROLE_KEY missing. Admin cleanup will be skipped.');
+}
 
-// Admin Client (Service Role) - for data cleanup and verification
-const adminClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+// 中文注释：Admin Client（可选）用于数据清理与验证；若缺失则跳过
+const adminClient = SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
-});
+}) : null;
 
 // User Client (Anon) - for testing RLS and Functions
 const userClient = createClient(SUPABASE_URL, ANON_KEY);
@@ -179,8 +184,12 @@ async function main() {
 
   // Cleanup (Optional)
   console.log('\n🧹 Cleanup...');
-  await adminClient.auth.admin.deleteUser(userId);
-  console.log('✅ Test user deleted.');
+  if (adminClient) {
+    await adminClient.auth.admin.deleteUser(userId);
+    console.log('✅ Test user deleted.');
+  } else {
+    console.log('⏭️ Skipped (no service_role_key). Please clean test user manually if needed.');
+  }
 
   console.log('\n🎉 Phase 4 Verification Complete!');
 }

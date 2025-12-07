@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { linkController } from '../js/controllers/linkController.js';
-import { digestController } from '../js/controllers/digestController.js';
-import storageAdapter from '../js/storage/storageAdapter.js';
-import { websites, digests } from '../js/storage/db.js';
+// 中文注释：统一到 src/js 路径，保持测试与源码一致
+import { linkController } from '../src/js/controllers/linkController.js';
+import { digestController } from '../src/js/controllers/digestController.js';
+import storageAdapter from '../src/js/storage/storageAdapter.js';
+import { websites, digests } from '../src/js/storage/db.js';
 import 'fake-indexeddb/auto';
 
 // Mock localStorage
@@ -32,7 +33,7 @@ global.localStorage = localStorageMock;
 describe('Phase 3 - Pagination', () => {
     beforeEach(async () => {
         // Clear DB
-        const db = await import('../js/storage/db.js');
+        const db = await import('../src/js/storage/db.js');
         const conn = await db.default.openDB();
         const tx = conn.transaction(['websites', 'digests'], 'readwrite');
         tx.objectStore('websites').clear();

@@ -1,0 +1,47 @@
+{
+  "ready": {
+    "nickname": "Alex Chen",
+    "avatarUrl": "https://i.pravatar.cc/150?u=runeai",
+    "savedLinksCount": 128,
+    "savedPlacesCount": 12,
+    "runesCount": 5,
+    "trackedCardsCount": 8,
+    "todayDigest": "You saved 3 design resources about Figma Variables. Review them to enhance your design system workflow.",
+    "lastSyncedAt": "2025-12-04T08:00:00.000Z",
+    "status": "ready"
+  },
+  "empty": {
+    "nickname": "Traveler",
+    "avatarUrl": null,
+    "savedLinksCount": 0,
+    "savedPlacesCount": 0,
+    "runesCount": 0,
+    "trackedCardsCount": 0,
+    "todayDigest": null,
+    "lastSyncedAt": null,
+    "status": "empty"
+  },
+  "loading": {
+    "nickname": null,
+    "avatarUrl": null,
+    "savedLinksCount": null,
+    "savedPlacesCount": null,
+    "runesCount": null,
+    "trackedCardsCount": null,
+    "todayDigest": null,
+    "lastSyncedAt": null,
+    "status": "loading"
+  },
+  "error": {
+    "nickname": null,
+    "avatarUrl": null,
+    "savedLinksCount": null,
+    "savedPlacesCount": null,
+    "runesCount": null,
+    "trackedCardsCount": null,
+    "todayDigest": null,
+    "lastSyncedAt": null,
+    "status": "error"
+  }
+}
+

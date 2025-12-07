@@ -1,0 +1,170 @@
+[
+  {
+    "path": "src/js/components/modal-conflict.js",
+    "size": 2978
+  },
+  {
+    "path": "src/js/components/modal-digest.js",
+    "size": 0
+  },
+  {
+    "path": "src/js/components/profile-form.js",
+    "size": 0
+  },
+  {
+    "path": "src/js/components/settings-panel.js",
+    "size": 4578
+  },
+  {
+    "path": "src/js/components/user-dropdown.js",
+    "size": 0
+  },
+  {
+    "path": "src/js/components/user-welcome-card.js",
+    "size": 6281
+  },
+  {
+    "path": "src/js/components/welcome_card.js",
+    "size": 3060
+  },
+  {
+    "path": "src/js/config/constants.js",
+    "size": 390
+  },
+  {
+    "path": "src/js/controllers/digestController.js",
+    "size": 9793
+  },
+  {
+    "path": "src/js/controllers/linkController.js",
+    "size": 14049
+  },
+  {
+    "path": "src/js/dashboard_init.js",
+    "size": 2000
+  },
+  {
+    "path": "src/js/features/account_settings.js",
+    "size": 10588
+  },
+  {
+    "path": "src/js/features/auth_ui.js",
+    "size": 14701
+  },
+  {
+    "path": "src/js/features/dashboard.js",
+    "size": 28659
+  },
+  {
+    "path": "src/js/main.js",
+    "size": 11675
+  },
+  {
+    "path": "src/js/services/ai.js",
+    "size": 3933
+  },
+  {
+    "path": "src/js/services/api.js",
+    "size": 845
+  },
+  {
+    "path": "src/js/services/billing_service.js",
+    "size": 972
+  },
+  {
+    "path": "src/js/services/config.js",
+    "size": 1253
+  },
+  {
+    "path": "src/js/services/logger.js",
+    "size": 941
+  },
+  {
+    "path": "src/js/services/quota.js",
+    "size": 1496
+  },
+  {
+    "path": "src/js/services/supabaseClient.js",
+    "size": 10715
+  },
+  {
+    "path": "src/js/services/text_service.js",
+    "size": 1140
+  },
+  {
+    "path": "src/js/storage/db.js",
+    "size": 20498
+  },
+  {
+    "path": "src/js/storage/storageAdapter.js",
+    "size": 29161
+  },
+  {
+    "path": "src/js/sw.js",
+    "size": 3394
+  },
+  {
+    "path": "src/js/sync/changeLog.js",
+    "size": 5774
+  },
+  {
+    "path": "src/js/sync/conflict.js",
+    "size": 1637
+  },
+  {
+    "path": "src/js/sync/idMapping.js",
+    "size": 1148
+  },
+  {
+    "path": "src/js/sync/migrate.js",
+    "size": 1749
+  },
+  {
+    "path": "src/js/sync/syncAgent.js",
+    "size": 10292
+  },
+  {
+    "path": "src/js/templates/card.js",
+    "size": 3235
+  },
+  {
+    "path": "src/js/templates/digestCard.js",
+    "size": 4880
+  },
+  {
+    "path": "src/js/utils/dom.js",
+    "size": 10350
+  },
+  {
+    "path": "src/js/utils/ui-helpers.js",
+    "size": 5546
+  },
+  {
+    "path": "src/js/utils/url.js",
+    "size": 1054
+  },
+  {
+    "path": "src/js/views/authView.js",
+    "size": 1731
+  },
+  {
+    "path": "src/js/views/digestView.js",
+    "size": 15799
+  },
+  {
+    "path": "src/js/views/linksView.js",
+    "size": 30097
+  },
+  {
+    "path": "src/js/views/oauth_callback.js",
+    "size": 3402
+  },
+  {
+    "path": "src/js/views/sendLogsView.js",
+    "size": 3622
+  },
+  {
+    "path": "src/mockFunctions.js",
+    "size": 1488
+  }
+]

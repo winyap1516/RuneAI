@@ -1,5 +1,5 @@
-import { escapeHTML, getTagClass, buildIconHTML } from "../utils/ui-helpers.js";
-import { normalizeUrl } from "../utils/url.js";
+import { escapeHTML, getTagClass, buildIconHTML } from "/src/js/utils/ui-helpers.js";
+import { normalizeUrl } from "/src/js/utils/url.js";
 
 /**
  * Unified card template
@@ -42,13 +42,8 @@ export function createCard(data = {}) {
         ${tagsHtml}
       </div>
       <div class="mt-3 card-actions flex items-center justify-end gap-2">
-        ${(() => { 
-           const nurl = normalizeUrl(url); 
-           const btnClass = subscribed ? 'hidden' : '';
-           return `<button class="btn-subscribe btn btn-small btn-muted ${btnClass}" data-url="${escapeHTML(nurl)}">Subscribe</button>`; 
-        })()}
-        <div class="card-controls ${subscribed ? 'flex' : 'hidden'} items-center gap-2">
-           <span class="text-sm font-bold text-primary px-2">Subscribed</span>
+        <div class="card-controls flex items-center gap-2">
+           ${subscribed ? '<span class="subscribed-label text-sm font-bold text-primary px-2">Subscribed</span>' : ''}
            <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="" data-link-id="${numericId}">Generate Now</button>
         </div>
       </div>

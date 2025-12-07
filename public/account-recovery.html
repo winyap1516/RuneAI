@@ -54,7 +54,8 @@
 
     <script type="module">
       // 中文注释：为避免生产环境强制要求 JWT，这里直接以 apikey 调用 Edge Functions
-      import config from './js/services/config.js';
+      // 中文注释：改为相对路径 ../src/js/services/config.js，确保构建阶段与预览一致
+      import config from '../src/js/services/config.js';
 
       const form = document.getElementById('recovery-form');
       const btn = document.getElementById('btn-recover');
@@ -91,4 +92,3 @@
     </script>
   </body>
 </html>
-

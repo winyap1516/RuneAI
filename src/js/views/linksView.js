@@ -1,6 +1,8 @@
-import { USER_ID, DIGEST_TYPE, LIMITS, COOLDOWN } from "../config/constants.js";
-import { normalizeUrl } from "../utils/url.js";
-import { escapeHTML, buildIconHTML, getTagClass } from "../utils/ui-helpers.js";
+// 中文注释：取消前端生成次数与冷却时间限制，统一由后端控制
+import { USER_ID } from "/src/js/config/constants.js";
+import { callFunction } from "/src/js/services/supabaseClient.js";
+import { normalizeUrl } from "/src/js/utils/url.js";
+import { escapeHTML, buildIconHTML, getTagClass } from "/src/js/utils/ui-helpers.js";
 
 let _containerEl = null;
 let _controllers = null;
@@ -158,7 +160,7 @@ export function updateSingleCardUI(id, data) {
         }
     }
     
-    updateDailyLimitUI();
+    // 中文注释：前端不再计算每日限制，由后端统一控制
 }
 
 export function clearList() {
@@ -269,7 +271,7 @@ export function addSingleCardUI(data) {
     
     renderCategoriesSidebar();
     syncEditCategorySelect();
-    updateDailyLimitUI();
+          // 中文注释：后端统一控制每日限制，不再更新本地 limit UI
 }
 
 export function removeSingleCardUI(id) {
@@ -294,71 +296,29 @@ export function bindLinksEvents() {
   const { delegate, on, openModal, closeModal, openTextPrompt, openConfirm, openInfoModal } = _utils.dom;
   const { linkController, digestController } = _controllers;
 
-  // 1. Subscribe
-  delegate(document, '.btn-subscribe', 'click', async (e, btn) => {
-      e.preventDefault(); e.stopPropagation();
-      setLoading(btn, true, 'Subscribing...');
-      try {
-          const cardEl = btn.closest('.rune-card');
-          const idStr = cardEl?.getAttribute('data-card-id');
-          const cardId = idStr ? parseInt(idStr, 10) : null;
-          
-          if (cardId) {
-              await linkController.subscribe(cardId);
-          } else {
-             const url = normalizeUrl(btn.getAttribute('data-url') || '');
-             const cards = await linkController.getLinks();
-             const link = cards.find(c => normalizeUrl(c.url) === url);
-             if (link) await linkController.subscribe(link.id);
-             else throw new Error("Link not found");
-          }
-          showToast('Subscribed successfully!', 'success');
-      } catch (err) {
-          openTextPrompt({ title: 'Subscription Failed', placeholder: err.message });
-      } finally {
-          setLoading(btn, false);
-          updateUIStates();
-      }
-  });
+  // 中文注释：订阅开关迁移至 Settings Panel，卡片不再提供订阅按钮
 
-  // 2. Generate Now
+  // 2. Generate Now（调用 Edge Function，mode=manual；前端不做次数/冷却限制）
   delegate(document, '.btn-generate-once', 'click', async (e, b) => {
       e.preventDefault(); e.stopPropagation();
-      
-      const userId = _utils.storageAdapter?.getUser()?.id || USER_ID.GUEST;
-      const isDev = userId === USER_ID.DEFAULT;
-      const limit = isDev ? LIMITS.DEV_LIMIT : LIMITS.SINGLE_GENERATE;
-      
-      const usage = digestController.getDailyUsageCount(userId, DIGEST_TYPE.MANUAL);
-      if (usage >= limit) {
-          openInfoModal({ title: 'Limit Reached', message: `Daily limit of ${limit} reached.` });
-          return;
-      }
-      
-      const linkId = b.getAttribute('data-link-id');
-      const numLinkId = linkId ? (typeof linkId==='string'?parseInt(linkId,10):linkId) : null;
-      
-      const lastTime = digestController.getLastGenerationTime(numLinkId, DIGEST_TYPE.MANUAL);
-      if (Date.now() - lastTime < COOLDOWN.DURATION_MS) {
-           const wait = Math.ceil((COOLDOWN.DURATION_MS - (Date.now() - lastTime))/1000);
-           openInfoModal({ title: 'Cooldown', message: `Please wait ${wait}s.` });
-           return;
-      }
-
+      const user = _utils.storageAdapter?.getUser();
+      const uid = user?.id || USER_ID.GUEST;
       b.dataset.loading = '1';
       setLoading(b, true, 'Generating…');
       try {
-          await digestController.generateManualDigest(numLinkId);
-          showToast('Digest generated successfully!', 'success');
-          updateDailyLimitUI();
+          const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
+          const json = await resp.json().catch(()=>({}));
+          if (resp.ok && json?.ok) {
+              showToast('Digest generated successfully!', 'success');
+          } else {
+              const msg = json?.error || `HTTP ${resp.status}`;
+              openTextPrompt({ title: 'Generation Failed', placeholder: msg });
+          }
       } catch (err) {
-          let msg = err.message || 'Failed to generate digest';
-          if (msg.includes('Link not found')) msg = 'Link not found. Try refreshing.';
-          openTextPrompt({ title: 'Generation Failed', placeholder: msg });
+          openTextPrompt({ title: 'Generation Failed', placeholder: err.message });
       } finally {
           delete b.dataset.loading;
           setLoading(b, false);
-          updateDailyLimitUI();
       }
   });
 
@@ -385,126 +345,41 @@ export function bindLinksEvents() {
 
 function updateUIStates() {
     markSubscribedButtons();
-    updateDailyLimitUI();
 }
 
 async function markSubscribedButtons() {
+    // 中文注释：仅更新“Subscribed”标签显示；Generate Now 始终可用
     const { linkController } = _controllers;
     const subs = await linkController.getSubscriptions();
     
     if (!_containerEl) return;
-    const btns = Array.from(_containerEl.querySelectorAll('.btn-subscribe'));
-    
-    for (const b of btns) {
-        const cardEl = b.closest('.rune-card');
-        const cardId = cardEl?.getAttribute('data-card-id');
-        let sub = null;
-        
-        if (cardId) {
-            sub = subs.find(s => s.enabled !== false && String(s.linkId) === String(cardId));
-        }
-        
-        // Update UI
-        if (sub) {
-            b.classList.add('hidden');
-        } else {
-            b.classList.remove('hidden');
-            b.textContent = 'Subscribe';
-            b.disabled = false;
-            b.classList.remove('btn-outline', 'text-primary');
-            b.classList.add('btn-muted');
-        }
-        
-        const wrap = b.closest('.card-actions');
-        if (!wrap) continue;
-        
-        const controls = wrap.querySelector('.card-controls');
-        const onceBtn = wrap.querySelector('.btn-generate-once');
-        
+    const cards = Array.from(_containerEl.querySelectorAll('.rune-card'));
+    for (const card of cards) {
+        const cardId = card.getAttribute('data-card-id');
+        const controls = card.querySelector('.card-controls');
+        const onceBtn = controls?.querySelector('.btn-generate-once');
+        const hasSub = subs.some(s => s.enabled !== false && String(s.linkId) === String(cardId));
         if (controls) {
-            if (sub) {
-                controls.classList.remove('hidden');
-                controls.classList.add('flex');
+            let label = controls.querySelector('.subscribed-label');
+            if (hasSub) {
+                if (!label) {
+                    label = document.createElement('span');
+                    label.className = 'subscribed-label text-sm font-bold text-primary px-2';
+                    label.textContent = 'Subscribed';
+                    controls.insertBefore(label, controls.firstChild);
+                }
             } else {
-                controls.classList.add('hidden');
-                controls.classList.remove('flex');
+                if (label) label.remove();
             }
         }
-        
         if (onceBtn) {
-            onceBtn.disabled = !sub;
-            onceBtn.dataset.subId = sub?.id || '';
+            onceBtn.disabled = false; // 中文注释：手动生成始终可用，由后端判定次数
             onceBtn.dataset.linkId = cardId || '';
         }
     }
 }
 
-function updateDailyLimitUI() {
-    const { digestController } = _controllers;
-    const userId = _utils.storageAdapter?.getUser()?.id || USER_ID.GUEST;
-    
-    const btns = _containerEl.querySelectorAll('.btn-generate-once');
-    btns.forEach(b => {
-        const linkId = b.getAttribute('data-link-id');
-        const numId = linkId ? parseInt(linkId, 10) : null;
-        checkAndApplyCooldown(b, DIGEST_TYPE.MANUAL, numId, userId);
-    });
-}
-
-function checkAndApplyCooldown(btn, type, linkId, userId) {
-    if (!btn) return;
-    const { digestController } = _controllers;
-    const isDev = userId === USER_ID.DEFAULT;
-    const limit = isDev ? LIMITS.DEV_LIMIT : LIMITS.SINGLE_GENERATE;
-    
-    const todayCount = digestController.getDailyUsageCount(userId, type);
-    const remaining = Math.max(0, limit - todayCount);
-    
-    let label = btn.parentNode.querySelector('.limit-text');
-    if (!label) {
-        label = document.createElement('span');
-        label.className = 'limit-text text-[10px] text-text-secondary-light dark:text-text-secondary-dark ml-2';
-        btn.parentNode.appendChild(label);
-    }
-    label.textContent = `Today left: ${remaining}/${limit}`;
-    
-    if (todayCount >= limit) {
-        btn.disabled = true;
-        btn.textContent = 'Limit Reached';
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        return;
-    }
-    
-    const lastTime = digestController.getLastGenerationTime(linkId, type);
-    const now = Date.now();
-    if (now - lastTime < COOLDOWN.DURATION_MS) {
-        const rem = Math.ceil((COOLDOWN.DURATION_MS - (now - lastTime)) / 1000);
-        btn.disabled = true;
-        btn.textContent = `Retry in ${rem}s`;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-        
-        if (!btn.dataset.timer) {
-            btn.dataset.timer = '1';
-            const interval = setInterval(() => {
-                if (Date.now() - lastTime >= COOLDOWN.DURATION_MS) {
-                    clearInterval(interval);
-                    delete btn.dataset.timer;
-                    checkAndApplyCooldown(btn, type, linkId, userId);
-                } else {
-                    const r = Math.ceil((COOLDOWN.DURATION_MS - (Date.now() - lastTime)) / 1000);
-                    btn.textContent = `Retry in ${r}s`;
-                }
-            }, 1000);
-        }
-    } else {
-        if (btn.dataset.loading !== '1') {
-            btn.disabled = false;
-            btn.textContent = 'Generate Now';
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            delete btn.dataset.timer;
-        }
-    }
-}
+// 中文注释：已移除前端次数限制与冷却时间控制，由后端统一处理
 
 function filterCards(query) {
     const q = (query || '').trim().toLowerCase();
@@ -548,7 +423,11 @@ function renderCategoriesSidebar() {
     const allItem = document.createElement('div');
     allItem.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer';
     allItem.setAttribute('data-name', '');
-    allItem.innerHTML = `<button type="button" class="category-filter text-sm font-medium text-left flex-1 w-full focus:outline-none" title="All Links">All Links</button>`;
+    allItem.innerHTML = `
+      <div class="flex items-center gap-2 flex-1">
+        <span class="category-icon" aria-hidden="true"><span class="material-symbols-outlined text-base">widgets</span></span>
+        <button type="button" class="category-filter text-sm font-medium text-left flex-1 w-full focus:outline-none" title="All Links">All Links</button>
+      </div>`;
     list.appendChild(allItem);
 
     cats.forEach(cat => {
@@ -558,9 +437,12 @@ function renderCategoriesSidebar() {
         item.setAttribute('data-name', cat);
         const initial = (cat || 'U').charAt(0).toUpperCase();
         item.innerHTML = `
-          <button type="button" class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}">${escapeHTML(cat)}</button>
+          <div class="flex items-center gap-2 flex-1">
+            <span class="category-icon" aria-hidden="true">${escapeHTML(initial)}</span>
+            <button type="button" class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}">${escapeHTML(cat)}</button>
+          </div>
           <div class="relative shrink-0">
-            <button type="button" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none" data-category="${escapeHTML(cat)}">
+            <button type="button" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg白/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none" data-category="${escapeHTML(cat)}">
               <span class="material-symbols-outlined text-base">more_horiz</span>
             </button>
           </div>
@@ -615,6 +497,43 @@ function bindModalEvents() {
             } finally {
                 delete saveBtn.dataset.submitting;
                 setLoading(saveBtn, false);
+            }
+        });
+    }
+    
+    // 中文注释：新增“+ New Category”按钮与模态行为，避免被 AI Features 组的点击/折叠影响
+    const addCatBtn = document.getElementById('addCategoryBtn');
+    const addCatModal = document.getElementById('addCategoryModal');
+    const saveCatBtn = document.getElementById('saveCategoryBtn');
+    const inpCatName = document.getElementById('inpCategoryName');
+    const addCatBackdrop = document.getElementById('addCategoryBackdrop');
+    const closeCatX = document.getElementById('closeCategoryX');
+    const cancelCatBtn = document.getElementById('cancelCategoryBtn');
+    
+    if (addCatBtn && addCatModal) {
+        on(addCatBtn, 'click', (e) => { 
+            e.preventDefault(); e.stopPropagation(); 
+            if (inpCatName) inpCatName.value=''; 
+            openModal(addCatModal); 
+        });
+        if (addCatBackdrop) on(addCatBackdrop, 'click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(addCatModal); });
+        if (closeCatX) on(closeCatX, 'click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(addCatModal); });
+        if (cancelCatBtn) on(cancelCatBtn, 'click', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(addCatModal); });
+    }
+    
+    if (saveCatBtn && addCatModal && inpCatName) {
+        on(saveCatBtn, 'click', async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const raw = (inpCatName.value||'').trim();
+            if (!raw) { openTextPrompt({ title: 'Error', placeholder: '请输入分类名称' }); return; }
+            if (RESERVED_CATEGORIES.has(raw)) { openTextPrompt({ title: 'Error', placeholder: '该名称保留，请更换' }); return; }
+            try {
+                await linkController.ensureCategory(raw);
+                renderCategoriesSidebar();
+                closeModal(addCatModal);
+                showToast(`已添加分类：${raw}`, 'success');
+            } catch (err) {
+                openTextPrompt({ title: 'Error', placeholder: err.message });
             }
         });
     }
@@ -717,15 +636,39 @@ function bindCategoryEvents() {
     // 中文注释：改为在 document 上做事件委托，避免切换视图或重建侧栏导致绑定丢失
     delegate(document, '#linksGroupList .category-filter', 'click', (e, btn) => {
         const name = btn.closest('div').getAttribute('data-name');
-        // 中文注释：若当前不在 Links 视图（容器不存在），先切换回 Links 再执行分类过滤
-        const hasContainer = !!document.getElementById('cardsContainer');
-        if (!hasContainer || !_containerEl) {
+        
+        // Check if we need to switch view
+        const linksContainer = document.getElementById('linksViewContainer');
+        const isHidden = !linksContainer || linksContainer.classList.contains('hidden');
+        
+        // 中文注释：若当前不在 Links 视图（容器不存在或隐藏），先切换回 Links 再执行分类过滤
+        if (isHidden || !_containerEl) {
             if (typeof window.navigateToLinks === 'function') {
                 const res = window.navigateToLinks();
                 if (res && typeof res.then === 'function') {
                     res.then(() => filterCardsByCategory(name));
                 } else {
-                    setTimeout(() => filterCardsByCategory(name), 100);
+                    // Fallback timeout if not promise
+                    setTimeout(() => filterCardsByCategory(name), 50);
+                }
+                return;
+            }
+        }
+        filterCardsByCategory(name);
+    });
+    // 中文注释：支持点击图标也进行筛选（折叠态仅显示图标时仍可用）
+    delegate(document, '#linksGroupList .category-icon', 'click', (e, icon) => {
+        const wrapper = icon.closest('[data-name]');
+        const name = wrapper ? wrapper.getAttribute('data-name') : '';
+        const linksContainer = document.getElementById('linksViewContainer');
+        const isHidden = !linksContainer || linksContainer.classList.contains('hidden');
+        if (isHidden || !_containerEl) {
+            if (typeof window.navigateToLinks === 'function') {
+                const res = window.navigateToLinks();
+                if (res && typeof res.then === 'function') {
+                    res.then(() => filterCardsByCategory(name));
+                } else {
+                    setTimeout(() => filterCardsByCategory(name), 50);
                 }
                 return;
             }
@@ -741,6 +684,8 @@ function filterCardsByCategory(category) {
         if (!c) return;
         _containerEl = c;
     }
+    // 中文注释：当选择“All Links”时，等价于不筛选（显示全部）
+    if (category === 'All Links') category = '';
     const cards = Array.from(_containerEl.children);
     let visible = 0;
     cards.forEach(el => {

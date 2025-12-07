@@ -118,7 +118,11 @@
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <label for="loginPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
-                  <a id="forgotPwdLink" href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">忘记密码？</a>
+                  <div class="flex items-center gap-2">
+                    <a id="forgotPwdLink" href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">忘记密码？</a>
+                    <span class="text-gray-300">·</span>
+                    <a id="resendVerifyLink" href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">重发验证邮件</a>
+                  </div>
                 </div>
                 <input id="loginPassword" name="password" type="password" required minlength="6" autocomplete="current-password" class="form-input" placeholder="••••••••" />
               </div>
@@ -164,11 +168,13 @@
         </p>
       </div>
     </main>
+    <script type="module" src="./entry.js"></script>
     <script type="module">
       // 中文注释：初始化登录页的 Auth 逻辑与 SDK 客户端；绑定邮箱登录 Modal 开关
-      import { initAuthUI } from './js/features/auth_ui.js';
-      import './js/services/supabaseClient.js';
-      import config from './js/services/config.js';
+      // 目录重组后，所有前端脚本统一放入 ../src/js 下（相对路径），以兼容 Vite 构建解析
+      import { initAuthUI } from '../src/js/features/auth_ui.js';
+      import '../src/js/services/supabaseClient.js';
+      import config from '../src/js/services/config.js';
       initAuthUI('login');
       const modal = document.getElementById('emailLoginModal');
       const openBtn = document.getElementById('openEmailLoginModal');

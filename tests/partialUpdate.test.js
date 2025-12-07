@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { linkController } from '../js/controllers/linkController.js';
-import storageAdapter from '../js/storage/storageAdapter.js';
+// 中文注释：统一到 src/js 路径
+import { linkController } from '../src/js/controllers/linkController.js';
+import storageAdapter from '../src/js/storage/storageAdapter.js';
 
 // Mock storageAdapter
-vi.mock('../js/storage/storageAdapter.js', () => ({
+vi.mock('../src/js/storage/storageAdapter.js', () => ({
     default: {
         getLinks: vi.fn(),
         getSubscriptions: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('../js/storage/storageAdapter.js', () => ({
     }
 }));
 
-vi.mock('../js/utils/url.js', () => ({
+vi.mock('../src/js/utils/url.js', () => ({
     normalizeUrl: (u) => u
 }));
 

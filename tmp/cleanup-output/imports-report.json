@@ -1,0 +1,1269 @@
+[
+  {
+    "file": "public/account-recovery.html",
+    "line": 9,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/account-recovery.html",
+    "line": 14,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/dashboard.html",
+    "line": 8,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/dashboard.html",
+    "line": 17,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/dashboard.html",
+    "line": 728,
+    "import_specifier": "./entry.js",
+    "resolved_path": "D:\\RuneAI\\public\\entry.js",
+    "type": "html"
+  },
+  {
+    "file": "public/entry.js",
+    "line": 12,
+    "import_specifier": "/src/js/dashboard_init.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\dashboard_init.js",
+    "type": "esm"
+  },
+  {
+    "file": "public/entry.js",
+    "line": 18,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "public/entry.js",
+    "line": 19,
+    "import_specifier": "/src/js/features/auth_ui.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\auth_ui.js",
+    "type": "esm"
+  },
+  {
+    "file": "public/entry.js",
+    "line": 26,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "public/entry.js",
+    "line": 27,
+    "import_specifier": "/src/js/features/auth_ui.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\auth_ui.js",
+    "type": "esm"
+  },
+  {
+    "file": "public/entry.js",
+    "line": 34,
+    "import_specifier": "/src/js/views/oauth_callback.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\oauth_callback.js",
+    "type": "esm"
+  },
+  {
+    "file": "public/index.html",
+    "line": 15,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/index.html",
+    "line": 22,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/index.html",
+    "line": 178,
+    "import_specifier": "./entry.js",
+    "resolved_path": "D:\\RuneAI\\public\\entry.js",
+    "type": "html"
+  },
+  {
+    "file": "public/login.html",
+    "line": 18,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/login.html",
+    "line": 23,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/login.html",
+    "line": 171,
+    "import_specifier": "./entry.js",
+    "resolved_path": "D:\\RuneAI\\public\\entry.js",
+    "type": "html"
+  },
+  {
+    "file": "public/oauth-callback.html",
+    "line": 23,
+    "import_specifier": "../src/js/views/oauth_callback.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\oauth_callback.js",
+    "type": "html"
+  },
+  {
+    "file": "public/register.html",
+    "line": 17,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/register.html",
+    "line": 22,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/register.html",
+    "line": 139,
+    "import_specifier": "./entry.js",
+    "resolved_path": "D:\\RuneAI\\public\\entry.js",
+    "type": "html"
+  },
+  {
+    "file": "public/set-password.html",
+    "line": 9,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/set-password.html",
+    "line": 14,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/signup.html",
+    "line": 13,
+    "import_specifier": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "resolved_path": "https://cdn.tailwindcss.com?plugins=forms,container-queries",
+    "type": "html"
+  },
+  {
+    "file": "public/signup.html",
+    "line": 19,
+    "import_specifier": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "resolved_path": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "type": "html"
+  },
+  {
+    "file": "public/signup.html",
+    "line": 103,
+    "import_specifier": "./entry.js",
+    "resolved_path": "D:\\RuneAI\\public\\entry.js",
+    "type": "html"
+  },
+  {
+    "file": "scripts/check_static_paths.js",
+    "line": 7,
+    "import_specifier": "fs",
+    "resolved_path": "fs",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/check_static_paths.js",
+    "line": 8,
+    "import_specifier": "path",
+    "resolved_path": "path",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/seed200.js",
+    "line": 20,
+    "import_specifier": "../src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/verify_phase4.js",
+    "line": 1,
+    "import_specifier": "@supabase/supabase-js",
+    "resolved_path": "@supabase/supabase-js",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/verify_phase4.js",
+    "line": 2,
+    "import_specifier": "dotenv",
+    "resolved_path": "dotenv",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/verify_phase4.js",
+    "line": 3,
+    "import_specifier": "assert",
+    "resolved_path": "assert",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/verify_phase5.js",
+    "line": 5,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/verify_phase5.js",
+    "line": 6,
+    "import_specifier": "https://deno.land/x/dotenv/mod.ts",
+    "resolved_path": "https://deno.land/x/dotenv/mod.ts",
+    "type": "esm"
+  },
+  {
+    "file": "scripts/verify_phase5.js",
+    "line": 10,
+    "import_specifier": "@supabase/supabase-js",
+    "resolved_path": "@supabase/supabase-js",
+    "type": "cjs"
+  },
+  {
+    "file": "scripts/verify_phase5.js",
+    "line": 11,
+    "import_specifier": "dotenv",
+    "resolved_path": "dotenv",
+    "type": "cjs"
+  },
+  {
+    "file": "src/js/components/settings-panel.js",
+    "line": 2,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/components/user-welcome-card.js",
+    "line": 7,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/components/user-welcome-card.js",
+    "line": 8,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/digestController.js",
+    "line": 1,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/digestController.js",
+    "line": 2,
+    "import_specifier": "/src/js/services/ai.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\ai.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/digestController.js",
+    "line": 3,
+    "import_specifier": "/src/js/services/quota.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\quota.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/digestController.js",
+    "line": 4,
+    "import_specifier": "/src/js/config/constants.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\config\\constants.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/digestController.js",
+    "line": 5,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 1,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 2,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 3,
+    "import_specifier": "/src/mockFunctions.js",
+    "resolved_path": "D:\\RuneAI\\src\\mockFunctions.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 4,
+    "import_specifier": "/src/js/sync/migrate.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\migrate.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 5,
+    "import_specifier": "/src/js/sync/syncAgent.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\syncAgent.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 6,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/controllers/linkController.js",
+    "line": 256,
+    "import_specifier": "../storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/dashboard_init.js",
+    "line": 5,
+    "import_specifier": "./services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/dashboard_init.js",
+    "line": 6,
+    "import_specifier": "./controllers/linkController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/dashboard_init.js",
+    "line": 7,
+    "import_specifier": "./features/auth_ui.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\auth_ui.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/dashboard_init.js",
+    "line": 8,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/dashboard_init.js",
+    "line": 9,
+    "import_specifier": "./features/dashboard.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\dashboard.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 5,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 6,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 7,
+    "import_specifier": "/src/js/controllers/linkController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 8,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/auth_ui.js",
+    "line": 9,
+    "import_specifier": "/src/js/services/config.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\config.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 1,
+    "import_specifier": "/src/js/utils/dom.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\dom.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 2,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 3,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 4,
+    "import_specifier": "/src/js/config/constants.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\config\\constants.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 5,
+    "import_specifier": "/src/js/templates/card.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\templates\\card.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 6,
+    "import_specifier": "/src/js/templates/digestCard.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\templates\\digestCard.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 7,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 8,
+    "import_specifier": "/src/js/controllers/linkController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 9,
+    "import_specifier": "/src/js/sync/syncAgent.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\syncAgent.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 10,
+    "import_specifier": "/src/js/controllers/digestController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\digestController.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 11,
+    "import_specifier": "/src/js/views/linksView.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\linksView.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 12,
+    "import_specifier": "/src/js/views/digestView.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\digestView.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 13,
+    "import_specifier": "/src/js/views/sendLogsView.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\sendLogsView.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 14,
+    "import_specifier": "/src/js/components/user-welcome-card.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\components\\user-welcome-card.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 15,
+    "import_specifier": "/src/js/components/settings-panel.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\components\\settings-panel.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 106,
+    "import_specifier": "../services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 581,
+    "import_specifier": "../features/account_settings.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\account_settings.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/features/dashboard.js",
+    "line": 585,
+    "import_specifier": "../features/account_settings.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\account_settings.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/main.js",
+    "line": 2,
+    "import_specifier": "./features/dashboard.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\dashboard.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/main.js",
+    "line": 3,
+    "import_specifier": "./features/auth_ui.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\auth_ui.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/main.js",
+    "line": 4,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/main.js",
+    "line": 6,
+    "import_specifier": "../mockFunctions.js",
+    "resolved_path": "D:\\RuneAI\\src\\mockFunctions.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/services/ai.js",
+    "line": 5,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/services/ai.js",
+    "line": 6,
+    "import_specifier": "/src/mockFunctions.js",
+    "resolved_path": "D:\\RuneAI\\src\\mockFunctions.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/services/quota.js",
+    "line": 1,
+    "import_specifier": "/src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/services/quota.js",
+    "line": 2,
+    "import_specifier": "/src/js/config/constants.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\config\\constants.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/services/supabaseClient.js",
+    "line": 5,
+    "import_specifier": "./logger.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\logger.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/services/supabaseClient.js",
+    "line": 6,
+    "import_specifier": "./config.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\config.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/storage/storageAdapter.js",
+    "line": 8,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/storage/storageAdapter.js",
+    "line": 9,
+    "import_specifier": "./db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/storage/storageAdapter.js",
+    "line": 13,
+    "import_specifier": "/src/js/services/text_service.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\text_service.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/storage/storageAdapter.js",
+    "line": 14,
+    "import_specifier": "/src/js/sync/changeLog.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\changeLog.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/storage/storageAdapter.js",
+    "line": 15,
+    "import_specifier": "/src/js/sync/idMapping.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\idMapping.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/changeLog.js",
+    "line": 5,
+    "import_specifier": "/src/js/storage/db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/changeLog.js",
+    "line": 6,
+    "import_specifier": "/src/js/services/logger.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\logger.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/migrate.js",
+    "line": 4,
+    "import_specifier": "/src/js/storage/db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/migrate.js",
+    "line": 5,
+    "import_specifier": "/src/js/sync/changeLog.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\changeLog.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/migrate.js",
+    "line": 6,
+    "import_specifier": "/src/js/sync/syncAgent.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\syncAgent.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 5,
+    "import_specifier": "/src/js/sync/changeLog.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\changeLog.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 6,
+    "import_specifier": "/src/js/sync/idMapping.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\sync\\idMapping.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 7,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 8,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 9,
+    "import_specifier": "/src/js/storage/db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 10,
+    "import_specifier": "/src/js/services/logger.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\logger.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 11,
+    "import_specifier": "/src/js/services/config.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\config.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/sync/syncAgent.js",
+    "line": 12,
+    "import_specifier": "/src/js/components/modal-conflict.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\components\\modal-conflict.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/templates/card.js",
+    "line": 1,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/templates/card.js",
+    "line": 2,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/templates/digestCard.js",
+    "line": 1,
+    "import_specifier": "/src/js/config/constants.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\config\\constants.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/templates/digestCard.js",
+    "line": 2,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/authView.js",
+    "line": 4,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/authView.js",
+    "line": 5,
+    "import_specifier": "/src/js/services/config.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\config.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/digestView.js",
+    "line": 2,
+    "import_specifier": "/src/js/config/constants.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\config\\constants.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/digestView.js",
+    "line": 3,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/digestView.js",
+    "line": 4,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/linksView.js",
+    "line": 2,
+    "import_specifier": "/src/js/config/constants.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\config\\constants.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/linksView.js",
+    "line": 3,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/linksView.js",
+    "line": 4,
+    "import_specifier": "/src/js/utils/url.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\url.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/linksView.js",
+    "line": 5,
+    "import_specifier": "/src/js/utils/ui-helpers.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\utils\\ui-helpers.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/oauth_callback.js",
+    "line": 5,
+    "import_specifier": "/src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/oauth_callback.js",
+    "line": 6,
+    "import_specifier": "/src/js/services/api.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\api.js",
+    "type": "esm"
+  },
+  {
+    "file": "src/js/views/oauth_callback.js",
+    "line": 7,
+    "import_specifier": "/src/js/services/config.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\config.js",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/confirm-recovery/index.ts",
+    "line": 5,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/confirm-recovery/index.ts",
+    "line": 6,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/delete-link/index.ts",
+    "line": 1,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/delete-link/index.ts",
+    "line": 2,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/request-recovery/index.ts",
+    "line": 6,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/request-recovery/index.ts",
+    "line": 7,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/set-password/index.ts",
+    "line": 5,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/set-password/index.ts",
+    "line": 6,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/super-endpoint/index.ts",
+    "line": 1,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/super-endpoint/index.ts",
+    "line": 2,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/sync-pull/index.ts",
+    "line": 4,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/sync-pull/index.ts",
+    "line": 5,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/sync-push/index.ts",
+    "line": 9,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/sync-push/index.ts",
+    "line": 10,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/update-link/index.ts",
+    "line": 1,
+    "import_specifier": "https://deno.land/std@0.177.0/http/server.ts",
+    "resolved_path": "https://deno.land/std@0.177.0/http/server.ts",
+    "type": "esm"
+  },
+  {
+    "file": "supabase/functions/update-link/index.ts",
+    "line": 2,
+    "import_specifier": "https://esm.sh/@supabase/supabase-js@2",
+    "resolved_path": "https://esm.sh/@supabase/supabase-js@2",
+    "type": "esm"
+  },
+  {
+    "file": "tests/add_link_dedup.test.js",
+    "line": 2,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/add_link_dedup.test.js",
+    "line": 4,
+    "import_specifier": "../src/js/views/linksView.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\linksView.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/aiService.test.js",
+    "line": 1,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/aiService.test.js",
+    "line": 7,
+    "import_specifier": "../src/js/services/ai.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\ai.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/aiService.test.js",
+    "line": 23,
+    "import_specifier": "../src/js/services/ai.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\ai.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_fallback.test.js",
+    "line": 24,
+    "import_specifier": "./src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\tests\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_fallback.test.js",
+    "line": 25,
+    "import_specifier": "./src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\tests\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_fallback.test.js",
+    "line": 32,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 5,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 23,
+    "import_specifier": "../src/js/features/auth_ui.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\auth_ui.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 48,
+    "import_specifier": "../src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 59,
+    "import_specifier": "../src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/digestController.test.js",
+    "line": 4,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/digestController.test.js",
+    "line": 14,
+    "import_specifier": "../src/js/controllers/digestController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\digestController.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/digestController.test.js",
+    "line": 15,
+    "import_specifier": "../src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/digestController.test.js",
+    "line": 16,
+    "import_specifier": "../src/js/services/ai.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\ai.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/digestController.test.js",
+    "line": 17,
+    "import_specifier": "../src/js/services/quota.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\quota.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/pagination.test.js",
+    "line": 1,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/pagination.test.js",
+    "line": 3,
+    "import_specifier": "../src/js/controllers/linkController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/pagination.test.js",
+    "line": 4,
+    "import_specifier": "../src/js/controllers/digestController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\digestController.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/pagination.test.js",
+    "line": 5,
+    "import_specifier": "../src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/pagination.test.js",
+    "line": 6,
+    "import_specifier": "../src/js/storage/db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/pagination.test.js",
+    "line": 36,
+    "import_specifier": "../src/js/storage/db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/partialUpdate.test.js",
+    "line": 1,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/partialUpdate.test.js",
+    "line": 3,
+    "import_specifier": "../src/js/controllers/linkController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/partialUpdate.test.js",
+    "line": 4,
+    "import_specifier": "../src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_flow.integration.test.js",
+    "line": 5,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_flow.integration.test.js",
+    "line": 6,
+    "import_specifier": "node:crypto",
+    "resolved_path": "node:crypto",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_flow.integration.test.js",
+    "line": 49,
+    "import_specifier": "../src/js/services/api.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\api.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_flow.integration.test.js",
+    "line": 50,
+    "import_specifier": "../src/js/services/supabaseClient.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_rate_limit.test.js",
+    "line": 4,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_token_lifecycle.test.js",
+    "line": 6,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/recovery_token_lifecycle.test.js",
+    "line": 7,
+    "import_specifier": "node:crypto",
+    "resolved_path": "node:crypto",
+    "type": "esm"
+  },
+  {
+    "file": "tests/sidebar_all_links.test.js",
+    "line": 2,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/sidebar_all_links.test.js",
+    "line": 4,
+    "import_specifier": "../src/js/views/linksView.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\linksView.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/virtualScroll.test.js",
+    "line": 1,
+    "import_specifier": "vitest",
+    "resolved_path": "vitest",
+    "type": "esm"
+  },
+  {
+    "file": "tests/virtualScroll.test.js",
+    "line": 3,
+    "import_specifier": "../src/js/controllers/linkController.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/virtualScroll.test.js",
+    "line": 4,
+    "import_specifier": "../src/js/views/linksView.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\linksView.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/virtualScroll.test.js",
+    "line": 5,
+    "import_specifier": "../src/js/storage/storageAdapter.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "type": "esm"
+  },
+  {
+    "file": "tests/virtualScroll.test.js",
+    "line": 36,
+    "import_specifier": "../src/js/storage/db.js",
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "type": "esm"
+  },
+  {
+    "file": "vite.config.js",
+    "line": 4,
+    "import_specifier": "vite",
+    "resolved_path": "vite",
+    "type": "esm"
+  },
+  {
+    "file": "vite.config.js",
+    "line": 5,
+    "import_specifier": "node:path",
+    "resolved_path": "node:path",
+    "type": "esm"
+  }
+]

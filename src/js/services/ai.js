@@ -2,8 +2,8 @@
 // 作用：统一封装网页抓取与摘要生成逻辑，作为唯一 AI 接口
 // 标准化返回格式：{ ok: true, summary: "...", metadata: {...} } 或 { ok: false, error: {...} }
 
-import { normalizeUrl } from '../utils/url.js';
-import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from '../../mockFunctions.js';
+import { normalizeUrl } from '/src/js/utils/url.js';
+import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from '/src/mockFunctions.js';
 
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
@@ -36,7 +36,12 @@ export function __setTestHooks(hooks = {}) {
 
 export async function fetchSiteContent(url) {
   const nurl = normalizeUrl(url);
-  try { return await __mockFetchSiteContent(nurl); } catch { return { content: '' }; }
+  try {
+    const resp = await __mockFetchSiteContent(nurl);
+    return (resp && typeof resp === 'object' && 'data' in resp) ? (resp.data || {}) : resp;
+  } catch {
+    return { content: '' };
+  }
 }
 
 /**
@@ -61,11 +66,11 @@ export async function createDigestForWebsite(website, type) {
     // 成功格式（必须统一）
     return {
       ok: true,
-      summary: aiResult.description || aiResult.summary || 'No summary generated.',
+      summary: (aiResult?.data?.description || aiResult?.description || aiResult?.summary || 'No summary generated.'),
       metadata: {
-        title: aiResult.title,
-        tags: aiResult.tags,
-        category: aiResult.category
+        title: aiResult?.data?.title ?? aiResult?.title,
+        tags: aiResult?.data?.tags ?? aiResult?.tags,
+        category: aiResult?.data?.category ?? aiResult?.category
       }
     };
   } catch (e) {

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-// 中文注释：避免路径差异导致的 vi.mock 失效，改为使用被测模块提供的测试钩子 __setTestHooks
-vi.mock('../js/utils/url.js', () => ({ normalizeUrl: (u) => u }));
+// 中文注释：统一导入路径为 src/js，避免旧 ../js 路径在重构后找不到模块
+vi.mock('../src/js/utils/url.js', () => ({ normalizeUrl: (u) => u }));
 
 describe('AI Service', () => {
   it('should return standardized success format', async () => {
-    const { __setTestHooks, createDigestForWebsite } = await import('../js/services/ai.js');
+    const { __setTestHooks, createDigestForWebsite } = await import('../src/js/services/ai.js');
     const mockAI = vi.fn().mockResolvedValue({ summary: 'test', title: 'Title' });
     __setTestHooks({ mockAIFromUrl: mockAI });
     const result = await createDigestForWebsite({ url: 'http://test.com' });
@@ -20,7 +20,7 @@ describe('AI Service', () => {
   });
 
   it('should return standardized error format on failure', async () => {
-    const { __setTestHooks, createDigestForWebsite } = await import('../js/services/ai.js');
+    const { __setTestHooks, createDigestForWebsite } = await import('../src/js/services/ai.js');
     const mockAI = vi.fn().mockRejectedValue(new Error('Network error'));
     __setTestHooks({ mockAIFromUrl: mockAI });
     const result = await createDigestForWebsite({ url: 'http://test.com' });

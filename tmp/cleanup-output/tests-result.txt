@@ -1,0 +1,9 @@
+Vitest 结果：2 failed | 20 passed | 1 skipped（46 tests, 1 error）
+
+关键失败摘要：
+- account_settings_link.test.js：btnLinkGoogle 为空（UI 挂载缺失）
+- aiService.test.js：期望成功/错误格式与实际不符（返回 Cloud AI 503）
+- 未处理错误：supabase.auth.getSession is not a function（测试环境 Supabase Mock 不完整）
+
+完整输出片段：
+(见终端运行日志，包含 indexedDB 未定义警告与 Supabase SDK 缺失警告)

@@ -1,5 +1,12 @@
 # 更新日志 (CHANGELOG)
 
+## v0.3.16 - 2025-12-06
+### Changed（修改）
+- 将 `reset-password.html` 从项目根目录移动到 `public/`，与静态资源约定保持一致。
+
+### Docs（文档）
+- 更新 `README.md`：将文档中的 `js/` 路径统一为 `src/js/`，并补充 `reset-password.html` 页面职责说明。
+
 ## v0.3.15 - 2025-12-06
 ### Added（新增）
 - 账号恢复全链路：`request-recovery` / `confirm-recovery` / `set-password` 三个 Edge Functions，实现一次性令牌与强密码设置。

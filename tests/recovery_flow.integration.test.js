@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import crypto from 'node:crypto'
 
 // 中文注释：模拟 invokeJSON（Edge Functions 调用）与 supabaseClient
-vi.mock('../js/services/api.js', () => {
+vi.mock('../src/js/services/api.js', () => {
   // 内部状态：预览 link 与令牌
   let recoveryToken = ''
   let setPwdToken = ''
@@ -34,7 +34,8 @@ vi.mock('../js/services/api.js', () => {
   }
 })
 
-vi.mock('../js/services/supabaseClient.js', () => {
+// 中文注释：统一到 src/js 路径；api.js 保持原 js 位置
+vi.mock('../src/js/services/supabaseClient.js', () => {
   const auth = {
     signInWithPassword: vi.fn(async ({ email, password }) => ({ data: { user: { id: 'u1', email } }, error: null }))
   }
@@ -45,8 +46,8 @@ describe('Recovery Integration Flow', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('should request -> confirm -> set-password -> login with same user_id', async () => {
-    const api = await import('../js/services/api.js')
-    const client = await import('../js/services/supabaseClient.js')
+    const api = await import('../src/js/services/api.js')
+    const client = await import('../src/js/services/supabaseClient.js')
 
     const req = await api.invokeJSON('request-recovery', { method: 'POST', body: { identifier: 'recovery@example.com' } })
     expect(req?.data?.sent).toBe(true)
@@ -65,4 +66,3 @@ describe('Recovery Integration Flow', () => {
     expect(res?.data?.user?.id).toBe('u1')
   })
 })
-

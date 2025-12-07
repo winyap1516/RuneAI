@@ -5,7 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock Supabase Client
-vi.mock('../js/services/supabaseClient.js', () => {
+// 中文注释：统一到 src/js 路径
+vi.mock('../src/js/services/supabaseClient.js', () => {
   const auth = {
     resend: vi.fn(async () => ({ error: null })),
     resetPasswordForEmail: vi.fn(async () => ({ data: { ok: true }, error: null })),
@@ -17,9 +18,9 @@ vi.mock('../js/services/supabaseClient.js', () => {
 });
 
 // Mock config
-vi.mock('../js/services/config.js', () => ({ default: { frontendBaseUrl: 'http://localhost:5173' } }));
+vi.mock('../src/js/services/config.js', () => ({ default: { frontendBaseUrl: 'http://localhost:5173' } }));
 
-import { initAuthUI } from '../js/features/auth_ui.js';
+import { initAuthUI } from '../src/js/features/auth_ui.js';
 
 function setupLoginDOM() {
   document.body.innerHTML = `
@@ -44,7 +45,7 @@ describe('Auth UI bindings on login page', () => {
     link.click();
     // 微小延迟等待事件处理
     await new Promise(r => setTimeout(r, 0));
-    const mod = await import('../js/services/supabaseClient.js');
+    const mod = await import('../src/js/services/supabaseClient.js');
     expect(mod.supabase.auth.resend).toHaveBeenCalledTimes(1);
   });
 
@@ -55,7 +56,7 @@ describe('Auth UI bindings on login page', () => {
     const link = document.getElementById('forgotPwdLink');
     link.click();
     await new Promise(r => setTimeout(r, 0));
-    const mod = await import('../js/services/supabaseClient.js');
+    const mod = await import('../src/js/services/supabaseClient.js');
     expect(mod.supabase.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
   });
 });

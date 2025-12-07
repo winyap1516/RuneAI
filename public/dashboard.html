@@ -10,6 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <link rel="preload" href="./components/card_userinfo.html" as="fetch" crossorigin />
+    <link rel="stylesheet" href="./components/welcome_card.css" />
+    <link rel="stylesheet" href="./components/rune_space.css" />
     <!-- Supabase SDK (Phase 5) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
@@ -174,6 +177,9 @@
       
       .sidebar.aside-collapsed [data-name] .category-filter {
           display: none !important;
+      }
+      .sidebar.aside-collapsed [data-name] .category-icon {
+          display: inline-flex !important;
       }
 
       /* In collapsed mode, we might want to show the first letter of the category name.
@@ -485,7 +491,12 @@
         <!-- 侧栏头部：Logo + 折叠按钮 -->
         <div class="sidebar-header flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
           <button id="logoBtn" class="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-lg active:scale-95 transition-transform" aria-label="Toggle Sidebar" tabindex="0">
-            <img src="logo/logo_icon.png" alt="Rune AI" class="w-10 h-10 rounded-full transition-all duration-300" />
+            <!-- 中文注释：为避免相对路径在不同部署根目录下解析失败，这里改用内联 SVG 作为品牌图标，统一渲染且不依赖 /logo 静态资源目录 -->
+            <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-white dark:bg-surface-dark shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-8 h-8 text-primary" fill="none" aria-hidden="true">
+                <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+              </svg>
+            </div>
             <div class="brand-text flex flex-col items-start">
                <h1 class="brand-title text-lg font-bold leading-tight">Rune AI</h1>
                <p class="brand-tagline text-xs text-text-secondary-light dark:text-text-secondary-dark font-normal tracking-wide">Runes of Intelligence</p>
@@ -497,13 +508,21 @@
         <!-- 侧栏主体：分组导航 -->
         <div class="sidebar-body flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           <nav id="sideNav" class="flex flex-col gap-3 px-4 py-2">
+            <!-- RuneSpace Navigation Item (Top) -->
+            <div class="rounded-lg">
+               <a id="navRuneSpace" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Rune Space" data-tooltip="Rune Space">
+                  <span class="material-symbols-outlined text-xl">dashboard</span>
+                  <span class="nav-label text-sm font-medium leading-normal">Rune Space</span>
+               </a>
+            </div>
+
             <!-- LINKS 组：分类列表 + 新增分类按钮 -->
             <div class="rounded-lg">
               <button id="linksGroupHeader" class="flex items-center justify-between w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="LINKS" data-tooltip="Links">
                 <span class="nav-section-title">LINKS</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </button>
-              <div id="linksGroupBody" class="flex flex-col gap-2 mt-1">
+              <div id="linksGroupBody" class="flex flex-col gap-2 mt-1 mb-2">
                 <div id="linksGroupList" class="flex flex-col gap-2"></div>
                 <button id="addCategoryBtn" class="mt-2 h-9 px-3 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20 soft-hover" title="New Category">+ New Category</button>
               </div>
@@ -523,6 +542,11 @@
                 <a id="navChat" href="#" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Chat / AI Assistant" data-tooltip="Chat / AI Assistant">
                   <span class="material-symbols-outlined text-xl">chat</span>
                   <span class="nav-label text-sm font-medium leading-normal">Chat / AI Assistant</span>
+                </a>
+                <!-- 中文注释：新增发送历史（登录可见，由 JS 控制可见性） -->
+                <a id="navSendLogs" href="#/send-logs" class="nav-item flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 soft-hover" title="Send Logs" data-tooltip="Send Logs">
+                  <span class="material-symbols-outlined text-xl">receipt_long</span>
+                  <span class="nav-label text-sm font-medium leading-normal">Send Logs</span>
                 </a>
               </div>
             </div>
@@ -568,14 +592,21 @@
         </header>
 
         <!-- 主内容区：欢迎卡片 + 页面标题 + 卡片网格 + 调试按钮 -->
+        
+        <!-- 动态视图容器 (All Links / Digest / Chat / RuneSpace) -->
         <main class="flex-1 p-6">
-          <div id="userWelcomeCard" class="mb-6"><!-- 由 JS 动态加载欢迎卡片 --></div>
-          <div class="flex flex-wrap justify-between gap-3 mb-6">
-            <h1 class="text-text-primary-light dark:text-text-primary-dark text-3xl font-bold leading-tight tracking-tight">All Links</h1>
-          </div>
-          <div id="cardsContainer" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
-          <div class="mt-6">
-           
+          <!-- RuneSpace View: Welcome Card (Default Hidden, Toggled by JS) -->
+          <section id="runeSpaceView" class="hidden mb-6">
+            <div id="userWelcomeCard"></div>
+          </section>
+
+          <!-- Links View: Title & Grid -->
+          <div id="linksViewContainer">
+            <div class="flex flex-wrap justify-between gap-3 mb-6">
+              <h1 class="text-text-primary-light dark:text-text-primary-dark text-3xl font-bold leading-tight tracking-tight">All Links</h1>
+            </div>
+            <div id="cardsContainer" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+            <div class="mt-6"></div>
           </div>
         </main>
       </div>
@@ -691,8 +722,16 @@
 
     <!-- ✅ 脚本引用：入口唯一，统一由 js/main.js 控制路由与挂载 -->
     <!-- Phase 5: 使用 dashboard_init.js 进行初始化 -->
-    <script type="module" src="js/dashboard_init.js"></script>
-    <script type="module" src="js/main.js"></script>
+    <!-- 中文注释：统一绝对路径至 /src/js，避免 public 相对路径 404 -->
+    <!-- 中文注释：改为相对路径，确保 Vite 构建阶段可解析源码模块 -->
+    <!-- 中文注释：通过 public/entry.js 统一入口，确保 Vite 注入 import.meta.env -->
+    <script type="module" src="./entry.js"></script>
+    <!-- Welcome Card 组件支持 -->
+    <!-- 中文注释：统一绝对路径至 /css 与修正组件文件名 -->
+    <!-- 中文注释：修复绝对路径为相对路径，兼容 root=public 与子路径部署 -->
+    <!-- 中文注释：组件样式迁移至 public/components，修正相对路径以适配 Vite 静态目录策略 -->
+    <!-- 中文注释：组件脚本使用相对路径 ../src/... 以兼容构建 -->
+    <!-- 组件脚本由 entry.js 在检测到 dashboard.html 时按需加载 -->
     <!-- 中文注释：通用文本输入模态，用于替代 prompt()，防止浏览器禁用导致交互失败 -->
     <div id="textPromptModal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;z-index:60;">
       <div style="width:100%;max-width:560px;background:#fff;border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.12);">

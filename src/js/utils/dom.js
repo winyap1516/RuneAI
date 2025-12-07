@@ -42,12 +42,46 @@ export function fadeIn(el, duration = 300) {
 // 折叠展开动画（侧边栏可用）
 export function slideToggle(el, duration = 200) {
   if (!el) return;
-  if (el.style.maxHeight) {
-    el.style.transition = `max-height ${duration}ms ease-in-out`;
-    el.style.maxHeight = null;
+  
+  // 获取当前计算样式高度
+  // 如果当前是展开的（自然高度或固定高度），则收缩
+  // 如果当前是收缩的（maxHeight=0 或 display=none），则展开
+  
+  const isCollapsed = !el.style.maxHeight || el.style.maxHeight === '0px';
+  // 注意：上面的判断对于初始状态（无内联样式）是不准确的，如果 CSS 默认展开。
+  // 假设默认是展开的。
+  
+  // 改进版逻辑：
+  // 如果有内联 maxHeight 且不为 0px -> 正在展开或已展开 -> 收缩
+  // 如果没有内联 maxHeight -> 假设是展开的 -> 收缩
+  // 除非... 我们用 data 属性标记状态？
+  // 或者：检查 offsetHeight。
+  
+  if (el.offsetHeight > 0 && el.style.maxHeight !== '0px') {
+    // 收缩
+    el.style.transition = `max-height ${duration}ms ease-in-out, opacity ${duration}ms ease-in-out`;
+    el.style.maxHeight = el.scrollHeight + "px"; // 先设为当前高度以便动画
+    el.style.overflow = "hidden";
+    
+    // 强制重绘
+    void el.offsetHeight; 
+    
+    el.style.maxHeight = "0px";
+    el.style.opacity = "0";
   } else {
-    el.style.transition = `max-height ${duration}ms ease-in-out`;
+    // 展开
+    el.style.display = ""; // 确保不是 none
+    el.style.transition = `max-height ${duration}ms ease-in-out, opacity ${duration}ms ease-in-out`;
     el.style.maxHeight = el.scrollHeight + "px";
+    el.style.opacity = "1";
+    
+    // 动画结束后移除 max-height 以适应内容变化
+    setTimeout(() => {
+        if (el.style.maxHeight !== "0px") {
+            el.style.maxHeight = "";
+            el.style.overflow = "";
+        }
+    }, duration);
   }
 }
 

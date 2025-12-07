@@ -1,0 +1,7 @@
+测试时间：2025-12-07T17:46:00Z
+测试文件：public/components/settings_panel.html
+操作：在文件末尾加入注释 <!--TEST: TIMESTAMP 2025-12-07T17:46:00Z-->
+页面：http://localhost:5173/dashboard.html（IDE 预览）
+结果：依据 sw.js 的 Network First HTML 策略，HTML 导航请求应从网络获取最新内容并写入缓存；预期可看到新注释。
+环境限制：当前无法启动独立 Chrome（MCP 未找到可执行文件），无法截取 Network Response Body；建议在系统浏览器中硬刷新（Ctrl+F5）确认。
+结论：策略正确（HTML 未在 ASSETS_TO_CACHE 预缓存，且 fetch 分支对 navigate/text/html 采用 Network First）。

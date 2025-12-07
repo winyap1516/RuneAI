@@ -1,8 +1,8 @@
 // 中文注释：认证视图纯函数封装（便于单元测试）
 // 作用：提供登录/注册/Google 登录/发送重置邮件的简化接口，内部使用统一的 supabase 客户端
 
-import { supabase } from '../services/supabaseClient.js';
-import config from '../services/config.js';
+import { supabase } from '/src/js/services/supabaseClient.js';
+import config from '/src/js/services/config.js';
 
 export async function signIn(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });

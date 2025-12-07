@@ -1,194 +1,101 @@
-// 中文注释：订阅设定页面交互脚本（集中管理抓取频率）
-// 中文注释：该模块提供 window.renderSubscriptionsSettings()，在设置面板打开后渲染订阅列表
+// 中文注释：订阅设置面板（统一管理订阅频道、目标ID、频率与开关）
+import storageAdapter from "/src/js/storage/storageAdapter.js";
 
-import storageAdapter from '../storage/storageAdapter.js';
-import { openConfirm } from '../utils/dom.js';
-import { normalizeUrl } from '../utils/url.js';
+export function mountSubscriptionSettings(container) {
+  if (!container) return;
+  const current = storageAdapter.getGlobalSubscriptionStatus();
+  const settings = safeLoadSettings();
+  const channel = settings.channel || current.channel || 'none';
+  const targetId = settings.target_id || current.target_id || '';
+  const frequency = settings.frequency || current.frequency || 'off';
+  const enabled = current.enabled || frequency !== 'off';
 
-// 中文注释：频率选项映射（与 js/main.js 保持一致）
-const FREQ_OPTIONS = [
-  { value: 'manual', label: 'Manual' },
-  { value: 'every_1m', label: 'Every 1 minute (dev)' },
-  { value: 'hourly', label: 'Hourly' },
-  { value: 'every_6h', label: 'Every 6 hours' },
-  { value: 'daily', label: 'Daily' },
-];
+  container.innerHTML = `
+    <div class="p-4 space-y-4">
+      <h3 class="text-sm font-bold">Subscription Settings</h3>
 
-// 中文注释：监听存储变更，自动刷新 Settings 列表
-storageAdapter.subscribe((event) => {
-  if (event.type === 'subscriptions_changed' || event.type === 'links_changed') {
-    // 只有当 Settings 面板可见时才刷新，避免不必要的 DOM 操作
-    const wrap = document.getElementById('subsSettingsList');
-    if (wrap && wrap.offsetParent !== null) {
-      window.renderSubscriptionsSettings();
-    }
-  }
-});
-
-// 中文注释：渲染订阅设定列表（名称/URL/频率下拉），变更即保存
-window.renderSubscriptionsSettings = async function renderSubscriptionsSettings() {
-  const wrap = document.getElementById('subsSettingsList');
-  if (!wrap) return;
-
-  // 1. 获取所有启用（enabled !== false）的订阅
-  const allSubs = (await storageAdapter.getSubscriptions()).filter(s => s.enabled !== false);
-  
-  // 2. 获取所有卡片链接，用于识别孤儿订阅
-  const links = await storageAdapter.getLinks();
-  // P0: Subscription ID-first logic
-  // We match by ID if available.
-  const linkIdSet = new Set(links.map(l => l.id));
-  const linkUrlSet = new Set(links.map(l => normalizeUrl(l.url)));
-
-  // 3. 分类：正常订阅 vs 孤儿订阅
-  const linkedSubs = [];
-  const orphanSubs = [];
-
-  allSubs.forEach(sub => {
-    let isLinked = false;
-    if (sub.linkId && linkIdSet.has(sub.linkId)) {
-        isLinked = true;
-    } else if (!sub.linkId && linkUrlSet.has(normalizeUrl(sub.url))) {
-        // Fallback for legacy or partial migration
-        isLinked = true;
-    }
-    
-    if (isLinked) {
-      linkedSubs.push(sub);
-    } else {
-      orphanSubs.push(sub);
-    }
-  });
-  
-  wrap.innerHTML = '';
-  
-  // ============================
-  // Render Active Subscriptions
-  // ============================
-  if (linkedSubs.length > 0) {
-    const header = document.createElement('div');
-    header.className = 'mb-4 pb-2 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between';
-    header.innerHTML = `<div class="text-sm font-semibold text-gray-800 dark:text-gray-200">Active Subscriptions (${linkedSubs.length})</div>`;
-    wrap.appendChild(header);
-
-    const list = document.createElement('div');
-    list.className = 'flex flex-col gap-3 mb-8';
-    linkedSubs.forEach(sub => renderRow(sub, list, false));
-    wrap.appendChild(list);
-  } else if (orphanSubs.length === 0) {
-    // No subscriptions at all
-    const empty = document.createElement('div');
-    empty.className = 'text-center py-8 text-sm text-text-secondary-light dark:text-text-secondary-dark';
-    empty.textContent = 'No active subscriptions';
-    wrap.appendChild(empty);
-    return;
-  }
-
-  // ============================
-  // Render Orphan Subscriptions
-  // ============================
-  if (orphanSubs.length > 0) {
-    const header = document.createElement('div');
-    header.className = 'mb-4 pb-2 border-b border-red-100 dark:border-red-900/30 flex items-center justify-between mt-6';
-    header.innerHTML = `
-      <div class="flex items-center gap-2">
-        <div class="text-sm font-semibold text-red-600 dark:text-red-400">Orphaned Subscriptions (${orphanSubs.length})</div>
-        <div class="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">No matching card</div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium mb-2">Channel</label>
+          <select id="subChannel" class="w-full h-9 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 text-xs px-3">
+            <option value="none" ${channel==='none'?'selected':''}>None</option>
+            <option value="telegram" ${channel==='telegram'?'selected':''}>Telegram</option>
+            <option value="whatsapp" ${channel==='whatsapp'?'selected':''}>WhatsApp</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-2">Target ID</label>
+          <input id="subTargetId" class="w-full h-9 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 text-xs px-3" placeholder="Chat ID or Phone" value="${escapeHTML(targetId)}" />
+        </div>
       </div>
-    `;
-    wrap.appendChild(header);
 
-    const list = document.createElement('div');
-    list.className = 'flex flex-col gap-3';
-    for (const sub of orphanSubs) { renderRow(sub, list, true); }
-  wrap.appendChild(list);
-}
-};
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium mb-2">Digest Frequency</label>
+          <select id="subFrequency" class="w-full h-9 rounded-lg bg-gray-50 dark:bg白/5 border border-gray-200 text-xs px-3">
+            <option value="daily" ${frequency==='daily'?'selected':''}>Daily</option>
+            <option value="off" ${frequency!=='daily'?'selected':''}>Off</option>
+          </select>
+        </div>
+        <div class="flex items-end">
+          <label class="inline-flex items-center gap-2 text-xs">
+            <input id="subEnabled" type="checkbox" class="form-checkbox" ${enabled?'checked':''} />
+            <span>Subscription Status</span>
+          </label>
+        </div>
+      </div>
 
-// 中文注释：渲染单行订阅项
-function renderRow(sub, container, isOrphan) {
-    const row = document.createElement('div');
-    row.className = `flex items-center justify-between p-3 rounded-xl border transition-colors ${
-        isOrphan 
-        ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 hover:border-red-200 dark:hover:border-red-800' 
-        : 'bg-gray-50 dark:bg-white/5 border-transparent hover:border-gray-200 dark:hover:border-gray-600'
-    }`;
-    
-    const info = document.createElement('div');
-    info.className = 'flex-1 min-w-0 mr-4';
-    const title = escapeHTML(sub.title || sub.url || 'Untitled');
-    const url = escapeHTML(sub.url || '');
-    info.innerHTML = `
-      <div class="text-sm font-bold truncate text-text-primary-light dark:text-text-primary-dark" title="${title}">${title}</div>
-      <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark truncate" title="${url}">${url}</div>
-      ${isOrphan ? '<div class="text-[10px] text-red-500 mt-0.5">Card deleted or missing</div>' : ''}
-    `;
-    
-    const actions = document.createElement('div');
-    actions.className = 'flex items-center gap-3 shrink-0';
-    
-    // Frequency Select (Only for non-orphans, or maybe both? Let's keep it for both)
-    const sel = document.createElement('select');
-    sel.className = 'px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-black/20 focus:outline-none focus:ring-2 focus:ring-primary/50';
-    FREQ_OPTIONS.forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt.value; 
-      o.textContent = opt.label; 
-      sel.appendChild(o);
-    });
-    sel.value = String(sub.frequency || 'daily');
-    sel.addEventListener('change', async () => {
-      const next = sel.value || 'daily';
-      const arr = await storageAdapter.getSubscriptions();
-      const idx = arr.findIndex(s => String(s.id) === String(sub.id));
-      if (idx !== -1) {
-        await storageAdapter.updateSubscription({ ...arr[idx], frequency: next });
-        // Toast
-        try {
-            showToast('Frequency updated');
-        } catch {}
+      <div class="text-right">
+        <button id="subSaveBtn" class="h-9 px-3 rounded-lg bg-primary text-white text-xs font-semibold">Save</button>
+      </div>
+    </div>
+  `;
+
+  const elChannel = container.querySelector('#subChannel');
+  const elTarget = container.querySelector('#subTargetId');
+  const elFreq = container.querySelector('#subFrequency');
+  const elEnabled = container.querySelector('#subEnabled');
+  const saveBtn = container.querySelector('#subSaveBtn');
+
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const newChannel = String(elChannel.value || 'none');
+      const newTarget = String(elTarget.value || '').trim();
+      const newFreq = String(elFreq.value || 'off');
+      const newEnabled = !!elEnabled.checked;
+
+      setBtnLoading(saveBtn, true, 'Saving...');
+      try {
+        // 中文注释：先保存全局设置，随后批量更新所有订阅记录（按当前用户的所有网站）
+        saveSettings({ channel: newChannel, target_id: newTarget, frequency: newFreq });
+        await storageAdapter.setGlobalSubscriptionSettings({ enabled: newEnabled, frequency: newFreq, channel: newChannel, target_id: newTarget });
+      } catch (err) {
+        console.error('[SubscriptionSettings] save failed', err);
+      } finally {
+        setBtnLoading(saveBtn, false);
       }
     });
-
-    // Unsubscribe Button
-    const unsubBtn = document.createElement('button');
-    unsubBtn.className = 'px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors';
-    unsubBtn.textContent = 'Unsubscribe';
-    unsubBtn.onclick = async () => {
-        openConfirm({
-            title: isOrphan ? 'Remove orphan subscription?' : 'Unsubscribe?',
-            message: isOrphan 
-                ? `This subscription has no matching card. Are you sure you want to remove it?` 
-                : `Are you sure you want to unsubscribe from "${title}"?`,
-            okText: 'Confirm',
-            okDanger: true,
-            onOk: async () => {
-                // 使用 storageAdapter 删除订阅（符合“取消订阅移至 Settings”的规范）
-                const arr = await storageAdapter.getSubscriptions();
-                const current = arr.find(s => String(s.id) === String(sub.id));
-                if (current) {
-                    await storageAdapter.unsubscribeFromLink(current.linkId);
-                }
-            }
-        });
-    };
-
-    actions.appendChild(sel);
-    actions.appendChild(unsubBtn);
-    
-    row.appendChild(info);
-    row.appendChild(actions);
-    container.appendChild(row);
+  }
 }
 
-function showToast(msg) {
-    const ok = document.createElement('div');
-    ok.className = 'fixed bottom-6 right-6 z-[100] px-4 py-2 rounded-lg bg-primary text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-4';
-    ok.textContent = msg;
-    document.body.appendChild(ok);
-    setTimeout(() => ok.remove(), 1500);
+function safeLoadSettings() {
+  try { return JSON.parse(localStorage.getItem('rune_subscription_settings') || '{}'); } catch { return {}; }
 }
 
-function escapeHTML(str) {
-  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+function saveSettings(s) {
+  try { localStorage.setItem('rune_subscription_settings', JSON.stringify({ ...(safeLoadSettings()||{}), ...s, updated_at: new Date().toISOString() })); } catch {}
 }
+
+function setBtnLoading(btn, active, text) {
+  if (!btn) return;
+  if (active) {
+    btn.dataset.orig = btn.textContent;
+    btn.innerHTML = `<span class="spinner"></span> ${text||'Saving...'}`;
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.orig || 'Save';
+    btn.disabled = false;
+  }
+}
+
+function escapeHTML(s='') { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

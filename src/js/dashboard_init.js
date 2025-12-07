@@ -5,14 +5,16 @@
 import { supabase } from './services/supabaseClient.js';
 import { linkController } from './controllers/linkController.js';
 import { initAuthUI } from './features/auth_ui.js';
-import storageAdapter from './storage/storageAdapter.js';
+import storageAdapter from '/src/js/storage/storageAdapter.js';
+import { initDashboard } from './features/dashboard.js';
 
 // P5: 访问控制 - 页面加载时立即检查 Session
 (async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      console.warn('[Dashboard] No active session, redirecting to login...');
+      // 中文注释（P0 修复）：未登录状态统一跳转至 login.html（与登出行为一致）
+      console.warn('[Dashboard] No active session, redirecting to login.html');
       window.location.href = 'login.html';
       return;
     }
@@ -40,12 +42,12 @@ import storageAdapter from './storage/storageAdapter.js';
     // 3. 触发同步 (确保数据是最新的)
     linkController.initSyncAfterLogin();
     
-    // 4. 加载主程序逻辑 (原 main.js 的部分逻辑移至此处或保留在 main.js)
-    // 注意：如果 dashboard.html 仍引用 main.js，请确保 main.js 不会重复执行冲突逻辑
-    // 这里假设 main.js 会处理具体的 UI 渲染 (Cards, Sidebar etc.)
+    // 4. 加载主程序逻辑 (原 main.js 的部分逻辑移至此处)
+    // 确保仅在 Auth Ready 后调用一次
+    initDashboard();
     
   } catch (e) {
     console.error('[Dashboard] Init failed:', e);
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   }
 })();

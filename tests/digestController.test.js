@@ -5,15 +5,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // 先进行模块模拟（mock），再导入被测模块与依赖
-vi.mock('../js/storage/storageAdapter.js');
-vi.mock('../js/services/ai.js');
-vi.mock('../js/services/quota.js');
-vi.mock('../js/utils/url.js', () => ({ normalizeUrl: (u) => u }));
+// 中文注释：迁移到 src/js 路径，保持测试与源码一致
+vi.mock('../src/js/storage/storageAdapter.js');
+vi.mock('../src/js/services/ai.js');
+vi.mock('../src/js/services/quota.js');
+vi.mock('../src/js/utils/url.js', () => ({ normalizeUrl: (u) => u }));
 
-import { digestController } from '../js/controllers/digestController.js';
-import storageAdapter from '../js/storage/storageAdapter.js';
-import { createDigestForWebsite } from '../js/services/ai.js';
-import * as quotaService from '../js/services/quota.js';
+import { digestController } from '../src/js/controllers/digestController.js';
+import storageAdapter from '../src/js/storage/storageAdapter.js';
+import { createDigestForWebsite } from '../src/js/services/ai.js';
+import * as quotaService from '../src/js/services/quota.js';
 
 describe('Digest Controller', () => {
   beforeEach(() => {

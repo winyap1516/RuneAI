@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import * as linksView from '../js/views/linksView.js'
+// 中文注释：统一到 src/js 路径
+import * as linksView from '../src/js/views/linksView.js'
 
 // 中文注释：Add Link 重复卡片问题修复的自动化测试
 
@@ -45,6 +46,10 @@ describe('Add Link duplicate prevention', () => {
         // 模拟控制器调用视图插入
         linksView.addSingleCardUI(added)
         return added
+      },
+      // 中文注释：提供 getSubscriptions 空实现，避免视图在更新 UI 状态时抛出未定义错误
+      async getSubscriptions() {
+        return []
       }
     }
 

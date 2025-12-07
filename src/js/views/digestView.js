@@ -1,5 +1,7 @@
-import { USER_ID, DIGEST_TYPE, LIMITS, COOLDOWN } from "../config/constants.js";
-import { escapeHTML } from "../utils/ui-helpers.js";
+// 中文注释：仅保留真实 Edge 流程所需的用户标识常量
+import { USER_ID } from "/src/js/config/constants.js";
+import { escapeHTML } from "/src/js/utils/ui-helpers.js";
+import { callFunction } from "/src/js/services/supabaseClient.js";
 
 let _containerEl = null; // This view renders into mainEl directly or a specific container? 
 // dashboard.js renderDigestView replaced mainEl content.
@@ -22,17 +24,21 @@ export function initDigestView({ containerEl, controllers, templates, utils }) {
 export async function renderDigests(list = null) {
     if (!_containerEl) return;
     
-    // 1. Mount Base Layout
-    const { mountHTML, on } = _utils.dom;
+    // 1. 渲染 Digest 视图的基础布局到独立容器（避免清空 <main>）
+    const { mountHTML } = _utils.dom;
     mountHTML(_containerEl, `
-      <section class="p-6">
         <div class="mb-4">
           <h1 class="text-2xl font-bold">AI Digest</h1>
           <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">Recent digests generated from subscriptions.</p>
         </div>
-        <div class="mb-3">
-          <button id="digestMockGenerate" class="h-9 px-3 rounded-lg bg-primary text-white text-sm font-semibold">Generate Today's Digest</button>
-          <button id="digestRetryErrors" class="h-9 ml-2 px-3 rounded-lg bg-gray-100 dark:bg-white/10 text-sm">Retry Failed Subscriptions</button>
+        <div class="mb-3 flex items-center gap-3">
+          <!-- 中文注释：手动生成入口（Edge Functions，mode=manual） -->
+          <button id="digestManualGenerate" class="h-9 px-3 rounded-lg bg-primary/10 text-primary text-sm font-semibold">Generate (Manual)</button>
+          <!-- 中文注释：自动生成（AI Scheduler）开关；开启后写入订阅 frequency 与 channel -->
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input id="digestAutoToggle" type="checkbox" class="form-checkbox rounded" />
+            <span>Auto Generate (AI)</span>
+          </label>
         </div>
         <div class="flex items-center gap-3 mb-3">
           <input id="digestDate" type="date" class="form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none text-sm" />
@@ -40,7 +46,6 @@ export async function renderDigests(list = null) {
           <input id="digestSearch" placeholder="Search summaries/titles…" class="form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none text-sm flex-1" />
         </div>
         <div id="digestList" class="digest-grid"></div>
-      </section>
     `);
 
     // 2. Fetch Data
@@ -63,10 +68,7 @@ export async function renderDigests(list = null) {
     const all = _controllers.digestController.mergeDigestEntries(rawDigests, links);
     updateDigestList(all);
     
-    // 5. Initialize Limit UI
-    updateDigestLimitUI();
-    
-    // 6. Bind Events (Local to this view render)
+    // 5. 绑定事件（仅保留 Edge 入口逻辑）
     bindDigestEvents();
 }
 
@@ -104,7 +106,8 @@ export function bindDigestEvents() {
     const dateEl = document.getElementById('digestDate');
     const sel = document.getElementById('digestSub');
     const searchEl = document.getElementById('digestSearch');
-    const mockBtn = document.getElementById('digestMockGenerate');
+    const manualBtn = document.getElementById('digestManualGenerate');
+    const autoToggle = document.getElementById('digestAutoToggle');
     
     const refresh = async () => {
         const { items } = await digestController.fetchPage(0, 20);
@@ -117,52 +120,46 @@ export function bindDigestEvents() {
     if (sel) on(sel, 'change', refresh);
     if (searchEl) on(searchEl, 'input', refresh);
     
-    // Generate Daily Digest
-    if (mockBtn) on(mockBtn, 'click', async () => {
-        const userId = _utils.storageAdapter?.getUser()?.id || USER_ID.GUEST;
-        const isDev = userId === USER_ID.DEFAULT;
-        const limit = isDev ? LIMITS.DEV_LIMIT : LIMITS.DAILY_GENERATE;
-        
-        const usage = digestController.getDailyUsageCount(userId, DIGEST_TYPE.DAILY);
-        if (usage >= limit) {
-            openInfoModal({ title: 'Limit Reached', message: `Daily limit of ${limit} reached.` });
-            return;
-        }
-        
-        const lastTime = digestController.getLastGenerationTime(null, DIGEST_TYPE.DAILY);
-        if (Date.now() - lastTime < COOLDOWN.DURATION_MS) {
-            const wait = Math.ceil((COOLDOWN.DURATION_MS - (Date.now() - lastTime))/1000);
-            openInfoModal({ title: 'Cooldown', message: `Please wait ${wait}s.` });
-            return;
-        }
-        
-        setLoading(mockBtn, true, 'Generating…');
-        mockBtn.dataset.loading = '1';
-        
+    // 中文注释：移除旧本地 Mock 生成与重试逻辑，仅保留 Edge 入口
+
+    // 中文注释：手动生成（Edge Function，mode=manual，不依赖订阅与队列）
+    if (manualBtn) on(manualBtn, 'click', async () => {
+        setLoading(manualBtn, true, 'Generating…');
         try {
-            const targetId = sel?.value || null;
-            const { successCount, failedCount, errors } = await digestController.generateDailyDigest(targetId);
-            
-            if (successCount === 0 && failedCount === 0) {
-                 openInfoModal({ title: 'No Subscriptions', message: 'No active subscriptions found.' });
-                 return;
+            const user = _utils.storageAdapter?.getUser();
+            const uid = user?.id || USER_ID.GUEST;
+            const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
+            const json = await resp.json().catch(()=>({}));
+            if (resp.ok && json?.ok) {
+                showToast('Digest generated (Edge)', 'success');
+                await refresh();
+            } else {
+                openTextPrompt({ title: 'Generate Failed', placeholder: json?.error || `HTTP ${resp.status}` });
             }
-            if (successCount === 0 && failedCount > 0) {
-                 throw new Error(errors[0]?.error || 'Failed to generate.');
-            }
-            
-            showToast(`Generated ${successCount} digests!`, 'success');
-            refresh();
-            updateDigestLimitUI();
-            
-        } catch (err) {
-            openTextPrompt({ title: 'Generation Failed', placeholder: err.message });
         } finally {
-            delete mockBtn.dataset.loading;
-            setLoading(mockBtn, false);
-            updateDigestLimitUI();
+            setLoading(manualBtn, false);
         }
     });
+
+    // 中文注释：自动生成开关（开启→订阅 enabled=true & frequency=daily；关闭→enabled=false & frequency=off）
+    if (autoToggle) {
+        // 初始化状态
+        try {
+            const st = _utils.storageAdapter.getGlobalSubscriptionStatus();
+            autoToggle.checked = !!st.enabled;
+        } catch {}
+        on(autoToggle, 'change', async () => {
+            const enabled = autoToggle.checked;
+            const frequency = enabled ? 'daily' : 'off';
+            try {
+                await _utils.storageAdapter.setGlobalSubscriptionSettings({ enabled, frequency });
+                showToast(enabled ? 'Auto generation enabled' : 'Auto generation disabled', 'success');
+            } catch (err) {
+                openTextPrompt({ title: 'Update Failed', placeholder: err.message });
+                autoToggle.checked = !enabled; // revert
+            }
+        });
+    }
 
     // Delete Digest
     const listEl = document.getElementById('digestList');
@@ -201,6 +198,30 @@ export function bindDigestEvents() {
         const target = merged.find(x => x.id === id); // merged ID is like 'daily_...'
         
         if (target) showDigestDetail(target);
+    });
+
+    // 中文注释：预览摘要（展示 summary 文案，便于复制）
+    delegate(listEl, '.digest-preview-btn', 'click', async (e, btn) => {
+        e.preventDefault(); e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        const all = await digestController.getDigestList();
+        const d = all.find(x => x.id === id);
+        const summary = d?.summary || '';
+        openTextPrompt({ title: 'Digest Preview', placeholder: summary || 'No summary available.' });
+    });
+
+    // 中文注释：手动发送（调用 /enqueue-send 将该 digest 入队）
+    delegate(listEl, '.digest-send-btn', 'click', async (e, btn) => {
+        e.preventDefault(); e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        if (!id) return;
+        const resp = await callFunction('enqueue-send', { method: 'POST', body: JSON.stringify({ digest_id: id }) });
+        const json = await resp.json().catch(()=>({}));
+        if (resp.ok && json?.ok) {
+            showToast('Enqueued for sending', 'success');
+        } else {
+            openTextPrompt({ title: 'Enqueue Failed', placeholder: json?.error || `HTTP ${resp.status}` });
+        }
     });
 }
 
@@ -323,33 +344,7 @@ function showDigestDetail(d) {
     panel.onclick = (ev) => { if(ev.target===panel) hide(panel); };
 }
 
-function updateDigestLimitUI() {
-    const { digestController } = _controllers;
-    const userId = _utils.storageAdapter?.getUser()?.id || USER_ID.GUEST;
-    const btn = document.getElementById('digestMockGenerate');
-    if (!btn) return;
-    
-    // Reusing checkAndApplyCooldown logic logic locally or import?
-    // I'll just implement simple check here.
-    const isDev = userId === USER_ID.DEFAULT;
-    const limit = isDev ? LIMITS.DEV_LIMIT : LIMITS.DAILY_GENERATE;
-    const count = digestController.getDailyUsageCount(userId, DIGEST_TYPE.DAILY);
-    
-    if (count >= limit) {
-        btn.disabled = true;
-        btn.textContent = 'Limit Reached';
-        return;
-    }
-    
-    const lastTime = digestController.getLastGenerationTime(null, DIGEST_TYPE.DAILY);
-    if (Date.now() - lastTime < COOLDOWN.DURATION_MS) {
-        btn.disabled = true;
-        btn.textContent = 'Cooldown...';
-    } else {
-        btn.disabled = false;
-        btn.textContent = "Generate Today's Digest";
-    }
-}
+// 中文注释：已删除本地限额 UI 与 Mock 入口，页面仅保留 Edge 入口按钮
 
 function setLoading(btn, isActive, text) {
     if (!btn) return;

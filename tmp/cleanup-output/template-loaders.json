@@ -1,0 +1,260 @@
+[
+  {
+    "caller_file": "src/js/components/modal-conflict.js",
+    "line": 37,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/components/settings-panel.js",
+    "line": 13,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/components/settings-panel.js",
+    "line": 93,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/components/user-welcome-card.js",
+    "line": 50,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/features/dashboard.js",
+    "line": 403,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/features/dashboard.js",
+    "line": 447,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/features/dashboard.js",
+    "line": 454,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/features/dashboard.js",
+    "line": 498,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/features/dashboard.js",
+    "line": 532,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/main.js",
+    "line": 104,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/utils/dom.js",
+    "line": 99,
+    "template_url": null,
+    "type": "insertAdjacentHTML"
+  },
+  {
+    "caller_file": "src/js/utils/dom.js",
+    "line": 16,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/utils/dom.js",
+    "line": 24,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/utils/ui-helpers.js",
+    "line": 151,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 98,
+    "template_url": null,
+    "type": "insertAdjacentHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 256,
+    "template_url": null,
+    "type": "insertAdjacentHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 64,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 95,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 230,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 240,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 312,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 330,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 334,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 353,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/digestView.js",
+    "line": 356,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 44,
+    "template_url": null,
+    "type": "insertAdjacentHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 203,
+    "template_url": null,
+    "type": "insertAdjacentHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 269,
+    "template_url": null,
+    "type": "insertAdjacentHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 32,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 123,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 168,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 411,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 426,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 439,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 458,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 717,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "src/js/views/linksView.js",
+    "line": 720,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "tests/add_link_dedup.test.js",
+    "line": 18,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "tests/add_link_dedup.test.js",
+    "line": 35,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "tests/auth_ui_resend_e2e.test.js",
+    "line": 26,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "tests/sidebar_all_links.test.js",
+    "line": 18,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "tests/sidebar_all_links.test.js",
+    "line": 27,
+    "template_url": null,
+    "type": "innerHTML"
+  },
+  {
+    "caller_file": "tests/sidebar_all_links.test.js",
+    "line": 33,
+    "template_url": null,
+    "type": "innerHTML"
+  }
+]

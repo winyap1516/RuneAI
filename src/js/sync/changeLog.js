@@ -2,8 +2,8 @@
 // 作用：本地优先记录 create/update/delete 变更，支持离线使用与可靠上报
 // 存储：优先使用 IndexedDB 新建 store `client_changes_local`；若不可用则回退至 localStorage
 
-import db from '../storage/db.js';
-import { logger } from '../services/logger.js';
+import db from '/src/js/storage/db.js';
+import { logger } from '/src/js/services/logger.js';
 
 const LS_KEY = 'rune_client_changes_local';
 

@@ -1,5 +1,5 @@
-import { DIGEST_TYPE } from "../config/constants.js";
-import { escapeHTML } from "../utils/ui-helpers.js";
+import { DIGEST_TYPE } from "/src/js/config/constants.js";
+import { escapeHTML } from "/src/js/utils/ui-helpers.js";
 
 /**
  * Create Digest Card HTML
@@ -61,6 +61,9 @@ export function createDigestCard(d) {
         </div>
       </div>
       
+      <!-- 中文注释：摘要预览（截断至 300 字），便于快速浏览与复制 -->
+      ${d.summary ? `<div class="text-sm text-text-secondary-light dark:text-text-secondary-dark mb-3 line-clamp-5">${escapeHTML(String(d.summary).slice(0,300))}${String(d.summary).length>300?'…':''}</div>` : ''}
+
       <div class="flex items-center justify-between mb-4">
          <div class="text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark bg-gray-100 dark:bg-white/5 px-2 py-1 rounded">ID: ${escapeHTML(d.id).slice(0, 8)}...</div>
          <div class="text-xs font-semibold text-primary">${siteCount} sites</div>
@@ -72,8 +75,11 @@ export function createDigestCard(d) {
       </div>
       <div class="mt-3 flex items-center justify-end gap-3">
         <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Generated at: ${escapeHTML(tsText)}</div>
-        <button class="digest-view-btn btn btn-small btn-outline" data-id="${escapeHTML(d.id)}">
-          <span class="material-symbols-outlined text-base">chevron_right</span> View Summary
+        <button class="digest-preview-btn btn btn-small btn-outline" data-id="${escapeHTML(d.id)}">
+          <span class="material-symbols-outlined text-base">visibility</span> Preview
+        </button>
+        <button class="digest-send-btn btn btn-small btn-primary" data-id="${escapeHTML(d.id)}">
+          <span class="material-symbols-outlined text-base">send</span> Send Now
         </button>
       </div>
     </div>

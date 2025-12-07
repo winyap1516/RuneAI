@@ -5,10 +5,14 @@
 // - 统一为每条记录补齐 user_id（本地开发固定为 local-dev）
 // - 保留事件总线与部分 legacy 字段（如 categories、本地审计日志）以减少 UI 改动
 
-import { normalizeUrl } from '../utils/url.js';
+import { normalizeUrl } from '/src/js/utils/url.js';
 import db, { websites as Websites, subscriptions as Subs, digests as Digests } from './db.js';
-import { addChange as enqueueChange } from '../sync/changeLog.js';
-import { getServerId } from '../sync/idMapping.js';
+// 中文注释：文本处理工具来自旧版 js/services，为保持兼容性在此跨树导入
+// 注意：从 src/js/storage 路径回到仓库根后再进入 js/services
+// 中文注释：文本处理工具（已迁移到 src/js/services）
+import { cleanTextForStorage, enforceFieldLengths, sanitizeText, preprocessText, truncateText } from '/src/js/services/text_service.js';
+import { addChange as enqueueChange } from '/src/js/sync/changeLog.js';
+import { getServerId } from '/src/js/sync/idMapping.js';
 
 const KEYS = {
   LINKS: 'rune_cards',
@@ -239,6 +243,7 @@ export const storageAdapter = {
     const entry = {
       id: generateId(),
       timestamp: Date.now(),
+      created_at: new Date().toISOString(),
       ...log
     };
     history.push(entry);
@@ -293,11 +298,16 @@ export const storageAdapter = {
   // Links (Cards) Operations → IndexedDB
   // =========================
 
+  /**
+   * Get all links for current user
+   * @returns {Promise<Array<Object>>} List of link objects
+   */
   async getLinks() {
-    // 从 IndexedDB 读取，并在返回时按 UI 需要补充字段（id、subscribed）
-    const all = await Websites.getAll();
-    const subs = await Subs.getAll();
-    const subscribedSet = new Set(subs.map(s => s.website_id));
+    // 中文注释：按当前用户读取网站列表与订阅列表，避免不同用户数据交叉导致 UI 状态错误
+    const userId = (this.getUser()?.id) || 'local-dev';
+    const all = await Websites.getAll(userId);
+    const subs = await Subs.getAll(userId);
+    const subscribedSet = new Set(subs.filter(s => s.enabled !== false).map(s => s.website_id));
     // 兼容 UI：保持 id 字段与 previousUrls
     return all.map(w => ({
       id: w.website_id,
@@ -312,14 +322,19 @@ export const storageAdapter = {
     }))
   },
 
-  // 分页获取 Links
+  /**
+   * Get paginated links
+   * @param {Object} options { limit, offset }
+   * @returns {Promise<Object>} { items, total, hasMore }
+   */
   async getLinksPage({ limit = 20, offset = 0 } = {}) {
+    // 中文注释：分页读取时同样按当前用户过滤订阅集合，保证状态正确
     const userId = (this.getUser()?.id) || 'local-dev';
     const { items, total, hasMore } = await Websites.getPage(userId, { limit, offset });
     
-    // 需要附加订阅状态
-    const subs = await Subs.getAll(); // 优化：这里最好只查当前页相关的订阅，但Subs表不大，暂且全查
-    const subscribedSet = new Set(subs.map(s => s.website_id));
+    // 需要附加订阅状态（当前用户）
+    const subs = await Subs.getAll(userId);
+    const subscribedSet = new Set(subs.filter(s => s.enabled !== false).map(s => s.website_id));
 
     const mappedItems = items.map(w => ({
       id: w.website_id,
@@ -336,14 +351,25 @@ export const storageAdapter = {
     return { items: mappedItems, total, hasMore };
   },
 
+  /**
+   * Add a new link
+   * @param {Object} link Link data
+   * @param {Object} options
+   * @returns {Promise<Object>} Created link
+   */
   async addLink(link, options = {}) {
     // 简单查重：url+user 唯一
     const existed = await Websites.getByUrl(link.url)
     if (existed) throw new Error('Link already exists')
-    const record = await Websites.create({
-      url: link.url,
+    // 文本字段预处理与长度限制
+    const limited = enforceFieldLengths({
       title: link.title || link.url,
       description: link.description || '',
+    })
+    const record = await Websites.create({
+      url: link.url,
+      title: cleanTextForStorage(limited.title, 200),
+      description: cleanTextForStorage(limited.description, 2000),
       category: link.category || null,
       user_id: (this.getUser()?.id) || 'local-dev',
     })
@@ -359,11 +385,25 @@ export const storageAdapter = {
     }
   },
 
+  /**
+   * Update a link
+   * @param {number} id Website ID
+   * @param {Object} patch Data to update
+   * @param {Object} options
+   * @returns {Promise<Object|null>} Updated link
+   */
   async updateLink(id, patch, options = {}) {
     const existing = await Websites.getById(id)
     if (!existing) return null
+    // 字段清洗与长度限制
+    const limitedPatch = enforceFieldLengths({
+      title: patch?.title,
+      description: patch?.description,
+    })
     const updated = await Websites.update(id, {
       ...patch,
+      title: limitedPatch.title != null ? cleanTextForStorage(limitedPatch.title, 200) : existing.title,
+      description: limitedPatch.description != null ? cleanTextForStorage(limitedPatch.description, 2000) : existing.description,
       // 维护 URL 变更历史（previousUrls）
       previousUrls: (() => {
         const prev = existing.previousUrls || []
@@ -382,6 +422,12 @@ export const storageAdapter = {
     return { id, website_id: id, ...updated }
   },
 
+  /**
+   * Delete a link
+   * @param {number} id Website ID
+   * @param {Object} options
+   * @returns {Promise<boolean>}
+   */
   async deleteLink(id, options = {}) {
     // 删除网站并级联清理订阅与摘要
     await Websites.delete(id)
@@ -404,8 +450,9 @@ export const storageAdapter = {
   // =========================
 
   async getSubscriptions() {
-    // 从 IndexedDB 读取，兼容现有 UI 字段
-    const list = await Subs.getAll()
+    // 中文注释：按当前用户读取订阅列表，并返回扩展字段（channel/target_id/consent_time/frequency）
+    const userId = (this.getUser()?.id) || 'local-dev';
+    const list = await Subs.getAll(userId)
     return list.map(s => ({
       id: s.subscription_id,
       subscription_id: s.subscription_id,
@@ -415,6 +462,9 @@ export const storageAdapter = {
       title: s.title,
       frequency: s.frequency || 'daily',
       enabled: s.enabled !== false,
+      channel: s.channel || 'none',
+      target_id: s.target_id || '',
+      consent_time: s.consent_time || null,
       last_generated_at: s.last_generated_at || 0,
       created_at: s.created_at,
     }))
@@ -443,6 +493,9 @@ export const storageAdapter = {
       title: link.title || link.url,
       frequency: 'daily',
       enabled: true,
+      channel: (safeLoad('rune_subscription_settings', { channel: 'none' }).channel || 'none'),
+      target_id: (safeLoad('rune_subscription_settings', { target_id: '' }).target_id || ''),
+      consent_time: new Date().toISOString(),
       user_id: (this.getUser()?.id) || 'local-dev',
     })
     // 写入本地变更日志（create subscription）
@@ -467,7 +520,8 @@ export const storageAdapter = {
     console.log('[Storage] unsubscribeFromLink start', linkId);
     // 修复：将字符串linkId转换为数字类型，与数据库中的website_id匹配
     const numericLinkId = typeof linkId === 'string' ? parseInt(linkId, 10) : linkId;
-    await Subs.deleteByWebsite(numericLinkId)
+    // 中文注释：软禁用而非删除，保留记录
+    await Subs.upsert({ website_id: numericLinkId, enabled: false, user_id: (this.getUser()?.id) || 'local-dev' })
     // 写入本地变更日志（delete subscription）
     const subsList = await Subs.getAll();
     const sub = subsList.find(s => s.website_id === numericLinkId);
@@ -480,6 +534,42 @@ export const storageAdapter = {
       try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
     }
     return true
+  },
+
+  // =========================
+  // Global Subscription Settings
+  // =========================
+  async setGlobalSubscriptionSettings({ enabled, frequency, channel, target_id }) {
+    const userId = (this.getUser()?.id) || 'local-dev';
+    const links = await Websites.getAll(userId);
+    // 先保存全局设置到 localStorage，供订阅创建时读取
+    safeSave('rune_subscription_settings', {
+      channel: channel || 'none',
+      target_id: target_id || '',
+      frequency: frequency || (enabled ? 'daily' : 'off'),
+      updated_at: new Date().toISOString()
+    });
+    for (const w of links) {
+      await Subs.upsert({
+        website_id: w.website_id,
+        url: w.url,
+        title: w.title || w.url,
+        frequency: (frequency || (enabled ? 'daily' : 'off')),
+        enabled: enabled === true,
+        channel: channel || 'none',
+        target_id: target_id || '',
+        consent_time: enabled ? new Date().toISOString() : null,
+        user_id: userId
+      });
+    }
+    this.notify({ type: 'subscriptions_changed' });
+    try { window.dispatchEvent(new CustomEvent('subscriptionsChanged')) } catch(e) {}
+  },
+  getGlobalSubscriptionStatus() {
+    const s = safeLoad('rune_subscription_settings', null);
+    if (!s) return { enabled: false, frequency: 'off', channel: 'none', target_id: '' };
+    const enabled = s.frequency && s.frequency !== 'off';
+    return { enabled, frequency: s.frequency || 'off', channel: s.channel || 'none', target_id: s.target_id || '' };
   },
 
   // 更新单个订阅
@@ -552,13 +642,23 @@ export const storageAdapter = {
   },
 
   async addDigest(digest) {
-    // digest: { website_id, summary, type }
+    // digest: { website_id, summary, type, content? }
+    // 中文注释：兼容旧调用（可能未设置 type），默认按每日摘要写入；并限制摘要长度避免存储过大。
+    const limited = enforceFieldLengths({ summary: digest.summary })
+    const type = digest.type || 'daily'
     const record = await Digests.create({
       website_id: digest.website_id,
-      summary: digest.summary,
-      type: digest.type,
+      summary: cleanTextForStorage(limited.summary, 300),
+      type,
       user_id: (this.getUser()?.id) || 'local-dev',
     })
+    // 可选：长文本入分表（digest_contents）
+    if (digest.content) {
+      const userId = (this.getUser()?.id) || 'local-dev';
+      const contentClean = cleanTextForStorage(digest.content, 20000)
+      const summaryClean = cleanTextForStorage(digest.summary || digest.content.slice(0, 300), 300)
+      try { await db.digestContents.upsert({ digest_id: record.digest_id, user_id: userId, content: contentClean, summary: summaryClean }) } catch {}
+    }
     this.notify({ type: 'digests_changed' })
     return record
   },
@@ -628,15 +728,39 @@ export const storageAdapter = {
   // =========================
   // User Profile Operations
   // =========================
+  /**
+   * Get current user
+   * @returns {Object|null}
+   */
   getUser() {
     return safeLoad('runeai_user', null);
   },
 
+  /**
+   * Save user profile
+   * @param {Object} user
+   */
   saveUser(user) {
-    safeSave('runeai_user', user);
+    // 保护用户对象中的可疑文本字段（若存在）
+    const u = { ...user };
+    if (u.name != null) u.name = cleanTextForStorage(enforceFieldLengths({ title: u.name }).title, 200);
+    safeSave('runeai_user', u);
     this.notify({ type: 'user_changed' });
   }
 };
+
+// 扩展：网站长文本保存（供控制器调用）
+export async function saveWebsiteContent(websiteId, { content, summary }) {
+  try {
+    const userId = (storageAdapter.getUser()?.id) || 'local-dev';
+    const contentClean = cleanTextForStorage(content, 20000);
+    const summaryClean = cleanTextForStorage(summary ?? contentClean.slice(0, 300), 300);
+    return await db.websiteContents.upsert({ website_id: websiteId, user_id: userId, content: contentClean, summary: summaryClean });
+  } catch (e) {
+    console.warn('[Storage] saveWebsiteContent failed', e);
+    return null;
+  }
+}
 
 export default storageAdapter;
 

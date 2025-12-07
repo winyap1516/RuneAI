@@ -32,12 +32,12 @@ RuneAI 是一个现代化的网页收藏和AI助理工具，帮助用户高效�
 - 自动同步：登录成功或 Dashboard 初始化时，调用 `linkController.initSyncAfterLogin()`，触发本地→云端迁移与同步。
 
 ### 技术整合
-- Supabase SDK：`js/services/supabaseClient.js` 统一初始化与会话获取。
-- Auth 逻辑重构：`js/features/auth_ui.js` 支持 `mode` 参数（login/register/global），实现逻辑复用与分离。
-- 页面初始化：`js/dashboard_init.js` 接管 Dashboard 的 Session 检查与初始化逻辑。
+- Supabase SDK：`src/js/services/supabaseClient.js` 统一初始化与会话获取。
+- Auth 逻辑重构：`src/js/features/auth_ui.js` 支持 `mode` 参数（login/register/global），实现逻辑复用与分离。
+- 页面初始化：`src/js/dashboard_init.js` 接管 Dashboard 的 Session 检查与初始化逻辑。
 - 云端操作迁移：所有数据操作已迁移至 SDK 直接调用（links 表与 Edge Function）。
 - 组件化开发：
-  - **Welcome Card**: 独立组件 (`js/components/welcome_card.js`)，负责欢迎与统计展示。
+  - **Welcome Card**: 独立组件 (`src/js/components/user-welcome-card.js`)，负责欢迎与统计展示。
   - **RuneSpace**: Dashboard 顶部专属区域 (`#runeSpace`)，承载 Welcome Card，与 All Links 列表分离。
   - 原型预览：访问 `/prototypes/welcome_page.html` 可独立调试该组件。
 
@@ -57,6 +57,7 @@ Edge Functions（后端）：
 - `login.html`：OAuth-first 布局，Google 登录为主按钮；仅在社媒登录失败时显示灰色“账号恢复”入口。
 - `account-recovery.html`：独立恢复页，输入恢复邮箱并提交；开发模式显示 `preview_link` 便于联调。
 - `set-password.html`：设置密码页面，校验强密码规则，提交后提示成功并跳转登录。
+- `reset-password.html`：忘记密码重置页（Supabase 邮件链接回跳），基于临时 Session 更新密码。
 
 环境变量（生产/CI 必配）：
 - `EMAIL_PROVIDER`（sendgrid | mailgun）

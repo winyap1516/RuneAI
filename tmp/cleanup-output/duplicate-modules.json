@@ -1,0 +1,106 @@
+[
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\supabaseClient.js",
+    "specifiers": [
+      "../services/supabaseClient.js",
+      "../src/js/services/supabaseClient.js",
+      "./services/supabaseClient.js",
+      "/src/js/services/supabaseClient.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\features\\auth_ui.js",
+    "specifiers": [
+      "../src/js/features/auth_ui.js",
+      "./features/auth_ui.js",
+      "/src/js/features/auth_ui.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\oauth_callback.js",
+    "specifiers": [
+      "../src/js/views/oauth_callback.js",
+      "/src/js/views/oauth_callback.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\storageAdapter.js",
+    "specifiers": [
+      "../src/js/storage/storageAdapter.js",
+      "../storage/storageAdapter.js",
+      "/src/js/storage/storageAdapter.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\ai.js",
+    "specifiers": [
+      "../src/js/services/ai.js",
+      "/src/js/services/ai.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\quota.js",
+    "specifiers": [
+      "../src/js/services/quota.js",
+      "/src/js/services/quota.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\mockFunctions.js",
+    "specifiers": [
+      "../mockFunctions.js",
+      "/src/mockFunctions.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\linkController.js",
+    "specifiers": [
+      "../src/js/controllers/linkController.js",
+      "./controllers/linkController.js",
+      "/src/js/controllers/linkController.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\config.js",
+    "specifiers": [
+      "./config.js",
+      "/src/js/services/config.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\controllers\\digestController.js",
+    "specifiers": [
+      "../src/js/controllers/digestController.js",
+      "/src/js/controllers/digestController.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\views\\linksView.js",
+    "specifiers": [
+      "../src/js/views/linksView.js",
+      "/src/js/views/linksView.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\logger.js",
+    "specifiers": [
+      "./logger.js",
+      "/src/js/services/logger.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\storage\\db.js",
+    "specifiers": [
+      "../src/js/storage/db.js",
+      "./db.js",
+      "/src/js/storage/db.js"
+    ]
+  },
+  {
+    "resolved_path": "D:\\RuneAI\\src\\js\\services\\api.js",
+    "specifiers": [
+      "../src/js/services/api.js",
+      "/src/js/services/api.js"
+    ]
+  }
+]

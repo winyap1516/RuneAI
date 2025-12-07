@@ -1,9 +1,9 @@
 // 中文注释：本地数据迁移（IndexedDB → 云端）
 // 作用：扫描本地可见数据并生成 create 变更，触发同步上报；可重复执行（幂等依赖服务端去重）
 
-import { websites as Websites, subscriptions as Subs, digests as Digests } from '../storage/db.js';
-import { addChange } from './changeLog.js';
-import { syncLoop } from './syncAgent.js';
+import { websites as Websites, subscriptions as Subs, digests as Digests } from '/src/js/storage/db.js';
+import { addChange } from '/src/js/sync/changeLog.js';
+import { syncLoop } from '/src/js/sync/syncAgent.js';
 
 /**
  * 迁移本地数据至云端（create 为主）

@@ -19,7 +19,7 @@
       <h1 class="text-xl font-bold mb-2">正在处理 OAuth 回调</h1>
       <p id="msg" class="text-sm text-gray-600 dark:text-gray-400">请稍候…</p>
     </div>
-    <!-- 中文注释：脚本路径使用相对路径，保持与 lint:paths 规则一致 -->
-    <script type="module" src="./js/views/oauth_callback.js"></script>
+    <!-- 中文注释：脚本路径改为相对 ../src/js/views，确保构建解析正常 -->
+    <script type="module" src="../src/js/views/oauth_callback.js"></script>
   </body>
   </html>

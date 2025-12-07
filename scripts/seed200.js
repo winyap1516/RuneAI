@@ -16,7 +16,8 @@ global.localStorage = localStorageMock;
 global.window = { dispatchEvent: () => {} };
 
 // 现在再导入业务模块
-import storageAdapter from '../js/storage/storageAdapter.js';
+// 中文注释：修复导入路径，Node 脚本从 scripts/ 相对到 src/js/
+import storageAdapter from '../src/js/storage/storageAdapter.js';
 
 async function seed() {
   console.log('🌱 Seeding 200 mock links...');

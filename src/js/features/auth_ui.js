@@ -2,11 +2,11 @@
 // 作用：处理登录、注册表单的提交，以及 Auth 状态变更的监听与跳转
 // 依赖：@supabase/supabase-js (via supabaseClient.js)
 
-import { supabase, getSession } from '../services/supabaseClient.js';
-import { showToast } from '../utils/ui-helpers.js';
-import { linkController } from '../controllers/linkController.js';
-import storageAdapter from '../storage/storageAdapter.js';
-import config from '../services/config.js';
+import { supabase, getSession, preflightAuth } from '/src/js/services/supabaseClient.js';
+import { showToast, setBtnLoading } from '/src/js/utils/ui-helpers.js';
+import { linkController } from '/src/js/controllers/linkController.js';
+import storageAdapter from '/src/js/storage/storageAdapter.js';
+import config from '/src/js/services/config.js';
 
 /**
  * 初始化 Auth UI 监听
@@ -161,8 +161,7 @@ function bindLoginForm() {
     if (!email || !password) return showToast('请输入邮箱和密码', 'error');
 
     try {
-      loginBtn.disabled = true;
-      loginBtn.textContent = '登录中...';
+      setBtnLoading(loginBtn, true, '登录中...', '登录');
 
       // 中文注释：若勾选“记住我”且已有有效会话，直接跳转到 Dashboard
       if (remember) {
@@ -173,6 +172,19 @@ function bindLoginForm() {
         }
       }
       
+      // 登录前进行一次连接预检，给出更明确的错误提示
+      const pre = await preflightAuth();
+      if (!pre.ok) {
+        const msg = pre.status === -1
+          ? '认证服务不可达：请检查 Docker 是否运行、端口是否为 65421'
+          : (pre.status === 401
+            ? 'API Key 无效：请在 .env 设置正确的 VITE_SUPABASE_ANON_KEY'
+            : `认证服务错误（${pre.status}）：${pre.message || 'UNKNOWN'}`);
+        showToast(msg, 'error');
+        setBtnLoading(loginBtn, false, '', '登录');
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       // onAuthStateChange 会处理跳转；为稳妥起见，若 data.user 存在则立即触发后续逻辑
@@ -180,9 +192,23 @@ function bindLoginForm() {
         await handleLoginSuccess(data.user);
       }
     } catch (e) {
-      showToast(e.message, 'error');
-      loginBtn.disabled = false;
-      loginBtn.textContent = '登录';
+      // 中文注释：统一中文提示映射（邮箱未验证、凭证错误、速率限制等）
+      const raw = String(e?.message || '');
+      let msg = raw;
+      if (/Email not confirmed/i.test(raw)) {
+        msg = '邮箱未验证：请点击“重发验证邮件”后再登录';
+        const resend = document.getElementById('resendVerifyLink');
+        if (resend) {
+          resend.classList.remove('hidden');
+          resend.focus?.();
+        }
+      } else if (/Invalid login credentials/i.test(raw) || /invalid_credentials/i.test(raw)) {
+        msg = '邮箱或密码错误：请检查后重试';
+      } else if (/over_email_send_rate_limit/i.test(raw)) {
+        msg = '操作过于频繁：请稍后再试';
+      }
+      showToast(msg, 'error');
+      setBtnLoading(loginBtn, false, '', '登录');
     }
   };
 
@@ -309,8 +335,7 @@ function bindSignupForm() {
     if (String(password) !== String(confirm)) return showToast('两次输入的密码不一致', 'error');
 
     try {
-      signupBtn.disabled = true;
-      signupBtn.textContent = '注册中...';
+      setBtnLoading(signupBtn, true, '注册中...', '立即注册');
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -334,8 +359,7 @@ function bindSignupForm() {
       
     } catch (e) {
       showToast(e.message, 'error');
-      signupBtn.disabled = false;
-      signupBtn.textContent = '立即注册';
+      setBtnLoading(signupBtn, false, '', '立即注册');
     }
   };
 

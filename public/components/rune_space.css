@@ -1,0 +1,39 @@
+/* RuneSpace 布局容器样式（迁移至 public/components，避免相对路径问题） */
+
+#runeSpace {
+  /* 初始高度设定，避免布局抖动 */
+  min-height: 260px;
+  width: 100%;
+  /* 移除底部边距，因为现在它是独立的 section，padding 由 dashboard.html 控制 */
+  /* margin-bottom: 24px; */
+}
+
+/* 响应式高度调整 */
+@media (min-width: 1280px) {
+  #runeSpace {
+    min-height: 280px;
+  }
+}
+
+/* 窄屏适配：垂直堆叠时可能需要更高的高度自适应 */
+@media (max-width: 900px) {
+  #runeSpace {
+    min-height: auto; /* 让内容撑开 */
+  }
+}
+
+/* Loading Spinner (Fallback for non-Tailwind) */
+.spinner {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

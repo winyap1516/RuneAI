@@ -21,8 +21,8 @@
 
     // 2) 调用 getAuthHeaders（实际项目中从模块导入）
     // 由于该文件为静态测试样例，开发者可在页面控制台执行：
-    //   import('./js/services/supabaseClient.js').then(m => m.getAuthHeaders().then(console.log))
-    log('请在浏览器控制台执行：import("./js/services/supabaseClient.js").then(m => m.getAuthHeaders().then(console.log))');
+    //   import('./src/js/services/supabaseClient.js').then(m => m.getAuthHeaders().then(console.log))
+    log('请在浏览器控制台执行：import("./src/js/services/supabaseClient.js").then(m => m.getAuthHeaders().then(console.log))');
   } catch (e) {
     log('测试失败：', e);
   }

@@ -1,0 +1,49 @@
+# .gitignore 当前内容（可能存在编码差异）
+# 渚濊禆鏂囦欢
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build
+dist/
+.vite/
+build/
+
+# Supabase secrets
+supabase/.temp
+supabase/functions/*/secrets.env
+
+# OS/Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Debug / temporary
+*.log
+*.tmp
+logs/
+mock/
+mock-data/
+file-list.txt
+deploy-report.txt
+screen.png
+archive/
+
+# 杩愯鏃舵枃浠?*.pid
+*.seed
+*.pid.lock
+
+# 瑕嗙洊鐜囩洰褰?coverage/
+.nyc_output
+
+# 渚濊禆閿佸畾鏂囦欢 (鍙互鏍规嵁闇€瑕侀€夋嫨鏄惁蹇界暐)
+# package-lock.json
+# yarn.lock

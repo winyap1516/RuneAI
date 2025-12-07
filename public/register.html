@@ -136,10 +136,12 @@
       </div>
     </main>
 
+    <script type="module" src="./entry.js"></script>
     <script type="module">
-      import { initAuthUI } from './js/features/auth_ui.js';
-      import './js/services/supabaseClient.js';
+      // 中文注释：改为相对路径 ../src/js/...，确保 Vite 构建阶段可解析源码模块
+      import { initAuthUI } from '../src/js/features/auth_ui.js';
+      import '../src/js/services/supabaseClient.js';
       initAuthUI('register'); // 仅初始化注册逻辑
     </script>
   </body>
-</html>
+  </html>

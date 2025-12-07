@@ -78,22 +78,18 @@ Write-Host "`n🚀 [Step 4] Serving Edge Functions..." -ForegroundColor Cyan
 # Kill existing deno
 Get-Process -Name "deno" -ErrorAction SilentlyContinue | Stop-Process -Force
 
-# Serve sync-push
-$PushLog = "$PWD/$LogDir/func_sync_push.log"
-$PullLog = "$PWD/$LogDir/func_sync_pull.log"
+# Serve ALL functions
+$FuncLog = "$PWD/$LogDir/functions_serve.log"
 
 $JobScript = {
-    param($Cmd, $Func, $Log)
+    param($Cmd, $Log)
     Set-Location $using:PWD
-    # Use --no-verify-jwt to allow our script to handle auth or skip it for local dev
-    Invoke-Expression "$Cmd functions serve $Func --no-verify-jwt" > $Log 2>&1
+    # Serve all functions (default behavior when no name specified)
+    Invoke-Expression "$Cmd functions serve --no-verify-jwt" > $Log 2>&1
 }
 
-$PushJob = Start-Job -ScriptBlock $JobScript -ArgumentList $SupabaseCmd, "sync-push", $PushLog
-Write-Host "   - sync-push serving..."
-
-$PullJob = Start-Job -ScriptBlock $JobScript -ArgumentList $SupabaseCmd, "sync-pull", $PullLog
-Write-Host "   - sync-pull serving..."
+$FuncJob = Start-Job -ScriptBlock $JobScript -ArgumentList $SupabaseCmd, $FuncLog
+Write-Host "   - All Edge Functions serving..."
 
 Start-Sleep -Seconds 10 # Wait for functions to warm up
 
@@ -138,8 +134,7 @@ Write-Host "`n🚀 [Step 8] Cleanup..." -ForegroundColor Cyan
 Write-Host "   - Stopping frontend..."
 Stop-Process -Id $FrontendProcess.Id -Force -ErrorAction SilentlyContinue
 Write-Host "   - Stopping functions (jobs)..."
-Stop-Job $PushJob
-Stop-Job $PullJob
+Stop-Job $FuncJob
 Write-Host "   - Stopping Supabase..."
 Invoke-Expression "$SupabaseCmd stop" > $null 2>&1
 

@@ -1,9 +1,10 @@
-import storageAdapter from "../storage/storageAdapter.js";
-import { normalizeUrl } from "../utils/url.js";
-import { mockAIFromUrl as mockAIFromUrlExternal } from "../../mockFunctions.js";
-import { migrateLocalToCloud } from "../sync/migrate.js";
-import { syncLoop } from "../sync/syncAgent.js";
-import { supabase } from "../services/supabaseClient.js";
+// 中文注释：统一静态导入 storageAdapter 及其扩展函数，避免动态导入导致模块重复打包
+import storageAdapter, { saveWebsiteContent } from "/src/js/storage/storageAdapter.js";
+import { normalizeUrl } from "/src/js/utils/url.js";
+import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from "/src/mockFunctions.js";
+import { migrateLocalToCloud } from "/src/js/sync/migrate.js";
+import { syncLoop } from "/src/js/sync/syncAgent.js";
+import { supabase } from "/src/js/services/supabaseClient.js";
 
 // Cloud Configuration
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
@@ -229,20 +230,15 @@ export const linkController = {
     const exists = await this.findLinkByUrl(normalized);
     if (exists) throw new Error('Link already exists');
 
-    // Fetch Metadata (Cloud or Mock)
-    let ai = null;
-    if (useCloud) {
-      try { ai = await fetchAIFromCloud(normalized); } catch { ai = null; }
-    }
-    const mock = ai || await mockAIFromUrlExternal(normalized).catch(() => ({ 
-        title: '', description: '', category: 'All Links', tags: ['bookmark'] 
-    }));
+    // 中文注释：本地新增链接不再调用 Mock/Cloud 摘要
+    // 仅根据 URL 提取基础元信息；摘要由用户点击 “Generate Now” 或 Digest 页面手动生成
+    const parsed = { title: normalized.replace(/^https?:\/\//, '').split('/')[0] };
 
     const data = {
-      title: mock?.title || (normalized.replace(/^https?:\/\//, '').split('/')[0] || 'Untitled'),
-      description: mock?.description || 'Mock: Auto-generated summary placeholder.',
-      category: mock?.category || 'All Links',
-      tags: Array.isArray(mock?.tags) && mock.tags.length ? mock.tags : ['bookmark'],
+      title: parsed?.title || (normalized.replace(/^https?:\/\//, '').split('/')[0] || 'Untitled'),
+      description: parsed?.description || 'AI summary placeholder… 点击 Generate Now 开始生成',
+      category: parsed?.category || 'All Links',
+      tags: Array.isArray(parsed?.tags) && parsed.tags.length ? parsed.tags : ['bookmark'],
       url: normalized,
     };
 
@@ -251,6 +247,18 @@ export const linkController = {
     // - 若无视图，则让存储触发全量通知（silent=false），由外层渲染器统一刷新。
     const silent = !!this._view;
     const added = await storageAdapter.addLink(data, { silent });
+    // 长文本内容存入分表（mock 抓取），UI 优先渲染 summary
+    try {
+      const siteResp = await mockFetchSiteContentExternal(normalized).catch(() => ({ data: null }));
+      const siteData = (siteResp && 'data' in siteResp) ? (siteResp.data || {}) : siteResp;
+      if (siteData && siteData.content) {
+        const summaryText = data.description || siteData.content.slice(0, 300);
+        // 中文注释：延迟调用已静态导入的 saveWebsiteContent，避免阻塞 UI 且消除动态导入重复模块问题
+        Promise.resolve().then(() => {
+          return saveWebsiteContent(added.id, { content: siteData.content, summary: summaryText })
+        }).catch(() => {});
+      }
+    } catch {}
     if (this._view) {
       // 中文注释：视图存在时，执行局部 UI 插入，避免全量 re-render
       try { this._view.addSingleCardUI(added); } catch (e) { /* no-op */ }

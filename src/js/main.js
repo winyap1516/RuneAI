@@ -1,7 +1,7 @@
 // main.js
 import { initDashboard } from './features/dashboard.js';
 import { initAuthUI } from './features/auth_ui.js';
-import storageAdapter from './storage/storageAdapter.js';
+import storageAdapter from '/src/js/storage/storageAdapter.js';
 // 中文注释：引入本地 Mock 抓取与 AI 摘要（用于订阅与日报生成）
 import { mockFetchSiteContent, mockAIFromUrl } from '../mockFunctions.js';
 // 中文注释：引入订阅设定面板交互脚本（在设置面板打开时渲染订阅列表）
@@ -73,17 +73,20 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 模拟已登录用户（开发者模式固定账号）
-  const user = {
-    id: 'local-dev',
-    nickname: 'Developer',
-    email: 'dev@local',
-    avatar: 'https://i.pravatar.cc/100?img=12'
-  };
-  storageAdapter.saveUser(user);
-
   // 检测 IDE WebView 环境并警告 (仅 Dev)
   const isDev = import.meta?.env?.MODE !== 'production';
+
+  // 模拟已登录用户（仅在开发模式且本地无用户时写入，避免覆盖真实用户）
+  if (isDev && !storageAdapter.getUser()) {
+      const user = {
+        id: 'local-dev',
+        nickname: 'Developer',
+        email: 'dev@local',
+        avatar: 'https://i.pravatar.cc/100?img=12'
+      };
+      storageAdapter.saveUser(user);
+  }
+
   if (isDev) {
     const isWebView = !window.navigator.webdriver && (
        /Code|VSCode|Trae|IDE/i.test(navigator.userAgent) || 
@@ -113,7 +116,9 @@ window.addEventListener('DOMContentLoaded', () => {
         .catch(() => {});
     } else {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        // 中文注释：生产环境使用基于 import.meta.url 的相对定位，让构建后能解析到哈希文件路径；开发环境直接注册 /sw.js
+        const swUrl = import.meta.env.PROD ? new URL('../sw.js', import.meta.url) : '/sw.js';
+        navigator.serviceWorker.register(swUrl)
           .then(reg => console.log('[SW] Registered:', reg.scope))
           .catch(err => console.warn('[SW] Registration failed:', err));
       });
@@ -139,7 +144,7 @@ window.addEventListener('DOMContentLoaded', () => {
        initAuthUI('global'); // 仅在 landing/index 页初始化
     } else if (path.includes('dashboard.html')) {
        // Dashboard 页初始化逻辑移至 dashboard_init.js
-       initDashboard(user);
+       // initDashboard(user);
     }
     // 注意：login.html 和 register.html 会在各自页面内手动调用 initAuthUI，此处跳过以免重复
   })();
@@ -164,13 +169,21 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 中文注释：真实抓取在浏览器中可能因跨域策略导致 net::ERR_FAILED；
+    // 开发环境下默认禁用真实抓取，直接使用 Mock 内容，以减少控制台噪音并提升稳定性。
     async function tryFetchRealSite(url) {
+      const isDev = import.meta?.env?.DEV;
+      const DISABLE_REAL_FETCH = isDev === true;
+      if (DISABLE_REAL_FETCH) return null;
       try {
         const res = await fetch(url, { mode: 'cors' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
         return { content: text, timestamp: Date.now() };
-      } catch { return null; }
+      } catch {
+        // 中文注释：吞掉错误并返回 null，由上层逻辑走 Mock 抓取，不在控制台打印红色错误
+        return null;
+      }
     }
 
     async function processSubscription(sub) {
@@ -193,33 +206,12 @@ window.addEventListener('DOMContentLoaded', () => {
           await storageAdapter.updateSubscription(sub);
           return;
         }
-        const entry = {
-          subscriptionId: sub.id,
-          url: normalizeUrl(sub.url),
-          title: ai.title || sub.title || sub.url,
-          summary: ai.description || (site?.content||'').slice(0,500) || 'Mock: Summary placeholder',
-          highlights: Array.isArray(ai.tags) ? ai.tags : [],
-          raw: { site, ai }
-        };
-        const digests = await storageAdapter.getDigests();
-        let merged = digests.find(d => d.date === dateStr && d.merged === true);
-        if (merged) {
-          const exist = new Set((merged.entries||[]).map(e=>normalizeUrl(e.url)));
-          if (!exist.has(normalizeUrl(entry.url))) { (merged.entries||[]).push(entry); merged.entries = merged.entries||[]; }
-          merged.siteCount = merged.entries.length;
-          merged.updated_at = Date.now();
-        } else {
-          merged = {
-            id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`,
-            date: dateStr,
-            merged: true,
-            title: `AI Digest · ${dateStr}`,
-            siteCount: 1,
-            entries: [entry],
-            created_at: Date.now()
-          };
-        }
-        await storageAdapter.addDigest(merged);
+        // 中文注释：按链接写入“每日摘要”记录（type=daily），由 DigestController 在视图层进行分组与合并展示。
+        const links = await storageAdapter.getLinks();
+        const link = links.find(l => String(l.url) === String(normalizeUrl(sub.url)) || String(l.id) === String(sub.linkId));
+        const websiteId = link?.id || sub.linkId;
+        const summaryText = ai.description || (site?.content||'').slice(0,500) || 'Mock: Summary placeholder';
+        await storageAdapter.addDigest({ website_id: websiteId, summary: summaryText, type: 'daily' });
         
         sub.lastChecked = Date.now();
         sub.lastHash = currentHash;
@@ -235,12 +227,11 @@ window.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => toast.remove(), 1800);
         } catch {}
       } catch (e) {
-        const digests = await storageAdapter.getDigests();
-        let merged = digests.find(d => d.date === dateStr && d.merged === true);
-        const entry = { subscriptionId: sub.id, url: sub.url, title: sub.title||sub.url, summary: 'Fetch failed', highlights: [], raw: { error: String(e?.message||e) } };
-        if (merged) { (merged.entries||[]).push(entry); merged.entries = merged.entries||[]; merged.siteCount = merged.entries.length; merged.updated_at = Date.now(); }
-        else { merged = { id: `digest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`, date: dateStr, merged: true, title: `AI Digest · ${dateStr}`, siteCount: 1, entries: [entry], created_at: Date.now() }; }
-        await storageAdapter.addDigest(merged);
+        // 中文注释：错误情况下也写入一条“每日摘要”记录，summary 标记为失败，便于调试与视图统一展示。
+        const links = await storageAdapter.getLinks();
+        const link = links.find(l => String(l.url) === String(normalizeUrl(sub.url)) || String(l.id) === String(sub.linkId));
+        const websiteId = link?.id || sub.linkId;
+        await storageAdapter.addDigest({ website_id: websiteId, summary: 'Fetch failed', type: 'daily' });
         
         sub.inProgress = false; sub.status = 'error'; sub.lastError = String(e?.message||e);
         await storageAdapter.updateSubscription(sub);

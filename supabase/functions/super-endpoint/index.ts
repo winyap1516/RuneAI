@@ -97,24 +97,44 @@ serve(async (req)=>{
       tags: ["bookmark"]
     };
   }
+  // 文本清洗与长度限制（与前端一致）：防止 XSS 与过长文本
+  function sanitize(t?: string, max?: number) {
+    if (!t) return '';
+    // 预处理：\r\n → \n，折叠多余空白
+    let s = String(t).replace(/\r\n?/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n');
+    // 去除危险标签
+    s = s.replace(/<\s*script[\s\S]*?<\s*\/\s*script\s*>/gi, '').replace(/<\s*iframe[\s\S]*?<\s*\/\s*iframe\s*>/gi, '');
+    // 基本转义
+    s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // 控制字符
+    s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    return (typeof max === 'number' && s.length > max) ? s.slice(0, max) : s;
+  }
+  const title = sanitize(parsed.title, 200) || (url.replace(/^https?:\/\//, '').split('/')[0] || 'Untitled');
+  const description = sanitize(parsed.description, 2000) || 'AI 摘要生成失败，返回占位描述。';
+  const category = sanitize(parsed.category, 200) || 'All Links';
+  const tags = Array.isArray(parsed.tags) ? parsed.tags.map(x => sanitize(String(x), 64)) : ["bookmark"];
   // ✅ 自动写入数据库
   const { error } = await supabase.from("links").insert([
     {
       url,
-      title: parsed.title,
-      description: parsed.description,
-      category: parsed.category,
-      tags: parsed.tags
+      title,
+      description,
+      category,
+      tags
     }
   ]);
   if (error) console.error("Supabase Insert Error:", error);
   // 中文注释：统一响应结构（包含 url），由前端直接使用
   return new Response(JSON.stringify({
-    url,
-    title: parsed.title,
-    description: parsed.description,
-    category: parsed.category,
-    tags: parsed.tags
+    data: {
+      url,
+      title,
+      description,
+      category,
+      tags
+    },
+    error: null
   }), {
     headers: {
       "Content-Type": "application/json",
