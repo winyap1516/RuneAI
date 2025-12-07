@@ -1,25 +1,11 @@
-VITE 开发服务器启动日志（前 200 行 + 末尾输出）
+VITE 开发服务器启动日志（更新版）
 
-—— 前 200 行 ——
 > yinGAN-collector@0.2.4 dev
 > vite --host
 
-The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for mor-node-api-deprecated for more details.
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
 
-  VITE v5.4.21  ready in 395 ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://172.31.208.1:5173/
-  ➜  Network: http://192.168.100.171:5173/
-  ➜  press h + enter to show help
-
-—— 末尾最新输出 ——
-> yinGAN-collector@0.2.4 dev
-> vite --host
-
-The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for mor-node-api-deprecated for more details.
-
-  VITE v5.4.21  ready in 395 ms
+  VITE v5.4.21  ready in 361 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: http://172.31.208.1:5173/
