@@ -1,4 +1,5 @@
 # 1. 项目目录结构（Project Structure）
+本项目文案统一使用英文，避免使用中文,注释/沟通/文档等内容使用中文,项目支持多语言（英文/中文/马来文）
 src/js
   /features        # UI 功能模块（auth_ui, dashboard, digest, settings）
   /services        # Supabase、API、Config、Logger 等封装
@@ -44,7 +45,7 @@ CI Secrets（仅后端使用的 key 必须加入 CI/CD secrets，不放仓库）
 - SUPABASE_SERVICE_ROLE_KEY
 - OAUTH_STATE_SECRET
 - EMAIL_API_KEY
-
+SECRET 不要暴露在前端 代码中 提交pr也不要暴露SECRET
 3.1 账号恢复与密码创建规范（Recovery & Password Creation Rules）
 本章节描述用户在 无法通过 Google/Apple 等 OAuth 登录 时的账号恢复流程、一次性令牌规则、以及密码创建机制。
 3.1.1 恢复入口（Unauthenticated Recovery Entry）

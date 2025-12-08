@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2025-12-08 — UI 与初始化修订
+- 视图：将全局 `Add Link` 按钮移至 **All Links** 区域并替代标题；旧按钮保留 DOM 并默认隐藏（`global-add-link--hidden`），可随时回滚。
+- 交互：在非 `All Links` 分类末尾新增“+”卡片（`.rune-card-add`），点击打开 **选择已有链接** 弹窗（`#selectLinkModal`），支持搜索与加入当前分类。
+- 服务：新增 `src/js/services/uiService.js`，抽取 `openAddLinkModal()` 统一模态框逻辑与焦点管理。
+- 初始化：新增 `src/js/dashboard_init.js`，统一 Session 守卫与本地 Dev/Mock 注入，未登录统一跳转 `login.html`，初始化后调用 `features/dashboard.initDashboard()`。
+- 修复：`linksView.js` 模板字符串转义导致插值失败，已更正（`src/js/views/linksView.js:862-866`）。
+
 ## 2025-12-04 — Web Digest MVP
 - 新增数据库迁移：`send_queue`、`send_logs`（索引与 RLS）。
 - 新增 Edge Functions：`generate-digest`、`list-digests`、`enqueue-send`、`send-worker`。

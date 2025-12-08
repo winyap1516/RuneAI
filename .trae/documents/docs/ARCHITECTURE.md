@@ -109,6 +109,25 @@ graph LR
     *   **Rate Limiting**: 在 Edge Function 层进行 IP/User 级别的限流。
     *   **Row Level Security (RLS)**: 数据库层强制执行 `user_id` 隔离。
 
+## 4.3 Phase 5 更新（2025-12-08）
+
+- 初始化入口重构：
+  - 新增 `src/js/dashboard_init.js` 作为 Dashboard 页面单一入口，加载即执行自调用函数。
+  - 行为：检测 Dev/Mock 模式 → 恢复/注入本地用户 → 检查 Supabase Session → 未登录统一重定向 `login.html`。
+  - 完成后调用 `features/dashboard.initDashboard()` 初始化各视图模块。
+
+- Links 视图与交互增强：
+  - 将全局右上角 `Add Link` 按钮移入 All Links 区域并替代原标题；新按钮 id：`#addLinkBtnHeader`，旧按钮保留并默认隐藏 `global-add-link--hidden` 以便回滚。
+  - 在非 `All Links` 分类的列表末尾渲染“+”卡片（类名：`.rune-card-add`），点击打开 `#selectLinkModal`，用户可从现有链接中选择并加入当前分类。
+  - 复用 `services/uiService.openAddLinkModal()` 打开新增链接模态框，确保一致的无障碍与焦点管理。
+
+- 关键模块关系：
+  - `features/dashboard.js` 初始化 `views/linksView.js` 与 `views/digestView.js`，并订阅 `storageAdapter` 的变更事件以刷新视图。
+  - `views/linksView.js` 负责列表渲染与事件绑定：`filterCardsByCategory()`、`bindSelectLinkModalEvents()`、`bindModalEvents()`。
+  - `controllers/linkController.js` 提供 CRUD 与同步触发；`updateLink()` 支持加入分类的更新。
+
+> 注：本次更新统一未登录守卫跳转至 `login.html`，与登出行为保持一致；在 Dev/Mock 模式下注入 `local-dev` 用户以简化本地联调。
+
 ## 5. 短期行动清单 (接下来 4 周)
 
 | 优先级 | 任务 (Issue) | 描述 | Owner | 状态 |

@@ -1,5 +1,6 @@
 import storageAdapter from '/src/js/storage/storageAdapter.js';
 import { LIMITS } from '/src/js/config/constants.js';
+import { config } from '/src/js/services/config.js';
 
 /**
  * Get usage count for a specific user and date
@@ -40,6 +41,11 @@ export async function getUsage(userId, date = new Date()) {
  * @returns {Promise<boolean>}
  */
 export async function canGenerate(userId, date = new Date()) {
+    // 中文注释：开发/Mock/外部 HTTP Mock 模式下，前端不做配额限制，统一由后端控制
+    const isDev = typeof import.meta !== 'undefined' ? Boolean(import.meta.env?.DEV) : true;
+    const useHttpMock = Boolean(config?.mockApiBase);
+    const useFrontendMock = Boolean(config?.useMock);
+    if (isDev || useHttpMock || useFrontendMock) return true;
     const usage = await getUsage(userId, date);
     return usage < LIMITS.DAILY_GENERATE;
 }

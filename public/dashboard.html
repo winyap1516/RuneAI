@@ -481,6 +481,9 @@
       /* 中文注释：网站首字母图标列表（紧凑排布） */
       .site-icon { width:28px; height:28px; border-radius:8px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
       .site-icons { display:flex; gap:6px; flex-wrap:wrap; }
+      
+      /* Refactor: Hide global add link button but keep for rollback */
+      .global-add-link--hidden { display: none !important; }
     </style>
   </head>
   <body class="bg-background-light dark:bg-background-dark font-display text-text-primary-light dark:text-text-primary-dark">
@@ -577,7 +580,7 @@
             </label>
           </div>
           <div class="flex flex-shrink-0 items-center justify-end gap-4">
-            <button id="addLinkBtn" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 gap-2 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90">
+            <button id="addLinkBtn" class="global-add-link--hidden flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 gap-2 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90">
               <span class="material-symbols-outlined text-xl">add</span>
               <span class="truncate">Add Link</span>
             </button>
@@ -602,8 +605,12 @@
 
           <!-- Links View: Title & Grid -->
           <div id="linksViewContainer">
-            <div class="flex flex-wrap justify-between gap-3 mb-6">
-              <h1 class="text-text-primary-light dark:text-text-primary-dark text-3xl font-bold leading-tight tracking-tight">All Links</h1>
+            <div class="flex flex-wrap justify-between gap-3 mb-6 items-center">
+              <!-- Refactor: Replace Title with Add Link Button -->
+              <button id="addLinkBtnHeader" class="flex items-center justify-center rounded-lg h-10 px-3 sm:px-4 gap-2 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm" aria-label="Add Link">
+                <span class="material-symbols-outlined text-xl">add</span>
+                <span class="hidden sm:inline">Add Link</span>
+              </button>
             </div>
             <div id="cardsContainer" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
             <div class="mt-6"></div>
@@ -671,6 +678,33 @@
           <button id="saveCategoryBtn" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold">Save</button>
         </div>
         <button id="closeCategoryX" class="absolute top-3 right-3 text-text-secondary-light dark:text-text-secondary-dark">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Select Existing Link Modal：默认隐藏 -->
+    <div id="selectLinkModal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="selectLinkBackdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[80vh]">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-800">
+            <h3 class="text-xl font-bold mb-1">Add to Category</h3>
+            <p id="selectLinkCategoryName" class="text-sm text-text-secondary-light dark:text-text-secondary-dark"></p>
+        </div>
+        
+        <div class="p-4 border-b border-gray-100 dark:border-gray-800">
+             <input id="selectLinkSearch" class="w-full form-input rounded-lg bg-gray-100 dark:bg-white/5 border-none focus:ring-2 focus:ring-primary/50 text-sm" placeholder="Search links..." />
+        </div>
+
+        <div id="selectLinkList" class="flex-1 overflow-y-auto p-2 flex flex-col gap-1 min-h-[200px]">
+            <!-- List items injected by JS -->
+        </div>
+
+        <div class="p-4 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+          <button id="closeSelectLinkBtn" class="h-9 px-4 rounded-lg bg-gray-100 dark:bg-white/10 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-white/20">Close</button>
+        </div>
+        
+        <button id="closeSelectLinkX" class="absolute top-4 right-4 text-text-secondary-light dark:text-text-secondary-dark">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>

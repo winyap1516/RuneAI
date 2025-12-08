@@ -1,105 +1,102 @@
 <!DOCTYPE html>
-
-<!-- 中文注释：signup.html 独立注册页面。
-  - 使用 Tailwind CDN（JIT）与内联类名。
-  - 复用 auth.js 的 mockSignup 方法进行本地注册模拟。
-  - 注册成功后跳转到 `dashboard.html`。
--->
-<html lang="zh-CN">
+<!-- 中文注释：signup.html 独立注册页面 (X Style) -->
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rune AI – 注册</title>
+    <title>Rune AI – Sign Up</title>
+    <base href="./">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-    <!-- Supabase SDK (Phase 5) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-      // 中文注释：轻量 Tailwind 配置
       tailwind.config = {
-        darkMode: "class",
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
-              primary: "#6e57e0",
-              "background-light": "#f6f6f8",
-              "background-dark": "#141220",
+              primary: '#000000',
+              'primary-hover': '#1a1a1a',
+              'background-light': '#ffffff',
+              'background-dark': '#000000',
             },
-            fontFamily: { display: ["Inter", "sans-serif"] },
-            borderRadius: { DEFAULT: "0.5rem", lg: "1rem", xl: "1.5rem", full: "9999px" },
+            fontFamily: { display: ['Inter', 'sans-serif'] },
           },
         },
       };
     </script>
-    <style>
-      /* 中文注释：Material 图标基础样式 */
-      .material-symbols-outlined {
-        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-        font-size: 24px;
-      }
-    </style>
   </head>
-  <body class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 min-h-screen">
-    <!-- 顶部导航：返回首页与跳转登录 -->
-    <header class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-10 py-4 bg-white/80 dark:bg-black/20 backdrop-blur">
-      <a href="index.html" class="flex items-center gap-3">
-        <img src="logo/logo_icon.png" alt="Rune AI" class="w-8 h-8 rounded-full" />
-        <span class="text-base font-semibold">Rune AI</span>
-      </a>
-      <nav class="flex items-center gap-3">
-        <a href="dashboard.html" class="px-4 h-10 flex items-center rounded-lg bg-primary text-white text-sm font-bold">登录</a>
-      </nav>
-    </header>
-
-    <!-- 主内容：注册表单卡片 -->
-    <main class="flex items-center justify-center px-4 py-12">
-      <div class="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h1 class="text-2xl font-bold mb-1">注册账户</h1>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">创建你的 Rune AI 账户，开始管理你的知识库。</p>
-
-        <!-- 错误提示 -->
-        <div id="signupError" class="hidden mb-3 p-2 rounded-md bg-red-50 text-red-600 text-sm"></div>
-
-        <!-- 表单 -->
-        <form id="signupForm" class="space-y-4">
-          <div>
-            <label for="signupEmail" class="block text-sm font-medium mb-1">邮箱</label>
-            <input id="signupEmail" type="email" required placeholder="user@example.com"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary" />
-          </div>
-          <div>
-            <label for="signupPassword" class="block text-sm font-medium mb-1">密码</label>
-            <input id="signupPassword" type="password" required minlength="6" placeholder="••••••••"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary" />
-            <p class="text-xs text-gray-500 mt-1">至少 6 位字符</p>
-          </div>
-          <div>
-            <label for="signupConfirmPassword" class="block text-sm font-medium mb-1">确认密码</label>
-            <input id="signupConfirmPassword" type="password" required minlength="6" placeholder="••••••••"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-primary" />
-          </div>
-
-          <div class="flex items-start">
-            <input id="signupTerms" type="checkbox" required class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary mt-0.5" />
-            <label for="signupTerms" class="ml-2 text-sm text-gray-600 dark:text-gray-400">
-              我同意 <a href="#" class="text-primary hover:underline">用户协议</a> 与 <a href="#" class="text-primary hover:underline">隐私政策</a>
-            </label>
-          </div>
-
-          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium">注册</button>
-        </form>
-
-        <div class="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          已有账号？
-          <a href="dashboard.html" class="text-primary hover:underline">直接登录</a>
+  <body class="font-display bg-white text-black min-h-screen">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] min-h-screen">
+      <!-- Left Column: Big Logo (Desktop only) -->
+      <div class="hidden lg:flex items-center justify-center bg-gray-50 border-r border-gray-100 p-12">
+        <!-- Big Rune AI Logo -->
+        <div class="w-2/3 max-w-md">
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" class="w-full h-auto text-black">
+            <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+          </svg>
         </div>
       </div>
-    </main>
 
-    <!-- 中文注释：统一入口为 public/entry.js（避免 /@fs 加载导致 env 未注入） -->
+      <!-- Right Column: Signup Form -->
+      <div class="flex flex-col justify-center px-6 sm:px-12 md:px-20 lg:px-24 py-12">
+        <div class="w-full max-w-[440px] mx-auto">
+          <!-- Mobile Logo -->
+          <div class="lg:hidden mb-12 text-black">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+              <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+            </svg>
+          </div>
+
+          <h1 class="text-4xl md:text-5xl font-extrabold text-black mb-12 tracking-tight">Join Rune AI today.</h1>
+          
+          <!-- Signup Form -->
+          <form id="signup-form" class="space-y-4" onsubmit="return false;">
+            <div id="signup-success" class="hidden p-4 bg-green-50 text-green-700 rounded-lg mb-4 text-sm font-medium">
+              Registration successful! Redirecting...
+            </div>
+            
+            <div id="signupError" class="hidden p-4 bg-red-50 text-red-700 rounded-lg mb-4 text-sm font-medium"></div>
+
+            <div class="space-y-4">
+              <div>
+                <input id="signupEmail" name="email" type="email" required placeholder="Email" class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" />
+              </div>
+              <div>
+                <input id="signupPassword" name="password" type="password" required minlength="6" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" />
+              </div>
+              <div>
+                <input id="signupConfirmPassword" name="confirm_password" type="password" required minlength="6" placeholder="Confirm Password" class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" />
+              </div>
+              <!-- Nickname (Optional) -->
+              <div>
+                 <input id="signupNickname" name="nickname" type="text" placeholder="Nickname (optional)" class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" />
+              </div>
+            </div>
+
+            <div class="flex items-start mt-6">
+               <input id="signupTerms" type="checkbox" required class="h-5 w-5 text-black border-gray-300 rounded focus:ring-black mt-0.5 cursor-pointer" />
+               <label for="signupTerms" class="ml-3 text-sm text-gray-600 leading-relaxed">
+                 By signing up, you agree to the <a href="#" class="text-black font-medium hover:underline">Terms of Service</a> and <a href="#" class="text-black font-medium hover:underline">Privacy Policy</a>, including Cookie Use.
+               </label>
+            </div>
+
+            <button type="submit" id="btn-signup" class="w-full bg-black text-white font-bold py-3 px-6 rounded-full hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm mt-6">Sign up</button>
+          </form>
+
+          <div class="mt-12">
+            <p class="text-gray-500 text-sm mb-2">Have an account already?</p>
+            <a href="login.html" class="inline-block w-full text-center py-2.5 px-4 border border-gray-300 rounded-full text-black font-bold hover:bg-gray-50 transition-colors">Sign in</a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="./entry.js"></script>
   </body>
-  </html>
+</html>

@@ -73,3 +73,13 @@
 - `aiService` 测试：通过被测模块提供的测试钩子 `__setTestHooks` 注入模拟函数，避免路径差异导致的 `vi.mock` 失效。
 - `digestController` 测试：指定 `/* @vitest-environment jsdom */` 并在导入前执行 `vi.mock`，避免触发真实 `IndexedDB` 迁移与 `localStorage` 警告。
 - 云端调用隔离：在 Node/Vitest 环境下禁用 `ai.js` 的云端回落，确保断言不受 Supabase Edge Function 干扰。
+## UI 变更（2025-12-08）
+- 将页面右上角全局 `Add Link` 按钮移至 **All Links** 区域并替代标题，保留旧按钮 DOM 并默认隐藏（类：`global-add-link--hidden`），可快速回滚。
+- 在非 `All Links` 分类列表末尾新增“+”卡片（`.rune-card-add`），点击打开 **选择已有链接** 弹窗（`#selectLinkModal`），支持搜索与加入当前分类。
+- 抽取 `openAddLinkModal()` 到 `src/js/services/uiService.js`，统一模态框打开逻辑与焦点管理。
+- 无障碍：新按钮设置 `aria-label="Add Link"`，小屏仅显示图标确保不遮挡搜索栏。
+
+### 开发者操作要点
+- 绑定：`views/linksView.bindModalEvents()` 绑定 `#addLinkBtnHeader` 与 `#addLinkBtn` → 复用 `uiService.openAddLinkModal()`。
+- 分类筛选：`views/linksView.filterCardsByCategory(name)` 将在末尾插入“+”卡片；添加后会自动恢复当前分类视图。
+- 选择弹窗：`views/linksView.bindSelectLinkModalEvents()` 负责渲染 `#selectLinkModal` 列表与搜索，调用 `linkController.updateLink(id, { category })` 加入分类。

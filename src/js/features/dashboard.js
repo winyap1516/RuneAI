@@ -117,9 +117,19 @@ export function initDashboard() {
     // Welcome Card Initialization (Run Once)
     loadWelcomeCard();
 
-    // Initial Render (Default to RuneSpace View)
-    // 确保渲染函数调用在组件初始化之后，或者组件初始化不依赖于视图可见性
-    renderRuneSpaceView();
+    // 初始渲染：Mock 模式默认进入 Links 视图，便于直接看到 mock 数据
+    // 非 Mock 模式保持原先进入 RuneSpace 视图的行为
+    try {
+      const cfgMod = await import('../services/config.js');
+      const isMock = Boolean(cfgMod.default?.useMock || cfgMod.config?.useMock);
+      if (isMock) {
+        await renderDefaultMain();
+      } else {
+        renderRuneSpaceView();
+      }
+    } catch {
+      renderRuneSpaceView();
+    }
 
     // 启动后台同步循环（在线时定期推送变更）
     try { syncLoop(); } catch {}

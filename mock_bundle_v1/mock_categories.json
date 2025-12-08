@@ -1,0 +1,82 @@
+[
+  {
+    "id": "80fb9203-a6b9-4056-93f9-55245d7183f8",
+    "name": "Top Category 1",
+    "parent_id": null,
+    "order": 0,
+    "allow_custom": true,
+    "created_at": "2022-07-16T08:55:01.350Z"
+  },
+  {
+    "id": "112a2f44-bea1-46d3-9b04-2ba0e0954a6e",
+    "name": "Top Category 2",
+    "parent_id": null,
+    "order": 1,
+    "allow_custom": false,
+    "created_at": "2022-05-22T12:10:33.482Z"
+  },
+  {
+    "id": "1ec1f5ae-f36f-497d-ad95-d837347f6eb6",
+    "name": "Top Category 3",
+    "parent_id": null,
+    "order": 2,
+    "allow_custom": false,
+    "created_at": "2025-11-22T16:11:29.857Z"
+  },
+  {
+    "id": "fc25ee8b-3086-4d4d-a0fb-144696f709d8",
+    "name": "Sub Category 1",
+    "parent_id": "1ec1f5ae-f36f-497d-ad95-d837347f6eb6",
+    "order": 0,
+    "allow_custom": false,
+    "created_at": "2024-02-10T06:03:40.180Z"
+  },
+  {
+    "id": "3b78635f-55d4-49eb-8cbb-d3e99fc012ae",
+    "name": "Sub Category 2",
+    "parent_id": "112a2f44-bea1-46d3-9b04-2ba0e0954a6e",
+    "order": 1,
+    "allow_custom": false,
+    "created_at": "2023-04-29T15:15:42.336Z"
+  },
+  {
+    "id": "65bf7558-a837-40d8-a39a-e1b32c82e743",
+    "name": "Sub Category 3",
+    "parent_id": "112a2f44-bea1-46d3-9b04-2ba0e0954a6e",
+    "order": 2,
+    "allow_custom": false,
+    "created_at": "2022-04-24T21:45:13.646Z"
+  },
+  {
+    "id": "d6f54a1b-f113-4af3-adc8-7646bb464324",
+    "name": "Sub Category 4",
+    "parent_id": "1ec1f5ae-f36f-497d-ad95-d837347f6eb6",
+    "order": 3,
+    "allow_custom": false,
+    "created_at": "2022-10-12T04:41:51.789Z"
+  },
+  {
+    "id": "bd6fb8ef-1016-4d30-ab13-c272987cc8d0",
+    "name": "Sub Category 5",
+    "parent_id": "1ec1f5ae-f36f-497d-ad95-d837347f6eb6",
+    "order": 4,
+    "allow_custom": false,
+    "created_at": "2025-07-02T13:47:08.668Z"
+  },
+  {
+    "id": "eaa567f0-b407-41ae-a55c-ace5e79aa1f8",
+    "name": "Sub Category 6",
+    "parent_id": "80fb9203-a6b9-4056-93f9-55245d7183f8",
+    "order": 5,
+    "allow_custom": false,
+    "created_at": "2022-04-17T00:38:21.033Z"
+  },
+  {
+    "id": "956531ad-765e-489f-b96d-ea0f55a86ab3",
+    "name": "Sub Category 7",
+    "parent_id": "1ec1f5ae-f36f-497d-ad95-d837347f6eb6",
+    "order": 6,
+    "allow_custom": true,
+    "created_at": "2022-08-06T02:22:00.407Z"
+  }
+]

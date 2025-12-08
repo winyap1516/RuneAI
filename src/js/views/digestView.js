@@ -1,5 +1,6 @@
 // 中文注释：仅保留真实 Edge 流程所需的用户标识常量
-import { USER_ID } from "/src/js/config/constants.js";
+import { USER_ID } from '/src/js/config/constants.js';
+import { config } from '/src/js/services/config.js';
 import { escapeHTML } from "/src/js/utils/ui-helpers.js";
 import { callFunction } from "/src/js/services/supabaseClient.js";
 
@@ -126,15 +127,22 @@ export function bindDigestEvents() {
     if (manualBtn) on(manualBtn, 'click', async () => {
         setLoading(manualBtn, true, 'Generating…');
         try {
-            const user = _utils.storageAdapter?.getUser();
-            const uid = user?.id || USER_ID.GUEST;
-            const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
-            const json = await resp.json().catch(()=>({}));
-            if (resp.ok && json?.ok) {
-                showToast('Digest generated (Edge)', 'success');
+            if (config?.useMock) {
+                // 中文注释：Mock 模式下，生成所有活跃订阅的每日摘要
+                await digestController.generateDailyDigest();
+                showToast('Digest generated (Mock)', 'success');
                 await refresh();
             } else {
-                openTextPrompt({ title: 'Generate Failed', placeholder: json?.error || `HTTP ${resp.status}` });
+                const user = _utils.storageAdapter?.getUser();
+                const uid = user?.id || USER_ID.GUEST;
+                const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
+                const json = await resp.json().catch(()=>({}));
+                if (resp.ok && json?.ok) {
+                    showToast('Digest generated (Edge)', 'success');
+                    await refresh();
+                } else {
+                    openTextPrompt({ title: 'Generate Failed', placeholder: json?.error || `HTTP ${resp.status}` });
+                }
             }
         } finally {
             setLoading(manualBtn, false);

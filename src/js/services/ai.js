@@ -4,11 +4,12 @@
 
 import { normalizeUrl } from '/src/js/utils/url.js';
 import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFetchSiteContentExternal } from '/src/mockFunctions.js';
+import { config } from '/src/js/services/config.js';
 
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
-// 中文注释：在 Node/Vitest 环境（无 window）下强制关闭云端调用，保证单测可控
-const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && typeof window !== 'undefined');
+// 中文注释：在 Mock 模式下强制关闭云端调用；Node/Vitest（无 window）也关闭，保证可控
+const useCloud = !config.useMock && Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && typeof window !== 'undefined');
 
 async function fetchAIFromCloud(url) {
   const endpoint = `${SUPABASE_URL}/functions/v1/super-endpoint`;

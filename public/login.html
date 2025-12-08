@@ -9,16 +9,16 @@
     - 记住我 (checkbox)
     - Google 登录 (OAuth placeholder)
 -->
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rune AI – 登录</title>
+    <title>Rune AI – Login</title>
     <base href="./">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
@@ -27,201 +27,189 @@
         theme: {
           extend: {
             colors: {
-              primary: '#6e57e0',
-              'primary-hover': '#5a46c0',
-              'background-light': '#f6f6f8',
-              'background-dark': '#141220',
+              primary: '#000000', /* X Style: Black Primary */
+              'primary-hover': '#1a1a1a',
+              'background-light': '#ffffff',
+              'background-dark': '#000000',
             },
             fontFamily: { display: ['Inter', 'sans-serif'] },
-            borderRadius: { DEFAULT: '0.5rem', lg: '1rem', xl: '1.5rem' },
-            boxShadow: { 'card': '0 2px 8px rgba(0, 0, 0, 0.05)' }
           },
         },
       };
     </script>
-    <style>
-      /* 统一表单控件样式 */
-      .form-input {
-        @apply w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all;
-      }
-      .btn-primary {
-        @apply w-full bg-primary text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed;
-      }
-      .btn-oauth {
-        @apply w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
-      }
-    </style>
   </head>
-  <body class="font-display bg-background-light dark:bg-background-dark text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
-    <!-- 顶部导航 -->
-    <header class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-10 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-sm sticky top-0 z-50">
-      <div class="flex items-center gap-3">
-        <div class="size-8 text-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <body class="font-display bg-white text-black min-h-screen">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] min-h-screen">
+      <!-- Left Column: Big Logo (Desktop only) -->
+      <div class="hidden lg:flex items-center justify-center bg-gray-50 border-r border-gray-100 p-12">
+        <!-- Big Rune AI Logo Placeholder -->
+        <div class="w-2/3 max-w-md">
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" class="w-full h-auto text-black">
             <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
           </svg>
         </div>
-        <a href="index.html" class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Rune AI</a>
       </div>
-      <div>
-        <a href="index.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">返回首页</a>
-      </div>
-    </header>
 
-    <!-- 主体内容：登录卡片 -->
-    <main class="flex-1 flex items-center justify-center px-4 py-12">
-      <div class="w-full max-w-[360px] bg-white dark:bg-[#1A1828] rounded-2xl shadow-card border border-gray-100 dark:border-gray-800 p-8">
-        <div class="text-center mb-8">
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">欢迎回来</h1>
-          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">使用社媒账号快速登录，邮箱为备用方式</p>
-        </div>
-
-        <!-- OAuth（优先显示） -->
-        <div class="mt-1">
-          <button id="btn-google-login" type="button" class="btn-oauth group">
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-5 w-5 mr-2" alt="Google" />
-            <span class="group-hover:text-gray-900 dark:group-hover:text-white transition-colors">使用 Google 登录</span>
-          </button>
-          <!-- 预留 Apple/其他 Provider（未来可启用） -->
-          <!-- <button id="btn-apple-login" type="button" class="btn-oauth group mt-3">使用 Apple 登录</button> -->
-        </div>
-
-        <!-- 小字入口：邮箱登录（折叠式，低曝光） -->
-        <div class="mt-4 text-center">
-          <button id="openEmailLoginModal" type="button" class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-primary hover:underline">
-            使用备用邮箱登录
-          </button>
-        </div>
-
-        <!-- 社媒失败后出现的小入口（默认隐藏；低曝光灰字） -->
-        <div id="recoveryFailArea" class="mt-3 text-center hidden">
-          <button id="openRecoveryModalLink" type="button" class="text-xs text-gray-500 hover:text-primary hover:underline">需要帮助登录？账号恢复</button>
-        </div>
-
-        <!-- 邮箱登录 Modal（默认隐藏；保留原有表单 ID，便于现有单测） -->
-        <div id="emailLoginModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
-          <div class="w-full max-w-md rounded-2xl bg-white dark:bg-[#1A1828] border border-gray-200 dark:border-gray-800 p-6 mx-4">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold">邮箱登录</h3>
-              <button id="closeEmailLoginModal" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/10">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <!-- 登录表单（保持 ID 和结构一致） -->
-            <form id="login-form" class="space-y-4" method="POST" onsubmit="return false;">
-              <!-- 邮箱 -->
-              <div>
-                <label for="loginEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">邮箱地址</label>
-                <input id="loginEmail" name="email" type="email" required autocomplete="email" class="form-input" placeholder="name@example.com" />
-              </div>
-              <!-- 密码 -->
-              <div>
-                <div class="flex items-center justify-between mb-1.5">
-                  <label for="loginPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
-                  <div class="flex items-center gap-2">
-                    <a id="forgotPwdLink" href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">忘记密码？</a>
-                    <span class="text-gray-300">·</span>
-                    <a id="resendVerifyLink" href="#" class="text-xs font-medium text-primary hover:text-primary-hover hover:underline" tabindex="-1">重发验证邮件</a>
-                  </div>
-                </div>
-                <input id="loginPassword" name="password" type="password" required minlength="6" autocomplete="current-password" class="form-input" placeholder="••••••••" />
-              </div>
-              <!-- 记住我 -->
-              <div class="flex items-center">
-                <input id="loginRemember" name="remember" type="checkbox" class="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer" />
-                <label for="loginRemember" class="ml-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">记住我</label>
-              </div>
-              <!-- 登录按钮 -->
-              <button type="button" id="btn-login" class="btn-primary">登录</button>
-            </form>
-            <!-- 底部小字提醒（中性文案，不泄露信息） -->
-            <p class="mt-3 text-xs text-gray-500">邮箱仅作为登录回退方式。</p>
+      <!-- Right Column: Login Form -->
+      <div class="flex flex-col justify-center px-6 sm:px-12 md:px-20 lg:px-24 py-12">
+        <div class="w-full max-w-[440px] mx-auto">
+          <!-- Mobile Logo -->
+          <div class="lg:hidden mb-12 text-black">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+              <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+            </svg>
           </div>
-        </div>
 
-        <!-- Recovery 小型 Modal（默认隐藏；仅在社媒登录失败后启用） -->
-        <div id="recoveryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
-          <div class="w-full max-w-[340px] rounded-2xl bg-white dark:bg-[#1A1828] border border-gray-200 dark:border-gray-800 p-6 mx-4">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold">账号恢复</h3>
-              <button id="closeRecoveryModal" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-white/10">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <!-- 中文注释：说明文案保持中性与模糊，不泄露账号是否存在 -->
-            <p class="text-xs text-gray-600 dark:text-gray-400 mb-3">如果该邮箱已关联账户，我们已发送恢复邮件。</p>
-            <form id="recovery-inline-form" class="space-y-3" onsubmit="return false;">
-              <div>
-                <label for="recoveryEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">绑定邮箱</label>
-                <input id="recoveryEmail" type="email" required class="form-input" placeholder="your.recovery@example.com" />
-              </div>
-              <button id="btn-send-recovery" type="button" class="btn-primary">发送恢复邮件</button>
-            </form>
-            <p id="recovery-inline-result" class="mt-3 hidden text-xs"></p>
-            <p class="mt-2 text-xs text-gray-500">提示：若未收到，请检查垃圾箱。</p>
+          <h1 class="text-4xl md:text-5xl font-extrabold text-black mb-12 tracking-tight">Happening now</h1>
+          
+          <h2 class="text-2xl font-bold text-black mb-8">Join Rune AI today.</h2>
+
+          <!-- OAuth -->
+          <div class="flex gap-4 mb-4">
+            <button id="btn-google-login" type="button" class="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-full bg-white text-sm font-medium text-black hover:bg-gray-50 transition-colors flex-1 h-12 group">
+              <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="h-5 w-5 mr-3" alt="Google" />
+              <span class="text-black font-medium">Google</span>
+            </button>
+            <!-- Apple Placeholder -->
+            <button type="button" class="w-full inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-full bg-white text-sm font-medium text-black hover:bg-gray-50 transition-colors flex-1 h-12 font-bold group">
+              <svg class="h-5 w-5 mr-3 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.21-.93 3.69-.74 2.4.29 4.18 1.45 4.95 3.39-4.22 2.3-3.4 8.7 1.28 10.58-.29.85-.66 1.7-1.12 2.58-.46.88-1.21 1.63-1.88 2.34v.07zm-6.09-17.6c.64-1.28 2.29-2.29 3.93-2.68.25 1.58-.33 3.12-1.42 4.19-1.02 1.07-2.62 1.95-3.95 1.58-.15-1.63.46-2.92 1.44-3.09z"/></svg>
+              <span class="text-black font-medium">Apple</span>
+            </button>
           </div>
+
+          <!-- Divider -->
+          <div class="relative flex items-center my-6">
+            <div class="flex-grow border-t border-gray-200"></div>
+            <span class="flex-shrink-0 mx-4 text-sm text-gray-500">or</span>
+            <div class="flex-grow border-t border-gray-200"></div>
+          </div>
+
+          <!-- Email Login Form -->
+          <!-- Note: X usually hides the form behind "Sign in" or "Create account", but user wants "Login Page" -->
+          <!-- We will show the login form directly for better UX in this "Login" specific page -->
+          
+          <form id="login-form" class="space-y-4" method="POST" onsubmit="return false;">
+            <div class="space-y-4">
+              <div>
+                <input id="loginEmail" name="email" type="email" required autocomplete="email" class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" placeholder="Email" />
+              </div>
+              <div>
+                <input id="loginPassword" name="password" type="password" required minlength="6" autocomplete="current-password" class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" placeholder="Password" />
+              </div>
+            </div>
+
+            <button type="button" id="btn-login" class="w-full bg-black text-white font-bold py-3 px-6 rounded-full hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm mt-6">Sign in</button>
+            
+            <div class="flex items-center justify-between mt-4">
+               <button type="button" id="forgotPwdLink" class="text-sm text-black hover:underline font-medium">Forgot password?</button>
+               <button type="button" id="resendVerifyLink" class="text-sm text-black hover:underline font-medium hidden">Resend verification</button>
+            </div>
+          </form>
+
+          <!-- Signup Link -->
+          <div class="mt-12">
+            <p class="text-gray-500 text-sm mb-2">Don't have an account?</p>
+            <a href="signup.html" class="inline-block w-full text-center py-2.5 px-4 border border-gray-300 rounded-full text-black font-bold hover:bg-gray-50 transition-colors">Sign up</a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden Modals (Preserving logic compatibility) -->
+    <!-- We removed the modals from UI flow but kept IDs if scripts need them. 
+         Actually scripts bind to IDs directly. 
+         Email login is now inline. 
+         Recovery Modal is still useful. -->
+
+    <!-- Recovery Modal -->
+    <div id="recoveryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div class="w-full max-w-[400px] bg-white rounded-2xl shadow-2xl p-8 mx-4 relative">
+        <button id="closeRecoveryModal" class="absolute top-4 right-4 text-black hover:bg-gray-100 p-2 rounded-full">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+        
+        <div class="text-center mb-6">
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" class="w-10 h-10 mx-auto mb-4 text-black">
+            <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" />
+          </svg>
+          <h3 class="text-2xl font-bold text-black">Find your account</h3>
+          <p class="text-gray-500 mt-2 text-sm">Enter the email associated with your account to change your password.</p>
         </div>
 
-        <!-- 底部提示（取消注册入口；强调 OAuth 登录） -->
-        <p class="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
-          提示：请使用上方社媒账号（如 Google）登录；邮箱仅用于已有账号登录或恢复。
-        </p>
+        <form id="recovery-inline-form" class="space-y-6" onsubmit="return false;">
+          <div>
+            <input id="recoveryEmail" type="email" required class="w-full px-4 py-3 border border-gray-300 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all" placeholder="Email" />
+          </div>
+          <button id="btn-send-recovery" type="button" class="w-full bg-black text-white font-bold py-3 px-6 rounded-full hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm">Next</button>
+        </form>
+        <p id="recovery-inline-result" class="mt-4 hidden text-sm text-center"></p>
       </div>
-    </main>
+    </div>
+
+    <!-- Hidden Trigger for Recovery (Used by auth_ui.js logic on failure) -->
+    <div id="recoveryFailArea" class="hidden">
+        <button id="openRecoveryModalLink">Recovery</button>
+    </div>
+
+    <!-- Compatibility Elements for auth_ui.js (Empty elements to prevent null errors if script tries to bind) -->
+    <div id="emailLoginModal" class="hidden">
+       <button id="openEmailLoginModal"></button>
+       <button id="closeEmailLoginModal"></button>
+       <!-- login-form is moved to main flow -->
+    </div>
+
     <script type="module" src="./entry.js"></script>
     <script type="module">
-      // 中文注释：初始化登录页的 Auth 逻辑与 SDK 客户端；绑定邮箱登录 Modal 开关
-      // 目录重组后，所有前端脚本统一放入 ../src/js 下（相对路径），以兼容 Vite 构建解析
-      // moved to entry.js
-      // moved to entry.js
-      // moved to entry.js
-      // init moved to entry.js
-      const modal = document.getElementById('emailLoginModal');
-      const openBtn = document.getElementById('openEmailLoginModal');
-      const closeBtn = document.getElementById('closeEmailLoginModal');
-      const onOpen = () => { modal.classList.remove('hidden'); modal.classList.add('flex'); };
-      const onClose = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
-      if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); onOpen(); });
-      if (closeBtn) closeBtn.addEventListener('click', (e) => { e.preventDefault(); onClose(); });
-      modal?.addEventListener('click', (e) => { if (e.target === modal) onClose(); });
-
-      // 中文注释：Recovery Modal 逻辑（默认隐藏，仅在社媒失败时显示入口）
-      const recoveryArea = document.getElementById('recoveryFailArea');
+      // Recovery Modal Logic (Simplified)
       const recoveryModal = document.getElementById('recoveryModal');
-      const openRecoveryLink = document.getElementById('openRecoveryModalLink');
+      const openRecoveryLink = document.getElementById('openRecoveryModalLink'); // Programmatic trigger
       const closeRecoveryBtn = document.getElementById('closeRecoveryModal');
-      const recoveryForm = document.getElementById('recovery-inline-form');
-      const recoveryResult = document.getElementById('recovery-inline-result');
-      const btnSendRecovery = document.getElementById('btn-send-recovery');
+      const forgotPwdLink = document.getElementById('forgotPwdLink'); // Manual trigger
+      
       const openRecovery = () => { recoveryModal.classList.remove('hidden'); recoveryModal.classList.add('flex'); };
       const closeRecovery = () => { recoveryModal.classList.add('hidden'); recoveryModal.classList.remove('flex'); };
+      
       openRecoveryLink?.addEventListener('click', (e) => { e.preventDefault(); openRecovery(); });
+      forgotPwdLink?.addEventListener('click', (e) => { e.preventDefault(); openRecovery(); });
       closeRecoveryBtn?.addEventListener('click', (e) => { e.preventDefault(); closeRecovery(); });
       recoveryModal?.addEventListener('click', (e) => { if (e.target === recoveryModal) closeRecovery(); });
 
+      // Re-implement inline recovery request logic here or rely on auth_ui.js if it binds to #recovery-inline-form
+      // auth_ui.js DOES NOT bind recovery form, it was inline in login.html previously.
+      // We need to keep the inline script logic for recovery.
+      
+      const recoveryResult = document.getElementById('recovery-inline-result');
+      const btnSendRecovery = document.getElementById('btn-send-recovery');
+      
       async function requestInlineRecovery() {
+        // Dynamic import config to avoid 'config is not defined'
+        const { default: config } = await import('../src/js/services/config.js');
+        
         const emailInput = document.getElementById('recoveryEmail');
         const identifier = String(emailInput?.value || '').trim();
-        if (!identifier) { recoveryResult.className = 'mt-3 text-xs text-red-600'; recoveryResult.textContent = '请填写绑定邮箱'; recoveryResult.classList.remove('hidden'); return; }
-        btnSendRecovery.disabled = true; btnSendRecovery.textContent = '发送中…';
+        if (!identifier) { 
+            recoveryResult.className = 'mt-3 text-sm text-red-600 text-center'; 
+            recoveryResult.textContent = 'Please enter your email'; 
+            recoveryResult.classList.remove('hidden'); 
+            return; 
+        }
+        btnSendRecovery.disabled = true; btnSendRecovery.textContent = 'Sending...';
         try {
           const endpoint = `${config.supabaseUrl}/functions/v1/request-recovery`;
           const resp = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: config.supabaseAnonKey }, body: JSON.stringify({ identifier, client_req_id: crypto.randomUUID() }) });
           const payload = await resp.json().catch(() => ({}));
           if (!resp.ok || payload?.error) throw new Error(payload?.error?.message || `HTTP ${resp.status}`);
-          recoveryResult.className = 'mt-3 text-xs text-green-600';
+          recoveryResult.className = 'mt-3 text-sm text-green-600 text-center';
           recoveryResult.classList.remove('hidden');
-          recoveryResult.textContent = '如果该邮箱已关联账户，我们已发送恢复邮件。';
-          const preview = payload?.data?.preview_link;
-          if (preview) {
-            const a = document.createElement('a'); a.href = preview; a.target = '_blank'; a.textContent = '预览恢复链接'; a.className = 'block mt-2 text-primary hover:text-primary-hover'; recoveryResult.appendChild(a);
-          }
+          recoveryResult.textContent = 'Check your email for a confirmation code.';
         } catch (e) {
-          recoveryResult.className = 'mt-3 text-xs text-red-600';
+          recoveryResult.className = 'mt-3 text-sm text-red-600 text-center';
           recoveryResult.classList.remove('hidden');
-          recoveryResult.textContent = '发送失败：请稍后再试或联系客服';
+          recoveryResult.textContent = 'Failed: Please try again later.';
         } finally {
-          btnSendRecovery.disabled = false; btnSendRecovery.textContent = '发送恢复邮件';
+          btnSendRecovery.disabled = false; btnSendRecovery.textContent = 'Next';
         }
       }
       btnSendRecovery?.addEventListener('click', (e) => { e.preventDefault(); requestInlineRecovery(); });

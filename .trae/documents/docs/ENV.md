@@ -13,6 +13,23 @@
 - STRIPE_WEBHOOK_SECRET：Stripe Webhook Secret（仅后端）
 - FRONTEND_BASE_URL：前端站点基址（Checkout 成功/取消回跳）
 
+## 账号恢复与邮件服务（生产）
+- EMAIL_PROVIDER：邮件服务商（`sendgrid` | `mailgun` | `ses`）
+- EMAIL_API_KEY：邮件服务 API Key（仅后端持有）
+- EMAIL_FROM：发信地址（如 `no-reply@yourdomain.com`）
+- EMAIL_FROM_NAME：可选，显示发信人名称（默认 `Rune`）
+- （若使用 Mailgun）MAILGUN_DOMAIN：域名（如 `mg.yourdomain.com`）
+- OAUTH_STATE_SECRET：OAuth state 防篡改密钥（仅后端）
+
+## 恢复流程相关（Edge Functions）
+- SUPABASE_URL：同上
+- SUPABASE_SERVICE_ROLE_KEY：同上（仅后端）
+- FRONTEND_BASE_URL：同上（用于恢复流程跳转到 `set-password.html`）
+
+### Dev 模式说明
+- 开发环境无需真实发信：恢复接口返回 `preview_link` 用于联调预览，不触发实际邮件。
+- 请勿在前端代码中引用 `Service Role Key` 或任何后端密钥。
+
 ## Supabase 控制台配置（Authentication → Settings）
 - 开启 Email confirmations
 - Redirect URLs：

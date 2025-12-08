@@ -1,8 +1,12 @@
 // 中文注释：取消前端生成次数与冷却时间限制，统一由后端控制
 import { USER_ID } from "/src/js/config/constants.js";
+import { config } from "/src/js/services/config.js";
+// 中文注释：引入统一 API 路由（支持外部 HTTP Mock 与本地 Mock 切换）
+import { api } from "/src/js/services/apiRouter.js";
 import { callFunction } from "/src/js/services/supabaseClient.js";
 import { normalizeUrl } from "/src/js/utils/url.js";
 import { escapeHTML, buildIconHTML, getTagClass } from "/src/js/utils/ui-helpers.js";
+import { openAddLinkModal } from "/src/js/services/uiService.js";
 
 let _containerEl = null;
 let _controllers = null;
@@ -10,6 +14,32 @@ let _templates = null;
 let _utils = null; // { dom, storageAdapter }
 
 const RESERVED_CATEGORIES = new Set(['All Links']);
+
+// 中文注释：Sidebar 分类图标映射
+// 目的：为核心分类提供统一的专业图标；其他分类使用通用文件夹图标
+// 说明：使用 Material Symbols（outlined）以保持与现有 UI 风格一致
+const CATEGORY_ICON_MAP = {
+  // 核心分类（固定）
+  'all links': 'view_list',      // 列表 / 汇总
+  'ai': 'smart_toy',             // 人工智能 / 机器人
+  'development': 'terminal',     // 代码 / 终端
+  'design': 'palette',           // 调色板 / 设计
+  'news': 'article',             // 新闻 / 文章
+  // 默认回退
+  '__default__': 'folder'
+};
+
+// 中文注释：标准化分类名称（去空格、小写），用于匹配映射
+function normalizeCategoryName(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+// 中文注释：根据分类名称生成图标 HTML；未命中映射时使用回退图标
+function renderCategoryIcon(name) {
+  const key = normalizeCategoryName(name);
+  const icon = CATEGORY_ICON_MAP[key] || CATEGORY_ICON_MAP['__default__'];
+  return `<span class="material-symbols-outlined text-base">${icon}</span>`;
+}
 
 export function initLinksView({ containerEl, controllers, templates, utils }) {
   _containerEl = containerEl;
@@ -52,6 +82,7 @@ export async function renderLinks(links = null) {
 
 export function updateSingleCardUI(id, data) {
     if (!_containerEl) return;
+    const currentCat = getActiveCategory();
     const card = _containerEl.querySelector(`.rune-card[data-card-id="${id}"]`);
     
     if (!card) {
@@ -80,6 +111,7 @@ export function updateSingleCardUI(id, data) {
         if (oldCat !== data.category) {
             card.setAttribute('data-category', data.category);
             renderCategoriesSidebar();
+            if (currentCat) filterCardsByCategory(currentCat);
             syncEditCategorySelect();
         }
     }
@@ -168,9 +200,20 @@ export function clearList() {
     _containerEl.innerHTML = '';
 }
 
+function getActiveCategory() {
+    const list = document.getElementById('linksGroupList');
+    if (!list) return '';
+    // Look for item with active class
+    const activeItem = list.querySelector('.bg-gray-200'); // Based on filterCardsByCategory logic
+    return activeItem ? activeItem.getAttribute('data-name') : '';
+}
+
 export function appendPage(items) {
     if (!_containerEl) return;
     if (!Array.isArray(items)) return;
+
+    // Capture active category to restore after render
+    const currentCat = getActiveCategory();
 
     // If empty state exists and we have items, remove it
     const empty = _containerEl.querySelector('.col-span-full.text-center'); 
@@ -194,6 +237,7 @@ export function appendPage(items) {
         const batch = items.slice(idx, idx + BATCH_SIZE);
         if (batch.length === 0) {
             renderCategoriesSidebar();
+            if (currentCat) filterCardsByCategory(currentCat);
             syncEditCategorySelect();
             updateUIStates();
             return;
@@ -207,6 +251,7 @@ export function appendPage(items) {
             requestAnimationFrame(renderBatch);
         } else {
             renderCategoriesSidebar();
+            if (currentCat) filterCardsByCategory(currentCat);
             syncEditCategorySelect();
             updateUIStates();
         }
@@ -257,6 +302,7 @@ export function onScrollEnd(callback) {
 
 export function addSingleCardUI(data) {
     if (!_containerEl) return;
+    const currentCat = getActiveCategory();
     // Remove empty state if exists
     const empty = _containerEl.querySelector('.col-span-full.text-center'); 
     if (empty && empty.textContent === "No links found.") {
@@ -270,12 +316,14 @@ export function addSingleCardUI(data) {
     }
     
     renderCategoriesSidebar();
+    if (currentCat) filterCardsByCategory(currentCat);
     syncEditCategorySelect();
           // 中文注释：后端统一控制每日限制，不再更新本地 limit UI
 }
 
 export function removeSingleCardUI(id) {
     if (!_containerEl) return;
+    const currentCat = getActiveCategory();
     const card = _containerEl.querySelector(`.rune-card[data-card-id="${id}"]`);
     if (card) {
         card.remove();
@@ -286,6 +334,7 @@ export function removeSingleCardUI(id) {
              renderLinks([]);
         }
         renderCategoriesSidebar();
+        if (currentCat) filterCardsByCategory(currentCat);
         syncEditCategorySelect();
     } else {
         console.warn(`Card ${id} not found for removal.`);
@@ -306,13 +355,56 @@ export function bindLinksEvents() {
       b.dataset.loading = '1';
       setLoading(b, true, 'Generating…');
       try {
-          const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
-          const json = await resp.json().catch(()=>({}));
-          if (resp.ok && json?.ok) {
-              showToast('Digest generated successfully!', 'success');
+          // 中文注释：优先使用外部 HTTP Mock API（当配置了 VITE_MOCK_API_BASE 时），以获得真实 AI 结果
+          const linkId = b?.dataset?.linkId || (b.closest('.rune-card')?.getAttribute('data-card-id') || '');
+          if (config?.mockApiBase) {
+              // 1) 提交生成作业到 Mock Server（可能触发真实 AI）
+              const jobResp = await api.generateNow({ user_id: uid, link_id: linkId });
+              if (!jobResp || !jobResp.job_id) throw new Error('JOB_NOT_CREATED');
+              const jobId = jobResp.job_id;
+
+              // 2) 轮询作业状态直到完成/失败（简易实现，最多等待 ~8s）
+              let status = jobResp.status || 'queued';
+              let result = null;
+              for (let i = 0; i < 10; i++) {
+                  if (status === 'completed' || status === 'failed') break;
+                  await new Promise(r => setTimeout(r, 800));
+                  const j = await api.getJob(jobId);
+                  status = j?.status || status;
+                  result = j?.result || null;
+                  if (status === 'completed' || status === 'failed') break;
+              }
+              if (status !== 'completed') {
+                  throw new Error(`JOB_${status || 'UNKNOWN'}`);
+              }
+
+              // 3) 获取 Digest 详情并写入本地存储（用于 UI 展示与分页）
+              const digestId = result?.digest_id;
+              if (!digestId) throw new Error('MISSING_DIGEST_ID');
+              let digest;
+              try { digest = await api.getDigest(digestId); } catch(e) { digest = null; }
+              const summary = digest?.summary || 'Digest generated';
+              await _utils.storageAdapter.addDigest({
+                  website_id: Number(linkId) || linkId,
+                  summary,
+                  type: 'manual',
+                  metadata: { source: 'http-mock', digest_id: digestId }
+              });
+              showToast('Digest generated (HTTP Mock)', 'success');
+          } else if (config?.useMock) {
+              // 中文注释：未配置外部 Mock 时，回退到本地 Mock 逻辑
+              const { digestController } = _controllers;
+              await digestController.generateManualDigest(linkId);
+              showToast('Digest generated (Mock)', 'success');
           } else {
-              const msg = json?.error || `HTTP ${resp.status}`;
-              openTextPrompt({ title: 'Generation Failed', placeholder: msg });
+              const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
+              const json = await resp.json().catch(()=>({}));
+              if (resp.ok && json?.ok) {
+                  showToast('Digest generated successfully!', 'success');
+              } else {
+                  const msg = json?.error || `HTTP ${resp.status}`;
+                  openTextPrompt({ title: 'Generation Failed', placeholder: msg });
+              }
           }
       } catch (err) {
           openTextPrompt({ title: 'Generation Failed', placeholder: err.message });
@@ -339,6 +431,9 @@ export function bindLinksEvents() {
   
   // 6. Category Actions
   bindCategoryEvents();
+  
+  // 7. Select Link Modal
+  bindSelectLinkModalEvents();
 }
 
 // --- Private Helpers ---
@@ -423,9 +518,10 @@ function renderCategoriesSidebar() {
     const allItem = document.createElement('div');
     allItem.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer';
     allItem.setAttribute('data-name', '');
+    // 中文注释：All Links 使用统一列表图标（view_list），语义更贴合“汇总/全部”
     allItem.innerHTML = `
       <div class="flex items-center gap-2 flex-1">
-        <span class="category-icon" aria-hidden="true"><span class="material-symbols-outlined text-base">widgets</span></span>
+        <span class="category-icon" aria-hidden="true">${renderCategoryIcon('All Links')}</span>
         <button type="button" class="category-filter text-sm font-medium text-left flex-1 w-full focus:outline-none" title="All Links">All Links</button>
       </div>`;
     list.appendChild(allItem);
@@ -435,14 +531,14 @@ function renderCategoriesSidebar() {
         const item = document.createElement('div');
         item.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative group';
         item.setAttribute('data-name', cat);
-        const initial = (cat || 'U').charAt(0).toUpperCase();
+        // 中文注释：替换字母为专业图标；未命中映射时自动回退为 folder
         item.innerHTML = `
           <div class="flex items-center gap-2 flex-1">
-            <span class="category-icon" aria-hidden="true">${escapeHTML(initial)}</span>
+            <span class="category-icon" aria-hidden="true">${renderCategoryIcon(cat)}</span>
             <button type="button" class="category-filter text-sm font-medium text-left flex-1 focus:outline-none truncate mr-2" title="${escapeHTML(cat)}">${escapeHTML(cat)}</button>
           </div>
-          <div class="relative shrink-0">
-            <button type="button" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg白/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none" data-category="${escapeHTML(cat)}">
+          <div class="relative shrink-0 flex items-center gap-0.5">
+            <button type="button" class="category-more p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 text-text-secondary-light dark:text-text-secondary-dark focus:outline-none" data-category="${escapeHTML(cat)}">
               <span class="material-symbols-outlined text-base">more_horiz</span>
             </button>
           </div>
@@ -464,19 +560,20 @@ function bindModalEvents() {
     
     // Add Link
     const addBtn = document.getElementById('addLinkBtn');
+    const addBtnHeader = document.getElementById('addLinkBtnHeader');
     const addModal = document.getElementById('addLinkModal');
     const saveBtn = document.getElementById('saveLinkBtn');
     const inpUrl = document.getElementById('inpUrl');
     
-    if (addBtn && addModal) {
-        on(addBtn, 'click', () => { if (inpUrl) inpUrl.value=''; openModal(addModal); });
-        // Cancel/Close buttons... assumed handled by dashboard delegation or I add here?
-        // Dashboard had specific IDs.
-        const cancel = document.getElementById('cancelAddLinkBtn');
-        const closeX = document.getElementById('closeModalX');
-        if (cancel) on(cancel, 'click', () => closeModal(addModal));
-        if (closeX) on(closeX, 'click', () => closeModal(addModal));
-    }
+    if (addBtn) on(addBtn, 'click', openAddLinkModal);
+    if (addBtnHeader) on(addBtnHeader, 'click', openAddLinkModal);
+
+    // Cancel/Close buttons（Add Link 模态）
+    // 中文注释：统一由此绑定，避免不同入口导致的重复绑定或遗漏
+    const cancel = document.getElementById('cancelAddLinkBtn');
+    const closeX = document.getElementById('closeModalX');
+    if (cancel) on(cancel, 'click', () => closeModal(addModal));
+    if (closeX) on(closeX, 'click', () => closeModal(addModal));
     
     if (saveBtn && addModal && inpUrl) {
         on(saveBtn, 'click', async () => {
@@ -530,12 +627,64 @@ function bindModalEvents() {
             try {
                 await linkController.ensureCategory(raw);
                 renderCategoriesSidebar();
+                syncEditCategorySelect(); // 修复：添加分类后立即同步下拉菜单
                 closeModal(addCatModal);
                 showToast(`已添加分类：${raw}`, 'success');
             } catch (err) {
                 openTextPrompt({ title: 'Error', placeholder: err.message });
             }
         });
+    }
+
+    // Edit Link Modal
+    const editModal = document.getElementById('editLinkModal');
+    const editForm = document.getElementById('editLinkForm');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+
+    if (editModal) {
+        if (cancelEditBtn) {
+            on(cancelEditBtn, 'click', (e) => {
+                e.preventDefault(); 
+                closeModal(editModal); 
+            });
+        }
+
+        if (editForm) {
+            on(editForm, 'submit', async (e) => {
+                e.preventDefault();
+                const id = editForm.dataset.editingId;
+                if (!id) return;
+
+                const fTitle = document.getElementById('editLinkTitle');
+                const fURL = document.getElementById('editLinkURL');
+                const fDesc = document.getElementById('editLinkDesc');
+                const fTags = document.getElementById('editLinkTags');
+                const fCat = document.getElementById('editLinkCategory');
+
+                const btn = editForm.querySelector('button[type="submit"]');
+                setLoading(btn, true, 'Saving...');
+
+                try {
+                    const rawTags = (fTags?.value || '').split(',').map(t => t.trim()).filter(Boolean);
+                    const updates = {
+                        title: fTitle?.value || '',
+                        url: fURL?.value || '',
+                        description: fDesc?.value || '',
+                        tags: rawTags,
+                        category: fCat?.value || 'All Links'
+                    };
+
+                    await linkController.updateLink(id, updates);
+                    updateSingleCardUI(id, updates);
+                    closeModal(editModal);
+                    showToast('Link updated successfully', 'success');
+                } catch (err) {
+                    openTextPrompt({ title: 'Error', placeholder: err.message });
+                } finally {
+                    setLoading(btn, false);
+                }
+            });
+        }
     }
 }
 
@@ -590,44 +739,41 @@ function bindMenuEvents() {
     
     // Edit - reusing dashboard logic structure
     delegate(document, '.menu-edit', 'click', async (e, btn) => {
-        // ... Edit logic requires populating modal ...
-        // To save space, I'll assume similar logic to dashboard.js but using linkController
-        // For brevity in this tool call, I'll skip full implementation but it should be here.
-        // I'll implement it fully.
         e.preventDefault(); e.stopPropagation();
         const card = btn.closest('.rune-card');
         const id = parseInt(card.getAttribute('data-card-id'), 10);
+        const { linkController } = _controllers;
         const links = await linkController.getLinks();
-        const data = links.find(l => l.id === id);
+        const data = links.find(l => String(l.id) === String(id));
         if (!data) return;
         
         const modal = document.getElementById('editLinkModal');
-        // Populate fields...
+        const form = document.getElementById('editLinkForm');
+        if (!modal || !form) return;
+
+        // 修复：每次打开编辑弹窗前，强制刷新分类下拉列表，确保包含最新分类
+        syncEditCategorySelect();
+
+        // Populate fields
         const fTitle = document.getElementById('editLinkTitle');
         const fURL = document.getElementById('editLinkURL');
-        if (fTitle) fTitle.value = data.title;
-        if (fURL) fURL.value = data.url;
+        const fDesc = document.getElementById('editLinkDesc');
+        const fTags = document.getElementById('editLinkTags');
+        const fCat = document.getElementById('editLinkCategory');
+
+        if (fTitle) fTitle.value = data.title || '';
+        if (fURL) fURL.value = data.url || '';
+        if (fDesc) fDesc.value = data.description || '';
+        if (fTags) fTags.value = Array.isArray(data.tags) ? data.tags.join(', ') : '';
+        if (fCat) fCat.value = data.category || '';
         
+        // Store ID for the submit handler
+        form.dataset.editingId = id;
+        
+        // Close menu if open (UI cleanup)
+        document.querySelectorAll('.rune-card-menu').forEach(m => m.classList.add('hidden'));
+
         _utils.dom.openModal(modal);
-        
-        // Handle Save
-        const form = document.getElementById('editLinkForm');
-        const onSave = async (ev) => {
-            ev.preventDefault();
-            try {
-                await linkController.updateLink(id, {
-                    title: fTitle.value,
-                    url: fURL.value
-                    // ... other fields
-                });
-                updateSingleCardUI(id, { ...data, title: fTitle.value, url: fURL.value }); // Simplified
-                _utils.dom.closeModal(modal);
-            } catch(err) {
-                openTextPrompt({ title:'Error', placeholder: err.message});
-            }
-            form.removeEventListener('submit', onSave);
-        };
-        form.addEventListener('submit', onSave);
     });
 }
 
@@ -635,7 +781,8 @@ function bindCategoryEvents() {
     const { delegate } = _utils.dom;
     // 中文注释：改为在 document 上做事件委托，避免切换视图或重建侧栏导致绑定丢失
     delegate(document, '#linksGroupList .category-filter', 'click', (e, btn) => {
-        const name = btn.closest('div').getAttribute('data-name');
+        const wrapper = btn.closest('[data-name]');
+        const name = wrapper ? wrapper.getAttribute('data-name') : '';
         
         // Check if we need to switch view
         const linksContainer = document.getElementById('linksViewContainer');
@@ -677,6 +824,17 @@ function bindCategoryEvents() {
     });
 }
 
+function createAddLinkCard(category) {
+    return `
+      <div class="rune-card-add flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer min-h-[160px] group" data-category="${escapeHTML(category)}" role="button" tabindex="0">
+         <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-primary group-hover:bg-primary/10 transition-colors mb-3">
+            <span class="material-symbols-outlined text-2xl">add</span>
+         </div>
+         <span class="text-sm font-medium text-gray-500 group-hover:text-primary transition-colors">Add to ${escapeHTML(category)}</span>
+      </div>
+    `;
+}
+
 function filterCardsByCategory(category) {
     // 中文注释：健壮性防护；如果容器未初始化或已被其他视图替换，尝试重新获取
     if (!_containerEl || !_containerEl.isConnected) {
@@ -686,6 +844,11 @@ function filterCardsByCategory(category) {
     }
     // 中文注释：当选择“All Links”时，等价于不筛选（显示全部）
     if (category === 'All Links') category = '';
+    
+    // 1. Remove existing "Add Link" card if any
+    const existingAdd = _containerEl.querySelector('.rune-card-add');
+    if (existingAdd) existingAdd.remove();
+
     const cards = Array.from(_containerEl.children);
     let visible = 0;
     cards.forEach(el => {
@@ -695,6 +858,13 @@ function filterCardsByCategory(category) {
         el.style.display = match ? '' : 'none';
         if (match) visible++;
     });
+
+    // 2. Append "Add Link" card if specific category selected
+    if (category) {
+        const addCardHtml = createAddLinkCard(category);
+        _containerEl.insertAdjacentHTML('beforeend', addCardHtml);
+    }
+
     // Update active state in sidebar
     const list = document.getElementById('linksGroupList');
     list.querySelectorAll('[data-name]').forEach(item => {
@@ -729,4 +899,116 @@ function showToast(msg, type='success') {
     t.textContent=msg;
     document.body.appendChild(t);
     setTimeout(()=>t.remove(), 1600);
+}
+
+function bindSelectLinkModalEvents() {
+    const { delegate, on, openModal, closeModal, openTextPrompt } = _utils.dom;
+    const { linkController } = _controllers;
+
+    const modal = document.getElementById('selectLinkModal');
+    const backdrop = document.getElementById('selectLinkBackdrop');
+    const closeBtn = document.getElementById('closeSelectLinkBtn');
+    const closeX = document.getElementById('closeSelectLinkX');
+    const listContainer = document.getElementById('selectLinkList');
+    const searchInput = document.getElementById('selectLinkSearch');
+    const categoryNameEl = document.getElementById('selectLinkCategoryName');
+    
+    let currentCategory = '';
+    let allLinks = [];
+
+    // Helper to render list
+    const renderList = (links) => {
+        if (!listContainer) return;
+        listContainer.innerHTML = '';
+        if (links.length === 0) {
+            listContainer.innerHTML = '<div class="text-center text-sm text-gray-400 py-4">No available links found.</div>';
+            return;
+        }
+        
+        links.forEach(link => {
+            const el = document.createElement('button');
+            el.className = 'w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group';
+            
+            const initial = (link.title || 'U').charAt(0).toUpperCase();
+            const urlDisplay = link.url ? link.url.replace(/^https?:\/\//, '') : '';
+            
+            el.innerHTML = `
+                <div class="w-8 h-8 rounded bg-gray-200 dark:bg-white/10 flex items-center justify-center text-xs font-bold shrink-0">
+                    ${escapeHTML(initial)}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium truncate text-text-primary-light dark:text-text-primary-dark">${escapeHTML(link.title)}</div>
+                    <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark truncate opacity-75">${escapeHTML(urlDisplay)}</div>
+                </div>
+                <span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-opacity text-lg">add_circle</span>
+            `;
+            
+            el.onclick = async () => {
+                try {
+                    // Update link category
+                    await linkController.updateLink(link.id, { category: currentCategory });
+                    
+                    // Refresh view to show the new card and ensure + card is at end
+                    filterCardsByCategory(currentCategory);
+
+                    // Close modal
+                    closeModal(modal);
+                    showToast(`Added to ${currentCategory}`, 'success');
+                    
+                } catch (err) {
+                    console.error('Failed to add link to category:', err);
+                    openTextPrompt({ title: 'Error', placeholder: err.message });
+                }
+            };
+            
+            listContainer.appendChild(el);
+        });
+    };
+
+    // Open Modal logic
+    delegate(document, '.rune-card-add', 'click', async (e, btn) => {
+        e.preventDefault(); e.stopPropagation(); 
+        // Use btn.closest just in case the click hit a child
+        const target = btn.closest('.rune-card-add');
+        if (!target) return;
+        
+        currentCategory = target.dataset.category;
+        if (!currentCategory) return;
+        
+        if (categoryNameEl) categoryNameEl.textContent = `Add existing links to "\${currentCategory}"`;
+        if (searchInput) searchInput.value = '';
+        
+        openModal(modal);
+        
+        // Load links
+        if (listContainer) listContainer.innerHTML = '<div class="text-center py-4">Loading...</div>';
+        
+        try {
+            const links = await linkController.getLinks();
+            // Filter: exclude links already in this category
+            allLinks = links.filter(l => l.category !== currentCategory);
+            renderList(allLinks);
+        } catch (err) {
+            console.error(err);
+            if (listContainer) listContainer.innerHTML = '<div class="text-center text-red-500 py-4">Failed to load links</div>';
+        }
+    });
+
+    // Close logic
+    const close = () => closeModal(modal);
+    if (backdrop) on(backdrop, 'click', close);
+    if (closeBtn) on(closeBtn, 'click', close);
+    if (closeX) on(closeX, 'click', close);
+
+    // Search logic
+    if (searchInput) {
+        on(searchInput, 'input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            const filtered = allLinks.filter(l => 
+                (l.title && l.title.toLowerCase().includes(q)) || 
+                (l.url && l.url.toLowerCase().includes(q))
+            );
+            renderList(filtered);
+        });
+    }
 }

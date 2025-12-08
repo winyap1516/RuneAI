@@ -319,6 +319,9 @@ export const storageAdapter = {
       subscribed: subscribedSet.has(w.website_id),
       previousUrls: w.previousUrls || [],
       category: w.category || null,
+      tags: w.tags || [],
+      source: w.source || 'Manual',
+      ai_status: w.ai_status || 'pending'
     }))
   },
 
@@ -346,6 +349,9 @@ export const storageAdapter = {
       subscribed: subscribedSet.has(w.website_id),
       previousUrls: w.previousUrls || [],
       category: w.category || null,
+      tags: w.tags || [],
+      source: w.source || 'Manual',
+      ai_status: w.ai_status || 'pending'
     }));
 
     return { items: mappedItems, total, hasMore };
@@ -371,6 +377,9 @@ export const storageAdapter = {
       title: cleanTextForStorage(limited.title, 200),
       description: cleanTextForStorage(limited.description, 2000),
       category: link.category || null,
+      tags: link.tags || [],
+      source: link.source || 'Manual',
+      ai_status: link.ai_status || 'pending',
       user_id: (this.getUser()?.id) || 'local-dev',
     })
     // 写入本地变更日志（create）

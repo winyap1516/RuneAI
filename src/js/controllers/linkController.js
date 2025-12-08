@@ -5,11 +5,14 @@ import { mockAIFromUrl as mockAIFromUrlExternal, mockFetchSiteContent as mockFet
 import { migrateLocalToCloud } from "/src/js/sync/migrate.js";
 import { syncLoop } from "/src/js/sync/syncAgent.js";
 import { supabase } from "/src/js/services/supabaseClient.js";
+import { config } from "/src/js/services/config.js";
+import logger from "/src/js/services/logger.js";
 
 // Cloud Configuration
 const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
-const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+// 中文注释：如果启用 Mock 模式，强制禁用云端同步，确保完全本地化
+const useCloud = !config.useMock && Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 /**
  * Fetch link metadata from Cloud Edge Function
@@ -287,6 +290,7 @@ export const linkController = {
 
     const silent = !!this._view;
     await storageAdapter.updateLink(id, { title, url, description, tags, category }, { silent });
+    logger.info(`[LinkController] Link updated: ${id}`, { tags });
 
     // 中文注释：使用 Supabase SDK 更新云端数据（替代 Edge Function）
     if (useCloud && supabase && url) {
@@ -394,6 +398,100 @@ export const linkController = {
         }
       });
       if (changed) storageAdapter.saveLinks(links);
+  },
+
+  /**
+   * 将现有链接随机分配到分类（开发辅助）
+   * - 若当前仅存在 'All Links'，会自动创建一组默认分类
+   * - 排除保留分类 'All Links'
+   * @param {Array<string>} pool 自定义分类池（可选）
+   * @returns {Promise<number>} 实际更新的链接数量
+   */
+  async distributeToCategories(pool = []) {
+    const isDev = import.meta?.env?.DEV;
+    if (!isDev) return 0; // 中文注释：仅开发环境允许批量分配
+
+    // 中文注释：读取现有分类；若不足，则创建默认分类集
+    let cats = Array.isArray(pool) && pool.length ? pool.slice() : (await storageAdapter.getCategories());
+    const RESERVED = new Set(['All Links']);
+    if (!cats || cats.filter(c => !RESERVED.has(c)).length === 0) {
+      cats = ['AI','Design','News','Dev','Tools','Product','Blog','Research','Docs'];
+      for (const c of cats) { try { await storageAdapter.ensureCategory(c); } catch {} }
+    }
+    const choices = cats.filter(c => !RESERVED.has(c));
+    if (choices.length === 0) return 0;
+
+    // 中文注释：读取所有链接并随机分配分类；为减少通知风暴，使用 silent 写入并在视图存在时局部刷新
+    const links = await storageAdapter.getLinks();
+    const silent = !!this._view;
+    let updated = 0;
+
+    const pick = () => choices[Math.floor(Math.random() * choices.length)];
+    for (const l of links) {
+      const target = pick();
+      if (!target || l.category === target) continue;
+      await storageAdapter.updateLink(l.id, { category: target }, { silent });
+      if (this._view) {
+        try { this._view.updateSingleCardUI(l.id, { category: target }); } catch {}
+      }
+      updated++;
+    }
+
+    // 中文注释：更新侧栏（视图存在时会在 updateSingleCardUI 内自动刷新；此处兜底）
+    try { await storageAdapter.notify({ type: 'links_changed' }); } catch {}
+
+    return updated;
+  },
+
+  /**
+   * 批量生成随机链接（仅开发模式）
+   * @param {number} count 生成数量，默认 200
+   * @returns {Promise<number>} 实际生成数量
+   */
+  async seedRandomLinks(count = 200) {
+    // 中文注释：仅在开发模式允许批量生成，避免污染生产数据
+    const isDev = import.meta?.env?.DEV;
+    if (!isDev) return 0;
+    const safeCount = Math.max(1, Math.min(1000, Number(count) || 200));
+
+    // 中文注释：准备随机词库与辅助函数
+    const words = ['alpha','beta','gamma','delta','omega','nova','pixel','orbit','quantum','rune','matrix','vector','flux','zen','nimbus','spark'];
+    const pick = () => words[Math.floor(Math.random() * words.length)];
+    const rand = (n=999999) => Math.floor(Math.random() * n) + 1;
+
+    // 中文注释：静默写入以提升性能（视图存在时走局部插入）
+    const silent = !!this._view;
+    let created = 0;
+
+    for (let i = 0; i < safeCount; i++) {
+      const dn = `${pick()}-${rand(9999)}`;
+      const path = `${pick()}/${rand(999)}`;
+      const url = `https://www.${dn}.example.com/${path}`;
+
+      // 中文注释：去重检查（避免重复 URL 导致报错）
+      const exists = await this.findLinkByUrl(url);
+      if (exists) continue;
+
+      const data = {
+        title: `Random Site ${i + 1} · ${pick()}`,
+        description: '随机占位描述（开发数据），可用于分页与筛选性能测试。',
+        category: 'All Links',
+        tags: ['bookmark','random'],
+        url
+      };
+
+      const added = await storageAdapter.addLink(data, { silent });
+      // 中文注释：若视图存在，执行局部 UI 插入以避免全量重渲染
+      if (this._view) {
+        try { this._view.addSingleCardUI(added); } catch(e) {}
+      }
+      created++;
+    }
+
+    // 中文注释：确保分类侧栏包含 All Links（通常默认存在）
+    try { storageAdapter.ensureCategory('All Links'); } catch {}
+
+    return created;
   },
 
   /**

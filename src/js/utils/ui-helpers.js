@@ -17,15 +17,55 @@ export function escapeHTML(str = "") {
 }
 
 /**
- * Build card icon HTML
+ * Extract domain from URL
+ * @param {string} url 
+ * @returns {string} domain or empty string
+ */
+export function getDomainFromUrl(url) {
+  try {
+    if (!url) return "";
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    return u.hostname;
+  } catch (e) {
+    return "";
+  }
+}
+
+/**
+ * Build card icon HTML with Favicon support
  * @param {object} param0 { title, url }
  * @returns {string} HTML string
  */
 export function buildIconHTML({ title = "", url = "" } = {}) {
   const initial = (title || url || "U").trim().charAt(0).toUpperCase() || "U";
+  const domain = getDomainFromUrl(url);
+  
+  // Google Favicon API (sz=64 for high res)
+  const faviconUrl = domain 
+    ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}`
+    : "";
+
+  if (!faviconUrl) {
+    return `
+      <div class="rune-card-icon w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center text-base font-bold text-gray-600 dark:text-gray-300">
+        ${escapeHTML(initial)}
+      </div>
+    `;
+  }
+
+  // 使用 img 标签并处理 onerror 回退到首字母
+  // 注意：为了防止闪烁，我们可以设置一个背景色
   return `
-    <div class="rune-card-icon w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center text-base font-bold">
-      ${escapeHTML(initial)}
+    <div class="rune-card-icon w-10 h-10 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center overflow-hidden shrink-0">
+      <img 
+        src="${faviconUrl}" 
+        alt="${escapeHTML(title)}" 
+        class="w-full h-full object-cover"
+        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+      />
+      <div class="w-full h-full items-center justify-center text-base font-bold text-gray-600 dark:text-gray-300 hidden" style="display: none;">
+        ${escapeHTML(initial)}
+      </div>
     </div>
   `;
 }

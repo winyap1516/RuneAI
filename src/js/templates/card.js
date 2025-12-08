@@ -7,23 +7,79 @@ import { normalizeUrl } from "/src/js/utils/url.js";
  * @returns {string} HTML string
  */
 export function createCard(data = {}) {
-  const { id = "", title = "Untitled", description = "AI-generated summary placeholder…", category = "", tags = [], url = "", subscribed = false } = data;
-  // 统一ID格式：确保ID是数字类型（与数据库中的website_id保持一致）
+  const { 
+    id = "", 
+    title = "Untitled", 
+    description = "AI-generated summary placeholder…", 
+    category = "", 
+    tags = [], 
+    url = "", 
+    subscribed = false,
+    source = "Manual", // 新增字段
+    ai_status = "pending" // 新增字段
+  } = data;
+
+  // 统一ID格式：确保ID是数字类型
   const numericId = typeof id === 'string' && id ? parseInt(id, 10) : (typeof id === 'number' ? id : 0);
-  const tagsHtml = (Array.isArray(tags) ? tags : []).map((raw) => {
+
+  // Tags 逻辑：最多显示 3 个，多余的显示 +N
+  const maxTags = 3;
+  const tagList = Array.isArray(tags) ? tags : [];
+  const visibleTags = tagList.slice(0, maxTags);
+  const remainingCount = tagList.length - maxTags;
+
+  let tagsHtml = visibleTags.map((raw) => {
     const label = String(raw).trim();
     const colorCls = getTagClass(label);
     return `<span class="rune-tag ${colorCls} rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">${escapeHTML(label)}</span>`;
   }).join("");
 
+  if (remainingCount > 0) {
+    tagsHtml += `<span class="rune-tag bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400 rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">+${remainingCount}</span>`;
+  }
+
+  // AI Status 样式辅助
+  const getAiStatusStyle = (status) => {
+    switch (String(status).toLowerCase()) {
+      case 'processed': return 'text-green-600 dark:text-green-400';
+      case 'failed': return 'text-red-600 dark:text-red-400';
+      default: return 'text-amber-600 dark:text-amber-400';
+    }
+  };
+  const getAiStatusIcon = (status) => {
+    switch (String(status).toLowerCase()) {
+      case 'processed': return 'check_circle';
+      case 'failed': return 'error';
+      default: return 'hourglass_empty';
+    }
+  };
+
+  const aiStatusColor = getAiStatusStyle(ai_status);
+  const aiStatusIcon = getAiStatusIcon(ai_status);
+
   return `
-    <div class="rune-card group relative rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all" data-card-id="${numericId}" data-category="${escapeHTML(category)}">
-      <div class="rune-card-head flex items-start justify-between gap-3">
-        <div class="flex items-center gap-3">
+    <div class="rune-card group relative rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col h-full" data-card-id="${numericId}" data-category="${escapeHTML(category)}">
+      <div class="rune-card-head flex items-start justify-between gap-3 mb-2">
+        <div class="flex items-start gap-3 overflow-hidden">
           ${buildIconHTML({ title, url })}
-          <div class="rune-card-title text-base font-bold">${escapeHTML(title)}</div>
+          <div class="flex flex-col min-w-0">
+            <div class="rune-card-title text-base font-bold truncate leading-tight mb-1" title="${escapeHTML(title)}">${escapeHTML(title)}</div>
+            
+            <!-- Meta Info: Source & AI Status -->
+            <div class="flex items-center gap-2 text-xs text-text-secondary-light dark:text-text-secondary-dark">
+               <span class="flex items-center gap-1 truncate" title="Source: ${escapeHTML(source)}">
+                 <span class="material-symbols-outlined text-[14px]">public</span> 
+                 <span class="max-w-[80px] truncate">${escapeHTML(source)}</span>
+               </span>
+               <span class="text-gray-300 dark:text-gray-600">•</span>
+               <span class="flex items-center gap-1 ${aiStatusColor}" title="AI Status: ${escapeHTML(ai_status)}">
+                 <span class="material-symbols-outlined text-[14px]">${aiStatusIcon}</span>
+                 <span class="capitalize">${escapeHTML(ai_status)}</span>
+               </span>
+            </div>
+          </div>
         </div>
-        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/10 rounded p-1 transition-colors z-10" title="More">more_horiz</button>
+        <button class="more-btn material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-100 dark:hover:bg-white/10 rounded p-1 transition-colors shrink-0" title="More">more_horiz</button>
       </div>
       
       <!-- Internal Menu -->
@@ -36,15 +92,19 @@ export function createCard(data = {}) {
         </button>
       </div>
 
-      <div class="rune-card-desc text-sm mt-2 text-text-secondary-light dark:text-text-secondary-dark">${escapeHTML(description)}</div>
-      <div class="rune-card-divider my-3"></div>
-      <div class="rune-card-tags flex flex-wrap gap-2">
+      <div class="rune-card-desc text-sm text-text-secondary-light dark:text-text-secondary-dark mb-3 line-clamp-3 flex-grow">${escapeHTML(description)}</div>
+      
+      <div class="rune-card-tags flex flex-wrap gap-2 mb-3">
         ${tagsHtml}
       </div>
-      <div class="mt-3 card-actions flex items-center justify-end gap-2">
-        <div class="card-controls flex items-center gap-2">
-           ${subscribed ? '<span class="subscribed-label text-sm font-bold text-primary px-2">Subscribed</span>' : ''}
-           <button class="btn-generate-once btn btn-small btn-outline" data-sub-id="" data-link-id="${numericId}">Generate Now</button>
+      
+      <div class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700/50 card-actions flex items-center justify-between gap-2">
+         <div class="text-xs text-gray-400 dark:text-gray-500 font-mono">
+           ${data.created_at ? new Date(data.created_at).toLocaleDateString() : ''}
+         </div>
+         <div class="card-controls flex items-center gap-2">
+           ${subscribed ? '<span class="subscribed-label text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">Subscribed</span>' : ''}
+           <button class="btn-generate-once btn btn-small btn-outline text-xs px-2 py-1 h-auto min-h-0" data-sub-id="" data-link-id="${numericId}">Generate</button>
         </div>
       </div>
     </div>

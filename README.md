@@ -95,3 +95,24 @@ MIT License
 - 前端：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`VITE_FRONTEND_BASE_URL`、`VITE_STRIPE_PUBLIC_KEY`
 - 后端：`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`STRIPE_SECRET_KEY`、`STRIPE_WEBHOOK_SECRET`
 - 请在开发/测试/生产环境分别配置 key，避免在 dev 使用生产密钥
+## Mock API（本地 Docker）
+
+### 快速开始
+1. 启动服务：
+   ```bash
+   docker-compose up -d
+   ```
+2. 验证：
+   ```bash
+   curl http://localhost:4000/api/ai/digests
+   ```
+
+### 前端切换
+在 `.env` 设置：
+```
+VITE_USE_MOCK=true
+VITE_MOCK_API_BASE=http://localhost:4000
+```
+说明：设置 `VITE_MOCK_API_BASE` 后，前端 `apiRouter` 将优先使用 HTTP Mock API；否则使用内置 `mockService`（本地 IndexedDB）。
+
+更多说明参见 `docs/mock.md`。

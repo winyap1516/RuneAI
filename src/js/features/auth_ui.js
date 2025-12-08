@@ -21,6 +21,9 @@ export async function initAuthUI(mode = 'global') {
   window.__AUTH_UI_INIT__ = true;
   console.log(`[Auth] Initializing UI in ${mode} mode`);
 
+  // 中文注释：Mock 模式下跳过真实 Supabase 初始化与 onAuthStateChange 监听
+  const isMock = Boolean(config?.useMock);
+
     // 1. 检查当前 Session（仅在登录/注册页检查，避免重复跳转）
     // 安全修正：如果 URL 包含 password 参数，说明发生了意外的表单提交，优先清理
     if (window.location.search.includes('password=')) {
@@ -31,7 +34,7 @@ export async function initAuthUI(mode = 'global') {
       window.history.replaceState({}, '', url);
     }
 
-    if (mode === 'login' || mode === 'register') {
+    if (!isMock && (mode === 'login' || mode === 'register')) {
       if (supabase) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
@@ -43,7 +46,7 @@ export async function initAuthUI(mode = 'global') {
     }
 
   // 2. 监听 Auth 状态变更 (全局监听)
-  if (supabase) {
+  if (!isMock && supabase) {
     // 移除旧监听（如果有）
     // 注意：supabase-js v2 没有 removeAuthStateListener，但我们可以通过 subscription.unsubscribe()
     // 但为了简单，我们依赖上方的 window.__AUTH_UI_INIT__ 单例保护
@@ -88,14 +91,14 @@ async function handleLoginSuccess(user) {
   const localUser = {
     id: user.id,
     email: user.email,
-    nickname: user.user_metadata?.nickname || user.email.split('@')[0],
+    nickname: user.user_metadata?.nickname || user.user_metadata?.full_name || user.email.split('@')[0],
     avatar: user.user_metadata?.avatar_url || `https://i.pravatar.cc/100?u=${user.id}`
   };
 
   // 保存到本地存储
   await storageAdapter.saveUser(localUser);
   
-  showToast(`欢迎回来, ${localUser.nickname}!`);
+  showToast(`Welcome back, ${localUser.nickname}!`);
 
   // 触发数据同步 (TASK-P5-003)
   try {
@@ -141,8 +144,22 @@ function bindLoginForm() {
 
   // 核心登录逻辑
   const handleLogin = async () => {
+    // 中文注释：Mock 模式下不调用 Supabase，直接写入本地用户并跳转
+    const isMock = Boolean(config?.useMock);
+    if (isMock) {
+      try {
+        const mockUser = { id: 'local-dev', email: 'dev@local', nickname: 'Developer', avatar: `https://i.pravatar.cc/100?img=12` };
+        await storageAdapter.saveUser(mockUser);
+        showToast('Mock mode enabled: signed in as local-dev', 'success');
+        window.location.href = 'dashboard.html';
+        return;
+      } catch (e) {
+        showToast('Mock login failed', 'error');
+        return;
+      }
+    }
     if (!supabase) {
-      showToast('认证服务未初始化，请检查环境变量或刷新页面', 'error');
+      showToast('Auth service not initialized, please check env or refresh', 'error');
       return;
     }
     // 安全修正：立即清理 URL 中的敏感参数（如果存在）
@@ -158,10 +175,10 @@ function bindLoginForm() {
     const password = form.password?.value;
     const remember = form.remember?.checked === true;
 
-    if (!email || !password) return showToast('请输入邮箱和密码', 'error');
+    if (!email || !password) return showToast('Please enter email and password', 'error');
 
     try {
-      setBtnLoading(loginBtn, true, '登录中...', '登录');
+      setBtnLoading(loginBtn, true, 'Signing in...', 'Sign In');
 
       // 中文注释：若勾选“记住我”且已有有效会话，直接跳转到 Dashboard
       if (remember) {
@@ -176,12 +193,12 @@ function bindLoginForm() {
       const pre = await preflightAuth();
       if (!pre.ok) {
         const msg = pre.status === -1
-          ? '认证服务不可达：请检查 Docker 是否运行、端口是否为 65421'
+          ? 'Auth service unreachable: Check if Docker is running on port 65421'
           : (pre.status === 401
-            ? 'API Key 无效：请在 .env 设置正确的 VITE_SUPABASE_ANON_KEY'
-            : `认证服务错误（${pre.status}）：${pre.message || 'UNKNOWN'}`);
+            ? 'Invalid API Key: Check VITE_SUPABASE_ANON_KEY in .env'
+            : `Auth Error (${pre.status}): ${pre.message || 'UNKNOWN'}`);
         showToast(msg, 'error');
-        setBtnLoading(loginBtn, false, '', '登录');
+        setBtnLoading(loginBtn, false, '', 'Sign In');
         return;
       }
 
@@ -196,19 +213,19 @@ function bindLoginForm() {
       const raw = String(e?.message || '');
       let msg = raw;
       if (/Email not confirmed/i.test(raw)) {
-        msg = '邮箱未验证：请点击“重发验证邮件”后再登录';
+        msg = 'Email not verified: Please click "Resend verification"';
         const resend = document.getElementById('resendVerifyLink');
         if (resend) {
           resend.classList.remove('hidden');
           resend.focus?.();
         }
       } else if (/Invalid login credentials/i.test(raw) || /invalid_credentials/i.test(raw)) {
-        msg = '邮箱或密码错误：请检查后重试';
+        msg = 'Invalid email or password';
       } else if (/over_email_send_rate_limit/i.test(raw)) {
-        msg = '操作过于频繁：请稍后再试';
+        msg = 'Too many requests: Please try again later';
       }
       showToast(msg, 'error');
-      setBtnLoading(loginBtn, false, '', '登录');
+      setBtnLoading(loginBtn, false, '', 'Sign In');
     }
   };
 
@@ -243,16 +260,17 @@ function bindForgotPassword() {
   if (!link) return;
   link.addEventListener('click', async (e) => {
     e.preventDefault();
-    if (!supabase) return showToast('认证服务未初始化', 'error');
+    if (Boolean(config?.useMock)) return showToast('Mock mode: password recovery is disabled', 'warning');
+    if (!supabase) return showToast('Auth service not initialized', 'error');
     const email = String(emailInput?.value || '').trim();
-    if (!email) return showToast('请输入邮箱地址后再点击“忘记密码”', 'error');
+    if (!email) return showToast('Please enter email address first', 'error');
     try {
       await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${config.frontendBaseUrl}/reset-password.html`
       });
-      showToast('重置邮件已发送，请检查邮箱', 'success');
+      showToast('Reset email sent, please check your inbox', 'success');
     } catch (err) {
-      showToast(err?.message || '发送失败', 'error');
+      showToast(err?.message || 'Failed to send reset email', 'error');
     }
   });
 }
@@ -267,16 +285,17 @@ function bindResendVerification() {
   if (!link) return;
   link.addEventListener('click', async (e) => {
     e.preventDefault();
-    if (!supabase) return showToast('认证服务未初始化', 'error');
+    if (Boolean(config?.useMock)) return showToast('Mock mode: verification email is disabled', 'warning');
+    if (!supabase) return showToast('Auth service not initialized', 'error');
     const email = String(emailInput?.value || '').trim();
-    if (!email) return showToast('请输入邮箱地址后再点击“重发验证邮件”', 'error');
+    if (!email) return showToast('Please enter email address first', 'error');
     try {
       // 中文注释：统一使用前端基址进行验证后回跳；去除 window.location.origin 兜底以强制配置完整域
       const { error } = await supabase.auth.resend({ type: 'signup', email, options: { redirectTo: `${config.frontendBaseUrl}/dashboard.html` } });
       if (error) throw error;
-      showToast('验证邮件已重新发送，请检查邮箱', 'success');
+      showToast('Verification email resent, please check your inbox', 'success');
     } catch (err) {
-      showToast(err?.message || '发送失败', 'error');
+      showToast(err?.message || 'Failed to send verification email', 'error');
     }
   });
 }
@@ -290,6 +309,7 @@ function bindGoogleLogin() {
   
   btn.addEventListener('click', async () => {
     try {
+      if (Boolean(config?.useMock)) { showToast('Mock mode: OAuth login disabled', 'warning'); return; }
       // 中文注释：统一 OAuth 登录流程重定向到 oauth-callback 页面进行登录映射
       // 说明：登录场景使用 action=login，回调页将根据 auth_providers 映射到主账号
       const { error } = await supabase.auth.signInWithOAuth({
@@ -323,7 +343,7 @@ function bindSignupForm() {
   // 核心注册逻辑
   const handleSignup = async () => {
     if (!supabase) {
-      showToast('认证服务未初始化，请检查环境变量或刷新页面', 'error');
+      showToast('Auth service not initialized, please check env or refresh', 'error');
       return;
     }
     const email = form.email?.value;
@@ -331,11 +351,11 @@ function bindSignupForm() {
     const confirm = form.confirm_password?.value;
     const nickname = form.nickname?.value;
 
-    if (!email || !password || !confirm) return showToast('请填写完整并确认密码', 'error');
-    if (String(password) !== String(confirm)) return showToast('两次输入的密码不一致', 'error');
+    if (!email || !password || !confirm) return showToast('Please complete the form', 'error');
+    if (String(password) !== String(confirm)) return showToast('Passwords do not match', 'error');
 
     try {
-      setBtnLoading(signupBtn, true, '注册中...', '立即注册');
+      setBtnLoading(signupBtn, true, 'Signing up...', 'Sign Up');
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -355,11 +375,12 @@ function bindSignupForm() {
         form.reset();
         form.classList.add('hidden');
         if (successDiv) successDiv.classList.remove('hidden');
+        showToast('Registration successful! Please check your email.', 'success');
       }
       
     } catch (e) {
       showToast(e.message, 'error');
-      setBtnLoading(signupBtn, false, '', '立即注册');
+      setBtnLoading(signupBtn, false, '', 'Sign Up');
     }
   };
 
@@ -394,7 +415,12 @@ function bindLogoutButton() {
     if (!target) return;
 
     e.preventDefault();
-    if (confirm('确定要退出登录吗？')) {
+    if (confirm('Are you sure you want to logout?')) {
+      // 中文注释：Mock 模式下仅执行本地清理与跳转
+      if (Boolean(config?.useMock)) {
+        try { await handleLogoutSuccess(); } catch {}
+        return;
+      }
       // 中文注释：若当前无 Session/Token，直接本地清理，避免触发网络请求导致 ERR_ABORTED
       try {
         const { data } = await supabase.auth.getSession();

@@ -1,5 +1,25 @@
 # 更新日志 (CHANGELOG)
 
+## v0.3.18 - 2025-12-08
+### Added (新增)
+- **UI 交互增强**：
+  - 重构 "Add Link" 按钮：将全局顶部按钮移动到 All Links 区域标题处，支持响应式布局（小屏幕仅显示图标）。
+  - 保留旧按钮 DOM 但默认隐藏 (`global-add-link--hidden`)，便于回滚。
+  - 新增 `src/js/services/uiService.js` 统一管理 Add Link 模态框打开逻辑。
+  - 在分类列表末尾新增卡片式 "Add Link" 按钮（仅在非 All Links 分类下显示）。
+  - 实现 `selectLinkModal` 模态框，支持从现有链接中选择并添加到当前分类。
+  - 新增 `createAddLinkCard` 组件与持久化逻辑，确保添加操作后入口卡片自动复位。
+
+## v0.3.17 - 2025-12-08
+### Fixed (修复)
+- **Favicon 恢复**：`src/js/utils/ui-helpers.js` 恢复 Google Favicon API 支持，增加 `getDomainFromUrl` 提取逻辑与首字母 Fallback 机制。
+- **UI 缺失修复**：修复卡片组件 Tags 与 Meta 信息丢失问题。
+
+### Added (新增)
+- **卡片 Meta 设计**：`src/js/templates/card.js` 新增 Source（来源）与 AI Status（处理状态）展示区。
+- **Tags 优化**：实现标签最多显示 3 个，超出部分以 `+N` 折叠展示的逻辑。
+- **Mock 数据增强**：`src/js/services/mockService.js` 为 Mock 数据源随机注入 `source` 与 `ai_status` 字段。
+
 ## v0.3.16 - 2025-12-06
 ### Changed（修改）
 - 将 `reset-password.html` 从项目根目录移动到 `public/`，与静态资源约定保持一致。
