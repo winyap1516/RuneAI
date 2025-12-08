@@ -8,6 +8,8 @@ export const config = {
   supabaseAnonKey: String(env?.VITE_SUPABASE_ANON_KEY || '').trim(),
   stripePublicKey: String(env?.VITE_STRIPE_PUBLIC_KEY || '').trim(),
   frontendBaseUrl: String(env?.VITE_FRONTEND_BASE_URL || '').trim(),
+  // 中文注释：Mock 模式开关（前端专用，允许完全脱离后端进行 UI 开发与测试）
+  useMock: String(env?.VITE_USE_MOCK || '').trim() === 'true' || (typeof window !== 'undefined' && window.__FORCE_MOCK__ === true),
   uiConflictEnabled: true, // 默认启用冲突 UI（与 blueprint 对齐）
   validate() {
     const missing = [];

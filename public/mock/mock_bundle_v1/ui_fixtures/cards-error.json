@@ -1,0 +1,6 @@
+{
+  "error": true,
+  "code": "500",
+  "message": "Internal Server Error",
+  "details": "Simulated failure for UI testing"
+}
