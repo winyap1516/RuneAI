@@ -30,14 +30,14 @@ serve(async (req) => {
     const since = urlObj.searchParams.get('since');
     const sinceTs = since ? new Date(since).toISOString() : null;
 
-    // 多资源聚合：websites/subscriptions/digests/generation_logs
-    const wq = sinceTs ? supabase.from('websites').select('*').eq('user_id', uid).gte('updated_at', sinceTs) : supabase.from('websites').select('*').eq('user_id', uid);
+    // 多资源聚合：links(原websites)/subscriptions/digests/generation_logs
+    const wq = sinceTs ? supabase.from('links').select('*').eq('user_id', uid).gte('updated_at', sinceTs) : supabase.from('links').select('*').eq('user_id', uid);
     const sq = sinceTs ? supabase.from('subscriptions').select('*').eq('user_id', uid).gte('updated_at', sinceTs) : supabase.from('subscriptions').select('*').eq('user_id', uid);
     const dq = sinceTs ? supabase.from('digests').select('*').eq('user_id', uid).gte('updated_at', sinceTs) : supabase.from('digests').select('*').eq('user_id', uid);
     const gq = sinceTs ? supabase.from('generation_logs').select('*').eq('user_id', uid).gte('created_at', sinceTs) : supabase.from('generation_logs').select('*').eq('user_id', uid);
 
     const [wres, sres, dres, gres] = await Promise.all([wq, sq, dq, gq]);
-    if (wres.error) return new Response(JSON.stringify({ error: 'QUERY_FAILED', table: 'websites', message: wres.error.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (wres.error) return new Response(JSON.stringify({ error: 'QUERY_FAILED', table: 'links', message: wres.error.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (sres.error) return new Response(JSON.stringify({ error: 'QUERY_FAILED', table: 'subscriptions', message: sres.error.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (dres.error) return new Response(JSON.stringify({ error: 'QUERY_FAILED', table: 'digests', message: dres.error.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (gres.error) return new Response(JSON.stringify({ error: 'QUERY_FAILED', table: 'generation_logs', message: gres.error.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

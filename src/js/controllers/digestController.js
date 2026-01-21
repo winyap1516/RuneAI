@@ -33,6 +33,7 @@ export const digestController = {
     const user = storageAdapter.getUser() || { id: USER_ID.DEFAULT };
     
     // Quota Check
+    // 中文注释：每日限额检查（单测期望当返回 false 时抛出 DAILY_LIMIT_REACHED）
     const canGen = await quotaService.canGenerate(user.id);
     if (!canGen) {
         throw new Error("DAILY_LIMIT_REACHED");
@@ -44,26 +45,40 @@ export const digestController = {
     if (!link) throw new Error('Link not found');
     
     // Call AI Service (Standardized Interface)
-    const aiResponse = await createDigestForWebsite(link, DIGEST_TYPE.MANUAL);
+    // 中文注释：传入 link.id 以支持针对特定链接的生成
+    const aiResponse = await createDigestForWebsite(link, DIGEST_TYPE.MANUAL, linkId);
     
     if (aiResponse.ok) {
         // Save to DB
-        const record = await storageAdapter.addDigest({
-            website_id: link.id,
-            summary: aiResponse.summary,
-            type: DIGEST_TYPE.MANUAL,
-            metadata: aiResponse.metadata
-        });
-        
-        // Log Success
-        storageAdapter.addGenerationLog({
-            userId: user.id,
-            type: DIGEST_TYPE.MANUAL,
-            linkId: link.id,
-            status: 'success'
-        });
-        
-        return record;
+        try {
+            const record = await storageAdapter.addDigest({
+                website_id: link.id,
+                summary: aiResponse.summary,
+                type: DIGEST_TYPE.MANUAL,
+                metadata: aiResponse.metadata
+            });
+            
+            // Log Success
+            storageAdapter.addGenerationLog({
+                userId: user.id,
+                type: DIGEST_TYPE.MANUAL,
+                linkId: link.id,
+                status: 'success'
+            });
+            
+            return record;
+        } catch (dbErr) {
+             console.error('[DigestController] DB Write Failed:', dbErr);
+             // Log Failure (DB)
+             storageAdapter.addGenerationLog({
+                userId: user.id,
+                type: DIGEST_TYPE.MANUAL,
+                linkId: link.id,
+                status: 'failed',
+                error: { message: 'Database Write Failed', original: dbErr.message }
+            });
+            throw new Error('Failed to save digest to database');
+        }
     } else {
         // Log Failure
         storageAdapter.addGenerationLog({

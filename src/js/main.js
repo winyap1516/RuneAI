@@ -76,17 +76,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // 检测 IDE WebView 环境并警告 (仅 Dev)
   const isDev = import.meta?.env?.MODE !== 'production';
 
-  // 模拟已登录用户（仅在开发模式且本地无用户时写入，避免覆盖真实用户）
-  if (isDev && !storageAdapter.getUser()) {
-      const user = {
-        id: 'local-dev',
-        nickname: 'Developer',
-        email: 'dev@local',
-        avatar: 'https://i.pravatar.cc/100?img=12'
-      };
-      storageAdapter.saveUser(user);
-  }
-
   if (isDev) {
     const isWebView = !window.navigator.webdriver && (
        /Code|VSCode|Trae|IDE/i.test(navigator.userAgent) || 
@@ -112,7 +101,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (isDev && window.__DISABLE_SW !== false) {
       navigator.serviceWorker.getRegistrations()
         .then(regs => Promise.all(regs.map(r => r.unregister())))
-        .then(() => console.warn('[SW] Dev mode: unregistered all Service Workers'))
         .catch(() => {});
     } else {
       window.addEventListener('load', () => {
@@ -140,7 +128,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // 但要根据当前页面判断
     
     const path = window.location.pathname;
-    if (!path.includes('dashboard.html') && !path.includes('login.html') && !path.includes('register.html')) {
+    // 中文注释：避免在 signup.html 上执行全局初始化（其将由 entry.js 专门初始化注册逻辑）
+    if (!path.includes('dashboard.html') && !path.includes('login.html') && !path.includes('register.html') && !path.includes('signup.html')) {
        initAuthUI('global'); // 仅在 landing/index 页初始化
     } else if (path.includes('dashboard.html')) {
        // Dashboard 页初始化逻辑移至 dashboard_init.js

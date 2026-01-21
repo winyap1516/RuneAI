@@ -4,9 +4,10 @@ import { config } from "/src/js/services/config.js";
 // 中文注释：引入统一 API 路由（支持外部 HTTP Mock 与本地 Mock 切换）
 import { api } from "/src/js/services/apiRouter.js";
 import { callFunction } from "/src/js/services/supabaseClient.js";
-import { normalizeUrl } from "/src/js/utils/url.js";
+import { normalizeUrl, ensureAbsoluteUrl } from "/src/js/utils/url.js";
 import { escapeHTML, buildIconHTML, getTagClass } from "/src/js/utils/ui-helpers.js";
 import { openAddLinkModal } from "/src/js/services/uiService.js";
+import logger from "/src/js/services/logger.js";
 
 let _containerEl = null;
 let _controllers = null;
@@ -116,77 +117,119 @@ export function updateSingleCardUI(id, data) {
         }
     }
 
-    // 4. Update URL & Icon
+    // 4. Update URL & Icon（修正选择器与数据来源，确保图标/链接正确刷新）
     if (data.url !== undefined) {
         const nurl = normalizeUrl(data.url);
-        // Update icon (Icon depends on Title too, so we use data.title or existing title)
         const currentTitle = data.title || card.querySelector('.rune-card-title')?.textContent || '';
-        
-        // Replace Icon HTML
-        const iconContainer = card.querySelector('.rune-card-head .flex.items-center.gap-3');
+
+        // 替换图标（兼容 items-start / items-center）
+        const iconContainer = card.querySelector('.rune-card-head .flex.gap-3');
         if (iconContainer) {
-             // The icon is the first child usually
              const oldIcon = iconContainer.querySelector('.rune-card-icon') || iconContainer.firstElementChild;
              if (oldIcon) oldIcon.outerHTML = buildIconHTML({ title: currentTitle, url: data.url });
         }
 
-        // Update Subscribe Button Data
-        const subBtn = card.querySelector('.btn-subscribe');
-        if (subBtn) subBtn.setAttribute('data-url', nurl);
+        // 更新头部链接显示（文本与 href）
+        const linkEl = card.querySelector('.rune-card-head a[href]');
+        if (linkEl) {
+            linkEl.textContent = nurl;
+            linkEl.setAttribute('href', ensureAbsoluteUrl(data.url));
+            linkEl.setAttribute('title', data.url);
+        }
     } else if (data.title !== undefined) {
-         // If only title changed, icon letter might change
-         const currentUrl = card.querySelector('.btn-subscribe')?.getAttribute('data-url') || '';
-         const iconContainer = card.querySelector('.rune-card-head .flex.items-center.gap-3');
+         // 仅标题变化时，首字母可能变动，图标需刷新
+         const linkEl = card.querySelector('.rune-card-head a[href]');
+         const currentUrl = linkEl?.getAttribute('href') || '';
+         const iconContainer = card.querySelector('.rune-card-head .flex.gap-3');
          if (iconContainer) {
              const oldIcon = iconContainer.querySelector('.rune-card-icon') || iconContainer.firstElementChild;
              if (oldIcon) oldIcon.outerHTML = buildIconHTML({ title: data.title, url: currentUrl });
          }
     }
 
-    // 5. Update Tags
+    // 5. Update Tags（最多显示 6 个，多余显示 +N）
     if (data.tags !== undefined && Array.isArray(data.tags)) {
         const tagsContainer = card.querySelector('.rune-card-tags');
         if (tagsContainer) {
-            const tagsHtml = data.tags.map((raw) => {
+            const maxTags = 6;
+            const tagList = data.tags || [];
+            const visibleTags = tagList.slice(0, maxTags);
+            const remainingCount = tagList.length - maxTags;
+
+            let tagsHtml = visibleTags.map((raw) => {
                 const label = String(raw).trim();
                 const colorCls = getTagClass(label);
                 return `<span class="rune-tag ${colorCls} rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">${escapeHTML(label)}</span>`;
             }).join("");
+
+            if (remainingCount > 0) {
+                tagsHtml += `<span class="rune-tag bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400 rounded-full px-2.5 py-1 text-xs font-medium border border-transparent">+${remainingCount}</span>`;
+            }
+
             tagsContainer.innerHTML = tagsHtml;
         }
     }
 
-    // 6. Update Subscription Status
+    // 5.1 Update AI Status（使用 data-* 标记精准定位，避免误改 Source 图标）
+    if (data.ai_status !== undefined) {
+        const status = String(data.ai_status).toLowerCase();
+        const container = card.querySelector('[data-ai-status="1"]');
+        const iconEl = card.querySelector('[data-ai-status-icon="1"]');
+        const textEl = card.querySelector('[data-ai-status-text="1"]');
+        const colorMap = {
+           completed: 'text-green-600 dark:text-green-400',
+           processed: 'text-green-600 dark:text-green-400',
+           failed: 'text-red-600 dark:text-red-400',
+           pending: 'text-amber-600 dark:text-amber-400'
+        };
+        const iconMap = {
+           completed: 'check_circle',
+           processed: 'check_circle',
+           failed: 'error',
+           pending: 'hourglass_empty'
+        };
+        if (textEl) textEl.textContent = data.ai_status;
+        if (iconEl) iconEl.textContent = iconMap[status] || 'hourglass_empty';
+        const color = colorMap[status] || colorMap.pending;
+        if (container) container.className = `flex items-center gap-1 ${color}`;
+    }
+
+    // 6. Update Subscription Status（根据订阅状态切换 Track / Generate 按钮）
     if (data.subscribed !== undefined) {
-        const btn = card.querySelector('.btn-subscribe');
         const controls = card.querySelector('.card-controls');
-        
-        if (btn && controls) {
+        if (controls) {
+            let label = controls.querySelector('.subscribed-label');
+            let trackBtn = controls.querySelector('.btn-track');
+            let genBtn = controls.querySelector('.btn-generate-ai');
+
             if (data.subscribed) {
-                btn.classList.add('hidden');
-                controls.classList.remove('hidden');
-                controls.classList.add('flex');
-                // Update Generate Now button data
-                const onceBtn = controls.querySelector('.btn-generate-once');
-                if (onceBtn) {
-                    onceBtn.disabled = false;
-                    onceBtn.dataset.subId = data.subscriptionId || ''; 
-                    onceBtn.dataset.linkId = id;
+                // 显示 Tracking 标签
+                if (!label) {
+                    label = document.createElement('span');
+                    label.className = 'subscribed-label text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded';
+                    label.textContent = 'Tracking';
+                    controls.insertBefore(label, controls.firstChild);
+                }
+                // 移除 Track，显示 Generate
+                if (trackBtn) trackBtn.remove();
+                if (!genBtn) {
+                    genBtn = document.createElement('button');
+                    genBtn.className = 'btn-generate-ai btn btn-small btn-outline text-xs px-2 py-1 h-auto min-h-0';
+                    genBtn.dataset.linkId = String(id);
+                    genBtn.textContent = 'Generate';
+                    controls.appendChild(genBtn);
                 }
             } else {
-                btn.classList.remove('hidden');
-                btn.textContent = 'Subscribe';
-                btn.disabled = false;
-                btn.classList.remove('btn-outline', 'text-primary');
-                btn.classList.add('btn-muted');
-                
-                controls.classList.add('hidden');
-                controls.classList.remove('flex');
-                
-                const onceBtn = controls.querySelector('.btn-generate-once');
-                if (onceBtn) {
-                    onceBtn.disabled = true;
-                    onceBtn.dataset.subId = '';
+                // 移除 Tracking 标签
+                if (label) label.remove();
+                // 移除 Generate，显示 Track
+                if (genBtn) genBtn.remove();
+                if (!trackBtn) {
+                    trackBtn = document.createElement('button');
+                    trackBtn.className = 'btn-track btn btn-small btn-muted text-xs px-2 py-1 h-auto min-h-0';
+                    trackBtn.dataset.linkId = String(id);
+                    trackBtn.textContent = 'Track';
+                    controls.appendChild(trackBtn);
                 }
             }
         }
@@ -347,70 +390,105 @@ export function bindLinksEvents() {
 
   // 中文注释：订阅开关迁移至 Settings Panel，卡片不再提供订阅按钮
 
-  // 2. Generate Now（调用 Edge Function，mode=manual；前端不做次数/冷却限制）
-  delegate(document, '.btn-generate-once', 'click', async (e, b) => {
-      e.preventDefault(); e.stopPropagation();
-      const user = _utils.storageAdapter?.getUser();
-      const uid = user?.id || USER_ID.GUEST;
-      b.dataset.loading = '1';
-      setLoading(b, true, 'Generating…');
+  // Manual Generate Digest Button
+  delegate(document, '.btn-generate-ai', 'click', async (e, btn) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = btn.closest('.rune-card');
+      const id = card.dataset.cardId;
+
+      if (btn.disabled || btn.classList.contains('loading')) return;
+
+      // Check subscription status
+      // 中文注释：用户要求 "追踪模式下 用户可以按Generate日报"
+      // 即：Generate 按钮仅在 Tracking 状态下可用，或者点击时自动开启 Tracking
+      // 鉴于 "用户可以按 追踪网页卡片" 可能是另一个动作，这里我们假设必须先 Tracking
+      
+      const isSubscribed = card.querySelector('.subscribed-label') !== null;
+      if (!isSubscribed) {
+          // 如果未追踪，提示用户先追踪
+          _utils.dom.openInfoModal('Tracking Required', 'Please track this card first to generate a digest.');
+          return;
+      }
+
       try {
-          // 中文注释：优先使用外部 HTTP Mock API（当配置了 VITE_MOCK_API_BASE 时），以获得真实 AI 结果
-          const linkId = b?.dataset?.linkId || (b.closest('.rune-card')?.getAttribute('data-card-id') || '');
-          if (config?.mockApiBase) {
-              // 1) 提交生成作业到 Mock Server（可能触发真实 AI）
-              const jobResp = await api.generateNow({ user_id: uid, link_id: linkId });
-              if (!jobResp || !jobResp.job_id) throw new Error('JOB_NOT_CREATED');
-              const jobId = jobResp.job_id;
+          // 中文注释：链路日志（生成日报请求）
+          logger.info('[LinksView] Generate Digest 请求', { linkId: id, ts: new Date().toISOString() });
+          btn.classList.add('loading');
+          btn.textContent = 'Generating Digest...';
+          btn.disabled = true;
 
-              // 2) 轮询作业状态直到完成/失败（简易实现，最多等待 ~8s）
-              let status = jobResp.status || 'queued';
-              let result = null;
-              for (let i = 0; i < 10; i++) {
-                  if (status === 'completed' || status === 'failed') break;
-                  await new Promise(r => setTimeout(r, 800));
-                  const j = await api.getJob(jobId);
-                  status = j?.status || status;
-                  result = j?.result || null;
-                  if (status === 'completed' || status === 'failed') break;
-              }
-              if (status !== 'completed') {
-                  throw new Error(`JOB_${status || 'UNKNOWN'}`);
-              }
-
-              // 3) 获取 Digest 详情并写入本地存储（用于 UI 展示与分页）
-              const digestId = result?.digest_id;
-              if (!digestId) throw new Error('MISSING_DIGEST_ID');
-              let digest;
-              try { digest = await api.getDigest(digestId); } catch(e) { digest = null; }
-              const summary = digest?.summary || 'Digest generated';
-              await _utils.storageAdapter.addDigest({
-                  website_id: Number(linkId) || linkId,
-                  summary,
-                  type: 'manual',
-                  metadata: { source: 'http-mock', digest_id: digestId }
-              });
-              showToast('Digest generated (HTTP Mock)', 'success');
-          } else if (config?.useMock) {
-              // 中文注释：未配置外部 Mock 时，回退到本地 Mock 逻辑
-              const { digestController } = _controllers;
-              await digestController.generateManualDigest(linkId);
-              showToast('Digest generated (Mock)', 'success');
-          } else {
-              const resp = await callFunction('generate-digest', { method: 'POST', body: JSON.stringify({ user_id: uid, mode: 'manual' }) });
-              const json = await resp.json().catch(()=>({}));
-              if (resp.ok && json?.ok) {
-                  showToast('Digest generated successfully!', 'success');
-              } else {
-                  const msg = json?.error || `HTTP ${resp.status}`;
-                  openTextPrompt({ title: 'Generation Failed', placeholder: msg });
-              }
-          }
+          // Call Digest Controller (Manual Digest for this link)
+          await digestController.generateManualDigest(id);
+          
+          btn.textContent = 'Digest Ready';
+          btn.classList.remove('loading');
+          btn.classList.add('btn-success'); // Visual feedback
+          // 中文注释：链路日志（生成日报成功）
+          logger.info('[LinksView] Generate Digest 成功', { linkId: id, ts: new Date().toISOString() });
+          
+          setTimeout(() => {
+             btn.textContent = 'Generate Digest';
+             btn.disabled = false;
+             btn.classList.remove('btn-success');
+          }, 3000);
+          
+          _utils.dom.showToast('Digest generated successfully', 'success');
+          
       } catch (err) {
-          openTextPrompt({ title: 'Generation Failed', placeholder: err.message });
+          console.error('Manual digest failed:', err);
+          btn.textContent = 'Retry';
+          btn.classList.remove('loading');
+          btn.classList.add('btn-error'); // Error state
+          btn.disabled = false;
+          
+          // 显示详细错误
+          let msg = err.message || 'Unknown error';
+          if (msg.includes('DAILY_LIMIT')) msg = 'Daily limit reached';
+          _utils.dom.openInfoModal('Generation Failed', `Could not generate digest: ${msg}`);
+          // 中文注释：链路日志（生成日报失败）
+          logger.error('[LinksView] Generate Digest 失败', { linkId: id, error: err?.message || String(err), ts: new Date().toISOString() });
+          
+          setTimeout(() => btn.classList.remove('btn-error'), 3000);
+      }
+  });
+
+  // Track Button
+  delegate(document, '.btn-track', 'click', async (e, btn) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const card = btn.closest('.rune-card');
+      const id = card?.dataset?.cardId;
+      if (!id) return;
+      try {
+          // 中文注释：链路日志（开启追踪请求）
+          logger.info('[LinksView] Track Link 请求', { linkId: id, ts: new Date().toISOString() });
+          btn.disabled = true;
+          btn.textContent = 'Tracking...';
+          await _controllers.linkController.subscribe(id);
+          // 切换按钮为 Generate
+          const controls = card.querySelector('.card-controls');
+          if (controls) {
+              const label = document.createElement('span');
+              label.className = 'subscribed-label text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded';
+              label.textContent = 'Tracking';
+              controls.insertBefore(label, controls.firstChild);
+              btn.remove();
+              const genBtn = document.createElement('button');
+              genBtn.className = 'btn-generate-ai btn btn-small btn-outline text-xs px-2 py-1 h-auto min-h-0';
+              genBtn.dataset.linkId = String(id);
+              genBtn.textContent = 'Generate';
+              controls.appendChild(genBtn);
+          }
+          _utils.dom.showToast('Tracking enabled', 'success');
+          // 中文注释：链路日志（开启追踪成功）
+          logger.info('[LinksView] Track Link 成功', { linkId: id, ts: new Date().toISOString() });
+      } catch (err) {
+          _utils.dom.openInfoModal('Error', 'Enable tracking failed: ' + (err?.message || err));
+          // 中文注释：链路日志（开启追踪失败）
+          logger.error('[LinksView] Track Link 失败', { linkId: id, error: err?.message || String(err), ts: new Date().toISOString() });
       } finally {
-          delete b.dataset.loading;
-          setLoading(b, false);
+          btn.disabled = false;
       }
   });
 
@@ -459,8 +537,8 @@ async function markSubscribedButtons() {
             if (hasSub) {
                 if (!label) {
                     label = document.createElement('span');
-                    label.className = 'subscribed-label text-sm font-bold text-primary px-2';
-                    label.textContent = 'Subscribed';
+                    label.className = 'subscribed-label text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded';
+                    label.textContent = 'Tracking';
                     controls.insertBefore(label, controls.firstChild);
                 }
             } else {
@@ -468,7 +546,7 @@ async function markSubscribedButtons() {
             }
         }
         if (onceBtn) {
-            onceBtn.disabled = false; // 中文注释：手动生成始终可用，由后端判定次数
+            onceBtn.disabled = false; 
             onceBtn.dataset.linkId = cardId || '';
         }
     }
@@ -584,12 +662,18 @@ function bindModalEvents() {
             saveBtn.dataset.submitting = '1';
             setLoading(saveBtn, true, 'Saving...');
             try {
+                // 中文注释：链路日志（前端发起请求）
+                logger.info('[LinksView] Add Link 请求', { url: raw, ts: new Date().toISOString() });
                 await linkController.addLink(raw);
                 // 中文注释：视图插入由 linkController 调用 view.addSingleCardUI 完成，这里不再重复插入
                 updateUIStates();
                 inpUrl.value = '';
                 closeModal(addModal);
+                // 中文注释：链路日志（请求成功）
+                logger.info('[LinksView] Add Link 成功', { url: raw, ts: new Date().toISOString() });
             } catch(err) {
+                // 中文注释：链路日志（请求失败）
+                logger.error('[LinksView] Add Link 失败', { url: raw, error: err?.message || String(err), ts: new Date().toISOString() });
                 openTextPrompt({title:'Error', placeholder:err.message});
             } finally {
                 delete saveBtn.dataset.submitting;
@@ -673,12 +757,18 @@ function bindModalEvents() {
                         tags: rawTags,
                         category: fCat?.value || 'All Links'
                     };
+                    // 中文注释：链路日志（前端发起更新）
+                    logger.info('[LinksView] Update Link 请求', { id, updates, ts: new Date().toISOString() });
 
                     await linkController.updateLink(id, updates);
                     updateSingleCardUI(id, updates);
                     closeModal(editModal);
                     showToast('Link updated successfully', 'success');
+                    // 中文注释：链路日志（更新成功）
+                    logger.info('[LinksView] Update Link 成功', { id, ts: new Date().toISOString() });
                 } catch (err) {
+                    // 中文注释：链路日志（更新失败）
+                    logger.error('[LinksView] Update Link 失败', { id, error: err?.message || String(err), ts: new Date().toISOString() });
                     openTextPrompt({ title: 'Error', placeholder: err.message });
                 } finally {
                     setLoading(btn, false);
@@ -762,7 +852,19 @@ function bindMenuEvents() {
         const fCat = document.getElementById('editLinkCategory');
 
         if (fTitle) fTitle.value = data.title || '';
-        if (fURL) fURL.value = data.url || '';
+        // 中文注释：URL 填充增加回退机制，优先使用 data.url，若为空则尝试从 DOM 节点获取（避免 Edit 弹窗 URL 为空）
+        if (fURL) {
+            let u = data.url || '';
+            if (!u && card) {
+                const linkEl = card.querySelector('a.card-link'); // 假设卡片上有这个类，或者用通用选择器
+                u = linkEl ? linkEl.getAttribute('href') : '';
+                // 如果 href 是绝对路径且包含 http，则使用；否则可能为空
+                if (u && !u.startsWith('http')) u = ''; 
+            }
+            // 再次尝试从 data-url 属性获取（如果有）
+            if (!u && card && card.dataset.url) u = card.dataset.url;
+            fURL.value = u;
+        }
         if (fDesc) fDesc.value = data.description || '';
         if (fTags) fTags.value = Array.isArray(data.tags) ? data.tags.join(', ') : '';
         if (fCat) fCat.value = data.category || '';

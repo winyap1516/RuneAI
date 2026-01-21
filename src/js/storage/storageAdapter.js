@@ -7,6 +7,7 @@
 
 import { normalizeUrl } from '/src/js/utils/url.js';
 import db, { websites as Websites, subscriptions as Subs, digests as Digests } from './db.js';
+import logger from '/src/js/services/logger.js';
 // 中文注释：文本处理工具来自旧版 js/services，为保持兼容性在此跨树导入
 // 注意：从 src/js/storage 路径回到仓库根后再进入 js/services
 // 中文注释：文本处理工具（已迁移到 src/js/services）
@@ -365,32 +366,68 @@ export const storageAdapter = {
    */
   async addLink(link, options = {}) {
     // 简单查重：url+user 唯一
-    const existed = await Websites.getByUrl(link.url)
-    if (existed) throw new Error('Link already exists')
-    // 文本字段预处理与长度限制
-    const limited = enforceFieldLengths({
-      title: link.title || link.url,
-      description: link.description || '',
-    })
-    const record = await Websites.create({
-      url: link.url,
-      title: cleanTextForStorage(limited.title, 200),
-      description: cleanTextForStorage(limited.description, 2000),
-      category: link.category || null,
-      tags: link.tags || [],
-      source: link.source || 'Manual',
-      ai_status: link.ai_status || 'pending',
-      user_id: (this.getUser()?.id) || 'local-dev',
-    })
-    // 写入本地变更日志（create）
-    try { await enqueueChange('website', 'create', record.website_id, { url: record.url, title: record.title, description: record.description, category: record.category }) } catch {}
-    // 分类维护
-    if (record.category) this.ensureCategory(record.category)
-    if (!options.silent) this.notify({ type: 'links_changed' })
-    return {
-      id: record.website_id,
-      website_id: record.website_id,
-      ...record
+    const userId = (this.getUser()?.id) || 'local-dev';
+    
+    try {
+      const existed = await Websites.getByUrl(link.url, userId)
+      if (existed) {
+          logger.warn(`[Storage] Link already exists: ${link.url}`);
+          throw new Error('Link already exists')
+      }
+      
+      // 文本字段预处理与长度限制
+      const limited = enforceFieldLengths({
+        title: link.title || link.url,
+        description: link.description || '',
+      })
+      
+      // Database Write Transaction
+      const record = await Websites.create({
+        url: link.url,
+        title: cleanTextForStorage(limited.title, 200),
+        description: cleanTextForStorage(limited.description, 2000),
+        category: link.category || null,
+        tags: link.tags || [],
+        source: link.source || 'Manual',
+        ai_status: link.ai_status || 'pending',
+        user_id: userId,
+      })
+      
+      if (!record || !record.website_id) {
+          throw new Error('Database write failed: No ID returned');
+      }
+
+      // 写入本地变更日志（create），允许通过 options.skipEnqueue 跳过（例如服务端已写库并返回 authoritative row）
+      if (!options.skipEnqueue) {
+        try { 
+          await enqueueChange('website', 'create', record.website_id, { 
+            url: record.url, 
+            title: record.title, 
+            description: record.description, 
+            category: record.category,
+            tags: record.tags,
+            source: record.source,
+            ai_status: record.ai_status
+          });
+        } catch (e) {
+          logger.warn('[Storage] enqueueChange failed during addLink:', e);
+        }
+      }
+      
+      // 分类维护
+      if (record.category) this.ensureCategory(record.category)
+      if (!options.silent) this.notify({ type: 'links_changed' })
+      
+      logger.info(`[Storage] Link created successfully: ${record.website_id}`, { url: record.url });
+
+      return {
+        id: record.website_id,
+        website_id: record.website_id,
+        ...record
+      }
+    } catch (error) {
+      logger.error('[Storage] addLink failed', { error, link });
+      throw error;
     }
   },
 

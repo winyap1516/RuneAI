@@ -6,7 +6,8 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:paths": "node scripts/check_static_paths.js"
+    "lint:paths": "node scripts/check_static_paths.js",
+    "mock-server": "node scripts/mock-server.js"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",

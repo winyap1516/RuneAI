@@ -34,3 +34,21 @@ export function normalizeUrl(url) {
     return clean;
   }
 }
+
+// 中文注释：将任意输入转换为绝对 URL（带协议），用于网络请求/抓取
+// 规则：
+// - 缺失协议时默认使用 https；可解析失败时返回空字符串避免报错
+// - 保留协议、主机、路径、查询与哈希，便于后端准确抓取网页
+export function ensureAbsoluteUrl(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+  const guess = /^(https?:)\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const u = new URL(guess);
+    // 规范化主机为小写（不移除 www，保留原始形态以保证抓取一致性）
+    u.hostname = u.hostname.toLowerCase();
+    return u.toString();
+  } catch {
+    return '';
+  }
+}

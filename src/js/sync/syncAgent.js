@@ -33,10 +33,45 @@ async function pushOnce() {
   const changes = await getPendingChanges(BATCH_LIMIT);
   if (!changes || changes.length === 0) return true; // 无变更则视为成功
 
-  // 中文注释：保证每条变更包含字段级时间戳（field_timestamps）
-  const enriched = changes.map(ch => ({
-    ...ch,
-    field_timestamps: ch.field_timestamps || {},
+  // 中文注释：数据清洗与补全（修复旧数据缺失 ai_status 导致的 400 错误）
+  const enriched = await Promise.all(changes.map(async ch => {
+    const p = { ...(ch.payload || {}) }; // Clone payload
+    
+    // 针对 website create/update 补全 ai_status
+    if (ch.resource_type === 'website' && (ch.op === 'create' || ch.op === 'update')) {
+      // 如果缺少关键字段，尝试从本地 DB 补救（以获取最新的 ai_status: completed）
+      if (!p.ai_status || !p.source) {
+        try {
+          const localRec = await db.websites.getById(ch.resource_id);
+          if (localRec) {
+            if (!p.ai_status) p.ai_status = localRec.ai_status || 'pending';
+            if (!p.source) p.source = localRec.source || 'Manual';
+            if (!p.tags && localRec.tags) p.tags = localRec.tags;
+          }
+        } catch (e) {
+          // Ignore DB read error
+        }
+      }
+
+      // 最后的兜底默认值
+      if (!p.ai_status) p.ai_status = 'pending'; 
+      if (!p.source) p.source = 'Manual';
+      if (!p.tags) p.tags = [];
+    }
+    
+    // 补全 field_timestamps
+    const fts = { ...(ch.field_timestamps || {}) };
+    // 若补全了字段，也需补全时间戳（使用当前时间，确保覆盖）
+    const nowIso = new Date().toISOString();
+    if (p.ai_status && !fts.ai_status) fts.ai_status = nowIso;
+    if (p.source && !fts.source) fts.source = nowIso;
+    if (p.tags && !fts.tags) fts.tags = nowIso;
+
+    return {
+      ...ch,
+      payload: p,
+      field_timestamps: fts,
+    };
   }));
 
   const res = await callFunction('sync-push', {

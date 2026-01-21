@@ -1,5 +1,26 @@
 # 更新日志 (CHANGELOG)
 
+## v0.3.20 - 2025-12-09
+### Fixed (修复)
+- **链接查重逻辑**：修复 `storageAdapter.addLink` 在查重时未正确过滤 User ID 的问题，解决新用户无法添加数据库中已存在的链接（"Link already exists"）的 Bug。
+- **Dev 模式泄露**：移除 `config.js` 中的 `devAllowDashboard` 后门，强制所有环境进行严格的 Session 校验，防止已登录用户意外触发 Mock 数据。
+- **Edge Function**：`super-endpoint` 增强 Mock 判定逻辑，在非 Dev 环境下强制使用真实 AI，防止云端环境因 Key 问题意外回退到 Mock 数据。
+
+### Changed (变更)
+- **Digest 限制**：移除手动生成摘要（Digest）的每日次数限制（保留按钮防抖动），允许用户无限次生成。
+
+## v0.3.19 - 2025-12-09
+### Changed（修改）
+- 前端后端全面云端化：停止使用本地 Supabase Docker/本地 Edge Functions，统一指向云端 Supabase（Auth/DB/Storage/Edge）。
+- 移除本地函数启动脚本：删除 `package.json` 内 `supabase:functions:serve`/`dev:functions`/`dev:functions:ps`。
+- 新增 `.env.local`（仅前端）：仅包含 `VITE_SUPABASE_URL` 与 `VITE_SUPABASE_ANON_KEY` 等云端配置。
+- `supabaseClient.js` 增强：优先使用 ESM `@supabase/supabase-js`，CDN 作为回退；统一通过 `SUPABASE_URL/functions/v1/*` 调用云端函数。
+
+### Docs（文档）
+- 更新 `README.md`：替换为“云端 Edge Functions 调用指南”，移除本地 `curl localhost:54321` 示例。
+- 更新 `ENV.md`：补充完整 Redirect URLs 列表（login/register/signup 等页面与 hash 回调）。
+- 更新 `CODE_MODULE_BLUEPRINT.md`：记录 `.env.local` 与 `supabaseClient.js` 的变更与依赖关系。
+
 ## v0.3.18 - 2025-12-08
 ### Added (新增)
 - **UI 交互增强**：

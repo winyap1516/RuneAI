@@ -29,6 +29,15 @@ if (path.includes('register.html')) {
   });
 }
 
+// 中文注释：signup.html 与 register.html 为同一注册流程页面的两种样式版本
+// 这里统一在 signup.html 加载并初始化注册模式，确保“点击注册”按钮能正常工作
+if (path.includes('signup.html')) {
+  import('/src/js/services/supabaseClient.js');
+  import('/src/js/features/auth_ui.js').then(mod => {
+    try { mod.initAuthUI && mod.initAuthUI('register'); } catch {}
+  });
+}
+
 // OAuth 回调页：加载视图脚本（自执行）
 if (path.includes('oauth-callback.html')) {
   import('/src/js/views/oauth_callback.js');

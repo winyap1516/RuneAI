@@ -49,3 +49,26 @@ coverage/
 # 依赖锁定文件 (可以根据需要选择是否忽略)
 # package-lock.json
 # yarn.lock
+.supabase
+#
+# =============================
+# 追加忽略（仓库最小化与安全）
+# =============================
+# Python 缓存与测试生成
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+ 
+# 本地上传与临时输出
+uploads/
+tmp/
+ 
+# Trae 本地工作区文件（IDE 辅助，不属于仓库交付）
+.trae/
+ 
+# 大体量本地 Mock 数据包（仅开发演示使用）
+mock_bundle_v1/
+ 
+# 后端本地环境文件（安全起见不入库）
+backend/python/.env

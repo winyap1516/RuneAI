@@ -42,9 +42,9 @@ begin
         p_user_id, v_cid, v_type, nullif(v_resource_id,'')::uuid, v_op, v_payload, now(), v_base_ts
       );
 
-      if v_type = 'website' then
+      if v_type = 'link' or v_type = 'website' then
         if v_op = 'create' then
-          insert into public.websites(user_id, url, title, description, category, tags)
+          insert into public.links(user_id, url, title, description, category, tags)
           values (
             p_user_id,
             v_payload->>'url',
@@ -60,12 +60,12 @@ begin
           ));
         elsif v_op = 'update' then
           -- 基于 base_server_ts 与当前 updated_at 的冲突检测
-          select updated_at into v_current_ts from public.websites where id = nullif(v_resource_id,'')::uuid and user_id = p_user_id;
+          select updated_at into v_current_ts from public.links where id = nullif(v_resource_id,'')::uuid and user_id = p_user_id;
           if v_current_ts is null then
             raise exception 'RESOURCE_NOT_FOUND';
           end if;
           if v_base_ts is not null and v_base_ts >= v_current_ts then
-            update public.websites
+            update public.links
             set title = coalesce(v_payload->>'title', title),
                 url = coalesce(v_payload->>'url', url),
                 description = coalesce(v_payload->>'description', description),
@@ -78,7 +78,7 @@ begin
             raise exception 'BASE_SERVER_TS_TOO_OLD';
           end if;
         elsif v_op = 'delete' then
-          delete from public.websites where id = nullif(v_resource_id,'')::uuid and user_id = p_user_id;
+          delete from public.links where id = nullif(v_resource_id,'')::uuid and user_id = p_user_id;
           v_applied := v_applied || jsonb_build_array(jsonb_build_object('client_change_id', v_cid, 'local_id', v_resource_id));
         end if;
       elsif v_type = 'subscription' then

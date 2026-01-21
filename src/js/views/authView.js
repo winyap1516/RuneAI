@@ -3,8 +3,21 @@
 
 import { supabase } from '/src/js/services/supabaseClient.js';
 import config from '/src/js/services/config.js';
+import storageAdapter from '/src/js/storage/storageAdapter.js';
 
 export async function signIn(email, password) {
+  // 本地开发模式硬编码登录
+  if (config.useLocalDev && email === 'dev@test.com' && password === '1234') {
+      const fakeUser = {
+          id: 'dev-local-id',
+          email: 'dev@test.com',
+          nickname: 'Local Developer',
+          avatar: 'https://i.pravatar.cc/100?u=dev'
+      };
+      await storageAdapter.saveUser(fakeUser);
+      return { user: fakeUser, session: { access_token: 'fake-jwt' } };
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;

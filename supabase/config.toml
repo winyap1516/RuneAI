@@ -1,8 +1,13 @@
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
-# A string used to distinguish different Supabase projects on the same host. Defaults to the
-# working directory name when running `supabase init`.
-project_id = "YinGAN_Collector"
+
+# [重要说明]
+# 此文件仅用于 Supabase CLI 的“本地开发环境” (supabase start)。
+# 由于本项目已切换为“全云端模式”，此文件中的端口和配置目前**不起作用**，也不会影响云端环境。
+# 云端配置（如 Auth Redirects, SMTP 等）请直接在 Supabase 网页控制台设置。
+
+# A string used to distinguish different Supabase projects on the same host.
+project_id = "oxtmsuxtlpbkzunumyou"
 
 [api]
 enabled = true

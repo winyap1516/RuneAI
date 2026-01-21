@@ -17,8 +17,12 @@ vi.mock('../src/js/storage/storageAdapter.js', () => ({
     }
 }));
 
+// 中文注释：mock url 工具模块，确保同时导出 normalizeUrl 与 ensureAbsoluteUrl，避免命名导入缺失导致单测报错
 vi.mock('../src/js/utils/url.js', () => ({
-    normalizeUrl: (u) => u
+    // 中文注释：归一化直接返回输入，便于断言调用参数
+    normalizeUrl: (u) => u,
+    // 中文注释：绝对地址生成在单测中保持与输入一致，避免协议拼接差异影响逻辑
+    ensureAbsoluteUrl: (u) => u
 }));
 
 describe('Phase 3 - Partial Update Controller Logic', () => {

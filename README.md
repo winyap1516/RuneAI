@@ -78,6 +78,24 @@ Edge Functions（后端）：
 4. 注册：点击“注册一个” → 进入 `register.html` → 注册成功 → 提示验证或跳转。
 5. 访问控制：手动登出 → 访问 `dashboard.html` → 应自动跳回 `login.html`。
 
+## 云端 Edge Functions 调用指南（已停用本地 Docker）
+- 前端始终指向云端 Supabase：在 `.env.local` 配置 `VITE_SUPABASE_URL=https://xxxx.supabase.co` 与 `VITE_SUPABASE_ANON_KEY=<cloud anon key>`。
+- 获取用户会话与 JWT：
+  ```js
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  ```
+- 统一调用云端函数（示例 super-endpoint）：
+  ```js
+  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/super-endpoint`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+    body: JSON.stringify({ url })
+  });
+  ```
+- 或使用封装：`src/js/services/supabaseClient.js` 的 `callFunction('super-endpoint', { method: 'POST', body: JSON.stringify({ url }) })`。
+- 本地 `supabase functions serve` 与任何 Docker 相关脚本已停用；请通过 Supabase 云端控制台部署并调试函数。
+
 ## 开源协议
 
 MIT License
@@ -95,12 +113,12 @@ MIT License
 - 前端：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`、`VITE_FRONTEND_BASE_URL`、`VITE_STRIPE_PUBLIC_KEY`
 - 后端：`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`STRIPE_SECRET_KEY`、`STRIPE_WEBHOOK_SECRET`
 - 请在开发/测试/生产环境分别配置 key，避免在 dev 使用生产密钥
-## Mock API（本地 Docker）
+## Mock API（可选，本地调试）
 
 ### 快速开始
-1. 启动服务：
+1. 启动服务（如需本地 UI 联调，不依赖 Supabase）：
    ```bash
-   docker-compose up -d
+   npm run mock-server
    ```
 2. 验证：
    ```bash
@@ -108,11 +126,11 @@ MIT License
    ```
 
 ### 前端切换
-在 `.env` 设置：
+在 `.env.local` 设置：
 ```
 VITE_USE_MOCK=true
 VITE_MOCK_API_BASE=http://localhost:4000
 ```
-说明：设置 `VITE_MOCK_API_BASE` 后，前端 `apiRouter` 将优先使用 HTTP Mock API；否则使用内置 `mockService`（本地 IndexedDB）。
+说明：启用 Mock 仅用于 UI 开发与联调；正式环境关闭 `VITE_USE_MOCK`，所有后端调用统一走云端 Supabase。
 
 更多说明参见 `docs/mock.md`。

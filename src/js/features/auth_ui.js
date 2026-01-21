@@ -146,16 +146,36 @@ function bindLoginForm() {
   const handleLogin = async () => {
     // 中文注释：Mock 模式下不调用 Supabase，直接写入本地用户并跳转
     const isMock = Boolean(config?.useMock);
-    if (isMock) {
-      try {
-        const mockUser = { id: 'local-dev', email: 'dev@local', nickname: 'Developer', avatar: `https://i.pravatar.cc/100?img=12` };
-        await storageAdapter.saveUser(mockUser);
-        showToast('Mock mode enabled: signed in as local-dev', 'success');
-        window.location.href = 'dashboard.html';
-        return;
-      } catch (e) {
-        showToast('Mock login failed', 'error');
-        return;
+    const isLocalDev = Boolean(config?.useLocalDev);
+
+    if (isMock || isLocalDev) {
+      // 检查硬编码账号 (仅在 LocalDev 模式下生效)
+      const email = form.email?.value;
+      const password = form.password?.value;
+      
+      if (isLocalDev && email === 'dev@test.com' && password === '1234') {
+          try {
+              const mockUser = { id: 'dev-local-id', email: 'dev@test.com', nickname: 'Local Developer', avatar: `https://i.pravatar.cc/100?u=dev` };
+              await storageAdapter.saveUser(mockUser);
+              showToast('Local Dev Mode: signed in as Local Developer', 'success');
+              window.location.href = 'dashboard.html';
+              return;
+          } catch (e) {
+              showToast('Local login failed', 'error');
+              return;
+          }
+      } else if (isMock) {
+          // 原 Mock 逻辑 (任意账号均可登录)
+          try {
+            const mockUser = { id: 'local-dev', email: 'dev@local', nickname: 'Developer', avatar: `https://i.pravatar.cc/100?img=12` };
+            await storageAdapter.saveUser(mockUser);
+            showToast('Mock mode enabled: signed in as local-dev', 'success');
+            window.location.href = 'dashboard.html';
+            return;
+          } catch (e) {
+            showToast('Mock login failed', 'error');
+            return;
+          }
       }
     }
     if (!supabase) {

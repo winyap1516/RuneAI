@@ -1,5 +1,5 @@
 import { escapeHTML, getTagClass, buildIconHTML } from "/src/js/utils/ui-helpers.js";
-import { normalizeUrl } from "/src/js/utils/url.js";
+import { normalizeUrl, ensureAbsoluteUrl } from "/src/js/utils/url.js";
 
 /**
  * Unified card template
@@ -22,9 +22,13 @@ export function createCard(data = {}) {
   // 统一ID格式：确保ID是数字类型
   const numericId = typeof id === 'string' && id ? parseInt(id, 10) : (typeof id === 'number' ? id : 0);
 
-  // Tags 逻辑：最多显示 3 个，多余的显示 +N
-  const maxTags = 3;
-  const tagList = Array.isArray(tags) ? tags : [];
+  // Tags 逻辑：过滤掉状态类标签，最多显示 3 个
+  const statusKeywords = ['pending', 'processed', 'completed', 'failed', 'queued', 'manual', 'ai scheduled'];
+  const tagList = Array.isArray(tags) 
+    ? tags.filter(t => t && !statusKeywords.includes(String(t).toLowerCase())) 
+    : [];
+  
+  const maxTags = 4;
   const visibleTags = tagList.slice(0, maxTags);
   const remainingCount = tagList.length - maxTags;
 
@@ -41,16 +45,24 @@ export function createCard(data = {}) {
   // AI Status 样式辅助
   const getAiStatusStyle = (status) => {
     switch (String(status).toLowerCase()) {
-      case 'processed': return 'text-green-600 dark:text-green-400';
-      case 'failed': return 'text-red-600 dark:text-red-400';
-      default: return 'text-amber-600 dark:text-amber-400';
+      case 'processed':
+      case 'completed':
+        return 'text-green-600 dark:text-green-400';
+      case 'failed':
+        return 'text-red-600 dark:text-red-400';
+      default:
+        return 'text-amber-600 dark:text-amber-400';
     }
   };
   const getAiStatusIcon = (status) => {
     switch (String(status).toLowerCase()) {
-      case 'processed': return 'check_circle';
-      case 'failed': return 'error';
-      default: return 'hourglass_empty';
+      case 'processed':
+      case 'completed':
+        return 'check_circle';
+      case 'failed':
+        return 'error';
+      default:
+        return 'hourglass_empty';
     }
   };
 
@@ -58,12 +70,15 @@ export function createCard(data = {}) {
   const aiStatusIcon = getAiStatusIcon(ai_status);
 
   return `
-    <div class="rune-card group relative rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col h-full" data-card-id="${numericId}" data-category="${escapeHTML(category)}">
+    <div class="rune-card group relative rounded-xl border border-gray-200 dark:border-gray-700 bg-surface-light dark:bg-surface-dark p-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col h-full" data-card-id="${numericId}" data-category="${escapeHTML(category)}" data-url="${escapeHTML(url)}">
       <div class="rune-card-head flex items-start justify-between gap-3 mb-2">
         <div class="flex items-start gap-3 overflow-hidden">
           ${buildIconHTML({ title, url })}
           <div class="flex flex-col min-w-0">
-            <div class="rune-card-title text-base font-bold truncate leading-tight mb-1" title="${escapeHTML(title)}">${escapeHTML(title)}</div>
+            <div class="rune-card-title text-sm font-bold truncate leading-tight mb-0.5" title="${escapeHTML(title)}">${escapeHTML(title)}</div>
+            <div class="text-[11px] text-text-secondary-light dark:text-text-secondary-dark truncate" title="${escapeHTML(url)}">
+              <a href="${escapeHTML(ensureAbsoluteUrl(url))}" target="_blank" rel="noopener noreferrer" class="card-link hover:underline">${escapeHTML(normalizeUrl(url))}</a>
+            </div>
             
             <!-- Meta Info: Source & AI Status -->
             <div class="flex items-center gap-2 text-xs text-text-secondary-light dark:text-text-secondary-dark">
@@ -72,9 +87,9 @@ export function createCard(data = {}) {
                  <span class="max-w-[80px] truncate">${escapeHTML(source)}</span>
                </span>
                <span class="text-gray-300 dark:text-gray-600">•</span>
-               <span class="flex items-center gap-1 ${aiStatusColor}" title="AI Status: ${escapeHTML(ai_status)}">
-                 <span class="material-symbols-outlined text-[14px]">${aiStatusIcon}</span>
-                 <span class="capitalize">${escapeHTML(ai_status)}</span>
+               <span class="flex items-center gap-1 ${aiStatusColor}" data-ai-status="1" title="AI Status: ${escapeHTML(ai_status)}">
+                 <span class="material-symbols-outlined text-[14px]" data-ai-status-icon="1">${aiStatusIcon}</span>
+                 <span class="capitalize" data-ai-status-text="1">${escapeHTML(ai_status)}</span>
                </span>
             </div>
           </div>
@@ -99,12 +114,19 @@ export function createCard(data = {}) {
       </div>
       
       <div class="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700/50 card-actions flex items-center justify-between gap-2">
-         <div class="text-xs text-gray-400 dark:text-gray-500 font-mono">
-           ${data.created_at ? new Date(data.created_at).toLocaleDateString() : ''}
+         <div class="flex flex-col">
+            <div class="text-[10px] text-gray-400 dark:text-gray-500 font-mono mb-0.5" title="Card ID: ${escapeHTML(String(id))}">
+              ${id ? escapeHTML(String(id).replace(/^(.{6}).+(.{4})$/, "$1...$2")) : ''}
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-500 font-mono">
+              ${data.created_at ? new Date(data.created_at).toLocaleDateString() : ''}
+            </div>
          </div>
          <div class="card-controls flex items-center gap-2">
-           ${subscribed ? '<span class="subscribed-label text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">Subscribed</span>' : ''}
-           <button class="btn-generate-once btn btn-small btn-outline text-xs px-2 py-1 h-auto min-h-0" data-sub-id="" data-link-id="${numericId}">Generate</button>
+           ${subscribed ? '<span class="subscribed-label text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">Tracking</span>' : ''}
+           ${subscribed 
+              ? `<button class="btn-generate-ai btn btn-small btn-outline text-xs px-2 py-1 h-auto min-h-0" data-link-id="${numericId}">Generate</button>` 
+              : `<button class="btn-track btn btn-small btn-primary text-xs px-2 py-1 h-auto min-h-0" data-link-id="${numericId}">Track</button>`}
         </div>
       </div>
     </div>

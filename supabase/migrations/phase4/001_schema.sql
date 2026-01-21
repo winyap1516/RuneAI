@@ -11,8 +11,8 @@ create table if not exists public.users (
   updated_at timestamptz default now()
 );
 
--- websites（对应本地 links）
-create table if not exists public.websites (
+-- links（原 websites，对应本地 links）
+create table if not exists public.links (
   id uuid default gen_random_uuid() primary key,
   user_id uuid not null,
   url text not null,
@@ -23,8 +23,8 @@ create table if not exists public.websites (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-create index if not exists websites_user_idx on public.websites(user_id);
-create index if not exists websites_url_user_idx on public.websites(url, user_id);
+create index if not exists links_user_idx on public.links(user_id);
+create index if not exists links_url_user_idx on public.links(url, user_id);
 
 -- subscriptions
 create table if not exists public.subscriptions (
@@ -79,14 +79,14 @@ create table if not exists public.client_changes (
 create index if not exists client_changes_user_ts_idx on public.client_changes(user_id, client_ts);
 
 -- RLS 策略：仅允许本人读写（user_id = auth.uid()）
-alter table public.websites enable row level security;
+alter table public.links enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.digests enable row level security;
 alter table public.generation_logs enable row level security;
 alter table public.client_changes enable row level security;
 
-create policy websites_select on public.websites for select using (user_id = auth.uid());
-create policy websites_modify on public.websites for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy links_select on public.links for select using (user_id = auth.uid());
+create policy links_modify on public.links for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create policy subs_select on public.subscriptions for select using (user_id = auth.uid());
 create policy subs_modify on public.subscriptions for all using (user_id = auth.uid()) with check (user_id = auth.uid());

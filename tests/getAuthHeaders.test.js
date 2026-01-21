@@ -6,7 +6,7 @@ import * as client from '../src/js/services/supabaseClient.js'
 import configModule from '../src/js/services/config.js'
 
 describe('getAuthHeaders (dev)', () => {
-  it('should return anon Authorization when no JWT and dev fallback enabled', async () => {
+  it('should NOT include Authorization when no JWT (even with dev fallback)', async () => {
     // 开启 DEV fallback
     globalThis.window = globalThis.window || {}
     window.__ALLOW_DEV_AUTH_FALLBACK__ = true
@@ -19,10 +19,10 @@ describe('getAuthHeaders (dev)', () => {
     }
     // 模拟未登录（getJWT 返回空），通过测试钩子覆盖内部引用
     client.__setTestHooks({ getJWT: async () => '' })
-    // 注入 anon key
+    // 注入 anon key（仅用于 apikey，不再用于 Authorization）
     configModule.supabaseAnonKey = 'anon_key_ABCDEF'
     const headers = await client.getAuthHeaders()
-    expect(headers.Authorization || '').toContain('anon_key_ABCDEF')
+    expect(headers.Authorization || '').toBe('')
     // 恢复测试钩子
     client.__setTestHooks({ getJWT: null })
   })

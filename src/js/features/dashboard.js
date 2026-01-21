@@ -40,6 +40,531 @@ const SUPABASE_URL = (import.meta?.env?.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta?.env?.VITE_SUPABASE_ANON_KEY || '').trim();
 const useCloud = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
+// Chat Logic
+import { pythonApi } from "/src/js/services/pythonApi.js";
+
+async function initChat() {
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatContainer = document.getElementById('chatContainer');
+    
+    // Previous "leftPanel" creation code is removed as it's now in renderChatView
+    // We only need to hydrate the logic
+    
+    if (!chatInput || !sendBtn || !chatContainer) return;
+
+    // Mobile Back Logic
+    const mobileBackBtn = document.getElementById('chatMobileBackBtn');
+    if (mobileBackBtn) {
+        mobileBackBtn.onclick = () => {
+            const leftPanel = document.getElementById('chatLeftPanel');
+            const rightPanel = document.getElementById('chatRightPanel');
+            if (leftPanel && rightPanel) {
+                leftPanel.classList.remove('hidden');
+                leftPanel.classList.add('flex');
+                rightPanel.classList.add('hidden');
+                rightPanel.classList.remove('flex');
+            }
+        };
+    }
+
+    let currentConvId = localStorage.getItem('current_conversation_id');
+    const panelContent = document.getElementById('leftPanelContent');
+    let activeTab = 'convs'; // convs | runes
+
+    // Tab Switching
+    const tabConvs = document.getElementById('tabConvs');
+    const tabRunes = document.getElementById('tabRunes');
+    if (tabConvs) tabConvs.addEventListener('click', () => switchTab('convs'));
+    if (tabRunes) tabRunes.addEventListener('click', () => switchTab('runes'));
+
+    function switchTab(tab) {
+        activeTab = tab;
+        
+        if (tab === 'convs') {
+            tabConvs.className = 'flex-1 py-3 text-sm font-medium text-primary border-b-2 border-primary transition-colors';
+            tabConvs.classList.remove('text-gray-500');
+            tabRunes.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors';
+            tabRunes.classList.remove('text-primary', 'border-b-2', 'border-primary');
+            loadConversations();
+        } else {
+            tabRunes.className = 'flex-1 py-3 text-sm font-medium text-primary border-b-2 border-primary transition-colors';
+            tabRunes.classList.remove('text-gray-500');
+            tabConvs.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors';
+            tabConvs.classList.remove('text-primary', 'border-b-2', 'border-primary');
+            loadRunes();
+        }
+    }
+
+    // Load Conversations
+    const loadConversations = async () => {
+        panelContent.innerHTML = '<div class="p-4 text-center text-gray-400">Loading...</div>';
+        try {
+            const convs = await pythonApi.getConversations();
+            panelContent.innerHTML = `
+                <button id="newChatBtn" class="w-full py-2 px-4 mb-4 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-sm">add</span> New Conversation
+                </button>
+            `;
+            
+            document.getElementById('newChatBtn').addEventListener('click', async () => {
+                const newConv = await pythonApi.createConversation("New Chat");
+                currentConvId = newConv.id;
+                localStorage.setItem('current_conversation_id', currentConvId);
+                await loadConversations();
+                await loadMessages(currentConvId);
+            });
+
+            convs.forEach(c => {
+                const btn = document.createElement('div');
+                btn.className = `group cursor-pointer p-3 rounded-xl transition-all border ${c.id === currentConvId ? 'bg-white border-primary/20 shadow-sm' : 'border-transparent hover:bg-gray-100 dark:hover:bg-white/5'}`;
+                btn.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-medium text-sm text-gray-900 truncate flex-1">${escapeHTML(c.title || 'Untitled Chat')}</span>
+                        <span class="text-[10px] text-gray-400 shrink-0">Now</span>
+                    </div>
+                    <div class="text-xs text-gray-500 truncate">Click to view messages...</div>
+                `;
+                btn.onclick = async () => {
+                    currentConvId = c.id;
+                    localStorage.setItem('current_conversation_id', currentConvId);
+                    // Update active state visual
+                    Array.from(panelContent.children).forEach(el => {
+                         if(el.tagName === 'DIV') el.classList.remove('bg-white', 'border-primary/20', 'shadow-sm');
+                    });
+                    btn.classList.add('bg-white', 'border-primary/20', 'shadow-sm');
+                    
+                    // Update Header
+                    const headerTitle = document.getElementById('chatHeaderTitle');
+                    if (headerTitle) headerTitle.textContent = c.title || 'Untitled Chat';
+                    
+                    // Mobile: Hide List, Show Chat
+                    const leftPanel = document.getElementById('chatLeftPanel');
+                    const rightPanel = document.getElementById('chatRightPanel');
+                    if (window.innerWidth < 768 && leftPanel && rightPanel) {
+                        leftPanel.classList.add('hidden');
+                        leftPanel.classList.remove('flex');
+                        rightPanel.classList.remove('hidden');
+                        rightPanel.classList.add('flex');
+                    }
+
+                    await loadMessages(currentConvId);
+                };
+                panelContent.appendChild(btn);
+            });
+            
+            if (!currentConvId && convs.length > 0) {
+                currentConvId = convs[0].id;
+                // Update header for initial
+                const headerTitle = document.getElementById('chatHeaderTitle');
+                if (headerTitle) headerTitle.textContent = convs[0].title || 'Untitled Chat';
+                loadMessages(currentConvId);
+            } else if (!currentConvId) {
+                document.getElementById('newChatBtn').click();
+            }
+        } catch (e) {
+            console.error("Load convs failed", e);
+            panelContent.innerHTML = '<div class="text-red-500 p-4">Failed to load conversations</div>';
+        }
+    };
+
+    // Load Runes
+    const loadRunes = async () => {
+        panelContent.innerHTML = '<div class="p-4 text-center text-gray-400">Loading Runes...</div>';
+        try {
+            const runes = await pythonApi.getRunes();
+            panelContent.innerHTML = '';
+            
+            if (runes.length === 0) {
+                panelContent.innerHTML = '<div class="p-8 text-center text-gray-400 text-sm">No runes saved yet.<br>Save messages as runes to see them here.</div>';
+                return;
+            }
+
+            runes.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer mb-2 group';
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center shrink-0 text-purple-600 font-bold text-xs">R</div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-sm text-gray-800 truncate">${escapeHTML(r.title || 'Untitled Rune')}</h4>
+                            <p class="text-xs text-gray-500 line-clamp-2 mt-1">${escapeHTML(r.content)}</p>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => {
+                    alert(`Preview Rune: ${r.title}\n\n${r.content}`);
+                };
+                panelContent.appendChild(card);
+            });
+        } catch (e) {
+            console.error("Load runes failed", e);
+            panelContent.innerHTML = '<div class="text-red-500 p-4">Failed to load runes</div>';
+        }
+    };
+
+    // State for Attachments
+    let pendingAttachments = []; // Array of {file, url, mime}
+
+    // Input Area (Composer)
+    const renderComposer = () => {
+        const composer = document.querySelector('.p-6.bg-transparent');
+        if (!composer) return;
+        
+        composer.innerHTML = `
+            <div class="relative flex flex-col gap-2 max-w-4xl mx-auto bg-white dark:bg-surface-dark rounded-[20px] shadow-sm border border-gray-200 dark:border-gray-700 px-[18px] py-2 pointer-events-auto transition-all">
+                <!-- Attachments Preview -->
+                <div id="attachmentsPreview" class="flex gap-2 overflow-x-auto py-1 empty:hidden"></div>
+                
+                <div class="flex items-center gap-4">
+                    <button id="attachBtn" class="p-2 text-gray-400 hover:text-primary rounded-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors shrink-0" title="Attach">
+                        <span class="material-symbols-outlined text-[24px]">add_circle</span>
+                    </button>
+                    <input type="file" id="fileInput" class="hidden" multiple />
+                    
+                    <div class="flex-1 min-w-0">
+                        <textarea id="chatInput" rows="1" class="w-full bg-transparent border-none p-2 max-h-32 focus:ring-0 resize-none text-[15px] placeholder-gray-400" placeholder="Message AI..."></textarea>
+                    </div>
+                    <button id="sendBtn" class="w-10 h-10 bg-primary text-white rounded-full hover:bg-primary/90 shadow-md flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0">
+                        <span class="material-symbols-outlined text-[20px] ml-0.5">arrow_upward</span>
+                    </button>
+                </div>
+            </div>
+            <div class="text-center mt-3 pointer-events-auto">
+                <p class="text-[11px] text-gray-400">AI can make mistakes. Please verify important information.</p>
+            </div>
+        `;
+        
+        // Re-bind events
+        document.getElementById('attachBtn').onclick = () => document.getElementById('fileInput').click();
+        document.getElementById('fileInput').onchange = handleFileSelect;
+        document.getElementById('sendBtn').onclick = handleSend;
+        const chatInput = document.getElementById('chatInput');
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        });
+        // Auto-resize textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    };
+
+    const handleFileSelect = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        // Show optimistic preview
+        const previewContainer = document.getElementById('attachmentsPreview');
+        
+        for (const file of files) {
+            // Upload immediately
+            try {
+                // Optimistic UI item
+                const item = document.createElement('div');
+                item.className = 'relative w-16 h-16 rounded-lg border border-gray-200 overflow-hidden flex-shrink-0 bg-gray-50 flex items-center justify-center';
+                item.innerHTML = '<span class="material-symbols-outlined animate-spin text-gray-400">progress_activity</span>';
+                previewContainer.appendChild(item);
+                
+                const uploadResp = await pythonApi.uploadFile(file);
+                
+                // Update item with preview
+                item.innerHTML = '';
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = `${API_BASE}${uploadResp.url}`; // Assuming backend serves uploads
+                    img.className = 'w-full h-full object-cover';
+                    item.appendChild(img);
+                } else {
+                    item.innerHTML = '<span class="material-symbols-outlined text-gray-500">description</span>';
+                }
+                
+                // Add remove button
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'absolute top-0 right-0 bg-black/50 text-white rounded-bl-lg p-0.5 hover:bg-black/70';
+                removeBtn.innerHTML = '<span class="material-symbols-outlined text-[12px]">close</span>';
+                removeBtn.onclick = () => {
+                    item.remove();
+                    pendingAttachments = pendingAttachments.filter(a => a.url !== uploadResp.url);
+                };
+                item.appendChild(removeBtn);
+                
+                pendingAttachments.push({
+                    type: file.type.startsWith('image/') ? 'image' : 'file',
+                    url: uploadResp.url,
+                    filename: uploadResp.filename,
+                    mime: uploadResp.mime
+                });
+                
+            } catch (err) {
+                console.error("Upload failed", err);
+                alert("Upload failed: " + err.message);
+            }
+        }
+        
+        e.target.value = ''; // Reset input
+    };
+
+    // ... (rest of initChat) ...
+
+    // Selection State
+    let selectedMessages = new Set();
+    let isSelectionMode = false;
+
+    const toggleSelectionMode = (enable) => {
+        isSelectionMode = enable;
+        document.body.classList.toggle('selection-mode', enable);
+        // Toggle checkboxes visibility
+        $$('.msg-checkbox').forEach(cb => {
+            cb.style.display = enable ? 'block' : 'none';
+            cb.checked = false;
+        });
+        selectedMessages.clear();
+        updateFloatingBar();
+    };
+
+    const updateFloatingBar = () => {
+        let bar = document.getElementById('selectionBar');
+        if (selectedMessages.size > 0) {
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'selectionBar';
+                bar.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-surface-dark shadow-xl border border-gray-200 rounded-full px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 z-50';
+                bar.innerHTML = `
+                    <span class="text-sm font-medium"><span id="selCount">0</span> selected</span>
+                    <div class="h-4 w-px bg-gray-300"></div>
+                    <button id="multiSaveBtn" class="text-sm font-bold text-primary hover:text-primary-dark">Save as Rune</button>
+                    <button id="cancelSelBtn" class="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+                `;
+                document.body.appendChild(bar);
+                
+                bar.querySelector('#cancelSelBtn').onclick = () => toggleSelectionMode(false);
+                bar.querySelector('#multiSaveBtn').onclick = () => openSaveRuneModal(Array.from(selectedMessages));
+            }
+            bar.querySelector('#selCount').textContent = selectedMessages.size;
+        } else {
+            if (bar) bar.remove();
+        }
+    };
+
+    const appendMessage = (role, text, sources = [], id = null) => {
+        const div = document.createElement('div');
+        div.className = `flex gap-4 mb-4 group w-full ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+        div.dataset.id = id;
+        
+        // Checkbox for selection (Hidden by default, shown in selection mode)
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'msg-checkbox hidden w-5 h-5 mt-3 rounded border-gray-300 text-primary focus:ring-primary shrink-0';
+        checkbox.onclick = (e) => {
+            e.stopPropagation();
+            if (e.target.checked) selectedMessages.add(id);
+            else selectedMessages.delete(id);
+            updateFloatingBar();
+        };
+
+        let sourcesHtml = '';
+        if (sources && sources.length > 0) {
+            sourcesHtml = `
+            <div class="mt-3 text-[11px] ${role === 'user' ? 'text-white/80 border-white/20' : 'text-gray-400 border-gray-200'} border-t pt-2">
+                <span class="font-medium opacity-80">Sources:</span>
+                ${sources.map(id => `<a href="#" class="${role === 'user' ? 'text-white hover:text-white/90' : 'text-blue-500 hover:text-blue-600'} hover:underline ml-1" onclick="alert('View Rune ${id}')">#${id}</a>`).join(', ')}
+            </div>`;
+        }
+        
+        // Action Menu (Hover)
+        const actionsHtml = id ? `
+            <div class="absolute top-2 ${role === 'user' ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+                 <button class="w-8 h-8 flex items-center justify-center bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-white/10 text-gray-500 shadow-sm transition-colors" title="Save as Rune" onclick="window.openSaveRuneSingle('${id}')">
+                    <span class="material-symbols-outlined text-[16px]">bookmark_add</span>
+                 </button>
+                 <button class="w-8 h-8 flex items-center justify-center bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-white/10 text-gray-500 shadow-sm transition-colors" title="Select" onclick="window.toggleMsgSelection('${id}')">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                 </button>
+            </div>
+        ` : '';
+
+        // Notion-style Card
+        // AI: bg-[#F7F7F8] rounded-[18px] shadow-[0_1px_2px_rgba(0,0,0,0.05)]
+        // User: bg-primary text-white rounded-[18px] shadow-[0_2px_4px_rgba(0,0,0,0.1)]
+        const bubbleClass = role === 'user' 
+            ? 'bg-primary text-white rounded-[20px] rounded-tr-sm shadow-[0_2px_4px_rgba(0,0,0,0.1)]' 
+            : 'bg-[#F7F7F8] dark:bg-white/10 text-gray-800 dark:text-gray-100 rounded-[20px] rounded-tl-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-transparent dark:border-white/5';
+
+        div.innerHTML = `
+            ${role === 'user' ? '' : `
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-white border border-gray-200 shadow-sm overflow-hidden mt-0.5">
+                    <img src="https://ui-avatars.com/api/?name=AI&background=random&color=fff&size=32" class="w-full h-full object-cover opacity-80" alt="AI">
+                </div>
+            `}
+            
+            <div class="relative max-w-[70%] group/bubble">
+                <div class="${bubbleClass} px-5 py-3.5 text-[15px] leading-relaxed break-words">
+                    <p class="whitespace-pre-wrap">${escapeHTML(text)}</p>
+                    ${sourcesHtml}
+                </div>
+                ${actionsHtml}
+            </div>
+
+            ${role === 'user' ? `
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/10 overflow-hidden mt-0.5">
+                    <img src="https://ui-avatars.com/api/?name=User&background=4E7BFF&color=fff&size=32" class="w-full h-full object-cover" alt="User">
+                </div>
+            ` : ''}
+        `;
+        
+        // Insert checkbox based on role for selection mode
+        if (role === 'user') {
+            div.insertBefore(checkbox, div.firstChild);
+        } else {
+            div.appendChild(checkbox);
+        }
+
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    };
+    
+    // Global handlers for inline buttons
+    window.openSaveRuneSingle = (id) => openSaveRuneModal([id]);
+    window.toggleMsgSelection = (id) => {
+        toggleSelectionMode(true);
+        const cb = document.querySelector(`div[data-id="${id}"] .msg-checkbox`);
+        if (cb) {
+            cb.checked = true;
+            selectedMessages.add(id);
+            updateFloatingBar();
+        }
+    };
+
+    // Save Rune Modal
+    const openSaveRuneModal = (ids) => {
+        const modalHtml = `
+            <div class="p-6">
+                <h3 class="text-lg font-bold mb-4">Save as Rune</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Title</label>
+                        <input id="runeTitle" class="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary" placeholder="Enter a title..." value="New Rune">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tags (comma separated)</label>
+                        <input id="runeTags" class="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary" placeholder="tech, physics, idea">
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Saving ${ids.length} message(s). Embedding will be generated automatically.
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg" onclick="closeModal()">Cancel</button>
+                        <button id="confirmSaveRune" class="px-4 py-2 text-sm text-white bg-primary hover:bg-primary/90 rounded-lg">Save Rune</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        openModal(modalHtml);
+        
+        document.getElementById('confirmSaveRune').onclick = async () => {
+            const title = document.getElementById('runeTitle').value;
+            const tags = document.getElementById('runeTags').value.split(',').map(t => t.trim()).filter(t => t);
+            
+            const btn = document.getElementById('confirmSaveRune');
+            btn.textContent = 'Saving...';
+            btn.disabled = true;
+            
+            try {
+                await pythonApi.saveRuneFromMessage(currentConvId, ids, title); // need to update api to support tags
+                closeModal();
+                toggleSelectionMode(false);
+                
+                // Animation
+                const fly = document.createElement('div');
+                fly.className = 'fixed z-50 w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center text-white shadow-xl pointer-events-none transition-all duration-700 ease-in-out';
+                fly.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span>';
+                fly.style.top = '50%';
+                fly.style.left = '50%';
+                document.body.appendChild(fly);
+                
+                // Animate to left panel
+                setTimeout(() => {
+                    const target = document.getElementById('tabRunes').getBoundingClientRect();
+                    fly.style.top = `${target.top + 10}px`;
+                    fly.style.left = `${target.left + 20}px`;
+                    fly.style.transform = 'scale(0.2)';
+                    fly.style.opacity = '0';
+                }, 50);
+                
+                setTimeout(() => {
+                    fly.remove();
+                    // Switch to Runes tab to show result
+                    if (activeTab !== 'runes') document.getElementById('tabRunes').click();
+                    else loadRunes();
+                }, 750);
+                
+            } catch (e) {
+                alert('Failed: ' + e.message);
+                btn.textContent = 'Save Rune';
+                btn.disabled = false;
+            }
+        };
+    };
+
+    const handleSend = async () => {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        
+        if (!currentConvId) {
+             const newConv = await pythonApi.createConversation("New Chat");
+             currentConvId = newConv.id;
+             localStorage.setItem('current_conversation_id', currentConvId);
+             await loadConversations();
+        }
+
+        // UI Optimistic
+        appendMessage('user', text);
+        chatInput.value = '';
+        sendBtn.disabled = true;
+        
+        // Show Loading
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'chat-loading';
+        loadingDiv.className = 'flex gap-4 mb-4';
+        loadingDiv.innerHTML = `
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-white border border-gray-200 shadow-sm overflow-hidden mt-0.5">
+                <img src="https://ui-avatars.com/api/?name=AI&background=random&color=fff&size=32" class="w-full h-full object-cover opacity-80" alt="AI">
+            </div>
+            <div class="bg-[#F7F7F8] dark:bg-white/10 p-4 rounded-[20px] rounded-tl-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-transparent dark:border-white/5 flex items-center gap-2">
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></span>
+            </div>
+        `;
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        try {
+            const resp = await pythonApi.chat(currentConvId, text);
+            loadingDiv.remove();
+            appendMessage('assistant', resp.reply, resp.sources, resp.assistant_message_id);
+        } catch (e) {
+            loadingDiv.remove();
+            appendMessage('assistant', `Error: ${e.message}`, [], null);
+        } finally {
+            sendBtn.disabled = false;
+            chatInput.focus();
+        }
+    };
+
+    sendBtn.addEventListener('click', handleSend);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSend();
+    });
+    
+    // Initial Load
+    loadConversations();
+}
+
 export function initDashboard() {
   console.log("📊 Dashboard initialized");
   
@@ -50,6 +575,8 @@ export function initDashboard() {
     } catch (e) {
       console.error("Migration failed:", e);
     }
+    
+    initChat(); // Initialize Chat Logic
     
     // Initialize Views
     const context = {
@@ -148,7 +675,7 @@ export function initDashboard() {
   
   // ... (lines 91-178 skipped) ...
 
-  function renderRuneSpaceView() {
+  async function renderRuneSpaceView() {
     if (!mainEl) return;
     
     // 1. Ensure Welcome Card is loaded/refreshed
@@ -170,6 +697,170 @@ export function initDashboard() {
     
     // Highlight nav
     highlightNav('navRuneSpace');
+    
+    const homeRunesContainer = document.getElementById('homeRunesContainer');
+    const homeMemoriesContainer = document.getElementById('homeMemoriesContainer');
+    const consolidateBtn = document.getElementById('consolidateBtn');
+
+    // Consolidate Action
+    if (consolidateBtn) {
+        consolidateBtn.onclick = async () => {
+            const originalText = consolidateBtn.innerHTML;
+            consolidateBtn.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">autorenew</span> Processing...';
+            consolidateBtn.disabled = true;
+            try {
+                const res = await pythonApi.consolidateMemories();
+                if (res.status === 'consolidated') {
+                    alert(`Memory Consolidated: ${res.title}`);
+                    loadMemories(); // Refresh
+                } else {
+                    alert(`Info: ${res.message}`);
+                }
+            } catch (e) {
+                alert('Consolidation failed: ' + e.message);
+            } finally {
+                consolidateBtn.innerHTML = originalText;
+                consolidateBtn.disabled = false;
+            }
+        };
+    }
+
+    // Load Memories
+    const loadMemories = async () => {
+        if (!homeMemoriesContainer) return;
+        homeMemoriesContainer.innerHTML = '<div class="py-8 flex justify-center"><span class="material-symbols-outlined animate-spin text-gray-400">progress_activity</span></div>';
+        
+        try {
+            const memories = await pythonApi.getMemories();
+            homeMemoriesContainer.innerHTML = '';
+            
+            if (memories.length === 0) {
+                homeMemoriesContainer.innerHTML = `
+                    <div class="p-6 text-center text-sm text-gray-500 bg-gray-50 dark:bg-white/5 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                        No consolidated memories yet. Chat more to generate memories!
+                    </div>
+                `;
+                return;
+            }
+            
+            memories.forEach(m => {
+                const dateStr = m.created_at ? new Date(m.created_at).toLocaleDateString() : 'Just now';
+                const el = document.createElement('div');
+                el.className = 'bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-700 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex gap-4';
+                el.innerHTML = `
+                    <div class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-[20px]">psychology</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-gray-900 dark:text-white text-sm mb-1">${escapeHTML(m.title || 'Untitled Memory')}</h4>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-2">${escapeHTML(m.summary)}</p>
+                        <div class="text-xs text-gray-400 font-mono">${dateStr}</div>
+                    </div>
+                `;
+                homeMemoriesContainer.appendChild(el);
+            });
+        } catch (e) {
+            console.error("Load memories failed", e);
+            homeMemoriesContainer.innerHTML = '<div class="text-red-500 text-sm">Failed to load memories</div>';
+        }
+    };
+    
+    // Initial Load
+    loadMemories();
+
+    // 3. Render "My Runes" Grid
+    if (homeRunesContainer) {
+        homeRunesContainer.innerHTML = '<div class="col-span-full py-12 flex justify-center"><span class="material-symbols-outlined animate-spin text-gray-400 text-3xl">progress_activity</span></div>';
+        try {
+            const runes = await pythonApi.getRunes(20);
+            homeRunesContainer.innerHTML = '';
+            
+            if (runes.length === 0) {
+                homeRunesContainer.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-12 text-center bg-gray-50 dark:bg-white/5 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                        <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                            <span class="material-symbols-outlined text-primary text-3xl">auto_awesome</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2">暂无符文</h4>
+                        <p class="text-sm text-gray-500 max-w-md mb-6">你还没有保存任何 Rune。<br>在 AI Assistant 中选中内容即可保存为你的第一个 Rune！</p>
+                        <button id="goChatBtn" class="px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-transform active:scale-95 shadow-lg shadow-primary/20 flex items-center gap-2">
+                            <span class="material-symbols-outlined">chat</span>
+                            前往 AI Assistant
+                        </button>
+                    </div>
+                `;
+                document.getElementById('goChatBtn')?.addEventListener('click', () => {
+                   document.getElementById('navChat')?.click(); 
+                });
+                return;
+            }
+            
+            runes.forEach(r => {
+                // Determine Icon
+                let iconName = 'description';
+                let iconClass = 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300';
+                
+                if (r.type === 'image') {
+                    iconName = 'image';
+                    iconClass = 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
+                } else if (r.type === 'audio') {
+                    iconName = 'graphic_eq';
+                    iconClass = 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400';
+                } else if (r.type === 'mixed') {
+                    iconName = 'auto_awesome';
+                    iconClass = 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400';
+                }
+                
+                // Truncate Description (2 lines roughly)
+                const desc = r.description || r.content || '';
+                const descText = desc.length > 80 ? desc.substring(0, 80) + '...' : desc;
+                
+                // Format Date
+                const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Just now';
+                
+                const card = document.createElement('div');
+                card.className = 'group relative bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-700 rounded-xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer flex flex-col h-full';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="w-10 h-10 rounded-lg ${iconClass} flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-[20px]">${iconName}</span>
+                        </div>
+                        <!-- Menu (Optional) -->
+                        <button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-opacity" title="Options">
+                            <span class="material-symbols-outlined text-[20px]">more_horiz</span>
+                        </button>
+                    </div>
+                    
+                    <h4 class="font-bold text-gray-900 dark:text-white text-[15px] mb-2 line-clamp-1" title="${escapeHTML(r.title)}">${escapeHTML(r.title || 'Untitled Rune')}</h4>
+                    
+                    <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-4 flex-1 h-[40px] leading-relaxed">
+                        ${escapeHTML(descText)}
+                    </p>
+                    
+                    <div class="flex items-center justify-between mt-auto pt-3 border-t border-gray-50 dark:border-white/5">
+                        <span class="text-xs text-gray-400 font-medium">${dateStr}</span>
+                        <button class="text-xs font-bold text-primary hover:text-primary-dark transition-colors px-2 py-1 rounded hover:bg-primary/5">
+                            View
+                        </button>
+                    </div>
+                `;
+                
+                // Click Handler
+                card.onclick = (e) => {
+                    // Prevent if clicked on menu
+                    if (e.target.closest('button') && e.target.closest('button').title === 'Options') return;
+                    // Mock Detail View
+                    alert(`Rune Detail (Mock):\n\nTitle: ${r.title}\nID: ${r.id}\n\n${r.content}`);
+                };
+                
+                homeRunesContainer.appendChild(card);
+            });
+            
+        } catch (e) {
+            console.error("Load home runes failed", e);
+            homeRunesContainer.innerHTML = `<div class="col-span-full text-red-500 p-4 text-center text-sm">Failed to load runes: ${e.message}</div>`;
+        }
+    }
   }
 
   function renderDefaultMain() {
@@ -409,23 +1100,75 @@ export function initDashboard() {
     if (!chatSection) {
         chatSection = document.createElement('section');
         chatSection.id = 'chatSection';
-        chatSection.className = 'p-6';
+        // Flex Row for Dual Pane
+        chatSection.className = 'flex h-[calc(100vh-64px)] overflow-hidden bg-white dark:bg-black'; 
+        
         chatSection.innerHTML = `
-        <div class="mb-4">
-          <h1 class="text-2xl font-bold">Chat / AI Assistant</h1>
-          <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">Chat with AI (placeholder).</p>
-        </div>
-        <div class="flex gap-2">
-          <input id="chatInput" class="form-input flex-1 rounded-lg bg-gray-100 dark:bg-white/5 border-none" placeholder="Type a message…" />
-          <button id="chatSend" class="h-10 px-4 rounded-lg bg-primary text-white text-sm font-bold">Send</button>
-        </div>
-        <div id="chatList" class="mt-4 flex flex-col gap-2"></div>
-      `;
+            <!-- Left Panel: Conversations -->
+            <div id="chatLeftPanel" class="w-full md:w-80 flex-col border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 transition-all duration-300 pt-4 flex">
+                <div class="flex border-b border-gray-200 dark:border-white/10 h-[42px] items-center shrink-0">
+                    <button id="tabConvs" class="flex-1 h-full text-xs font-medium text-primary border-b-2 border-primary transition-colors flex items-center justify-center">Conversations</button>
+                    <button id="tabRunes" class="flex-1 h-full text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center">RuneSpace</button>
+                </div>
+                <div id="leftPanelContent" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+            </div>
+
+            <!-- Right Panel: Chat Window -->
+            <div id="chatRightPanel" class="flex-1 flex-col h-full relative min-w-0 bg-[#F9FAFB] dark:bg-black hidden md:flex">
+                <!-- Header (Tight layout with global search) -->
+                <div class="border-b border-[#EDEDED] dark:border-white/10 bg-white dark:bg-surface-dark shrink-0">
+                    <div class="h-14 flex items-center justify-between px-4 md:px-8 py-3">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <!-- Mobile Back Button -->
+                            <button id="chatMobileBackBtn" class="md:hidden p-1 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
+                                <span class="material-symbols-outlined">arrow_back</span>
+                            </button>
+                            
+                            <div class="flex flex-col gap-0.5 min-w-0">
+                                <h2 id="chatHeaderTitle" class="text-[16px] md:text-[18px] font-[600] text-gray-900 dark:text-white truncate leading-tight">New Chat</h2>
+                                <p class="text-[12px] text-gray-400 dark:text-gray-500 font-medium truncate">AI Assistant</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button class="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="More">
+                                <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Area -->
+                <div id="chatContainer" class="flex-1 overflow-y-auto px-8 py-4 space-y-4 scroll-smooth">
+                    <!-- Messages will be injected here -->
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50">
+                        <span class="material-symbols-outlined text-4xl mb-2">chat_bubble</span>
+                        <p>Select a conversation to start chatting</p>
+                    </div>
+                </div>
+
+                <!-- Input Area (Composer) -->
+                <div class="p-6 bg-transparent shrink-0 sticky bottom-0 pointer-events-none">
+                    <div class="relative flex items-center gap-4 max-w-4xl mx-auto bg-white dark:bg-surface-dark rounded-[20px] shadow-sm border border-gray-200 dark:border-gray-700 px-[18px] py-2 pointer-events-auto">
+                        <button class="p-2 text-gray-400 hover:text-primary rounded-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors shrink-0" title="Attach">
+                            <span class="material-symbols-outlined text-[24px]">add_circle</span>
+                        </button>
+                        <div class="flex-1 min-w-0">
+                            <textarea id="chatInput" rows="1" class="w-full bg-transparent border-none p-2 max-h-32 focus:ring-0 resize-none text-[15px] placeholder-gray-400" placeholder="Message AI..."></textarea>
+                        </div>
+                        <button id="sendBtn" class="w-10 h-10 bg-primary text-white rounded-full hover:bg-primary/90 shadow-md flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0">
+                            <span class="material-symbols-outlined text-[20px] ml-0.5">arrow_upward</span>
+                        </button>
+                    </div>
+                    <div class="text-center mt-3 pointer-events-auto">
+                        <p class="text-[11px] text-gray-400">AI can make mistakes. Please verify important information.</p>
+                    </div>
+                </div>
+            </div>
+        `;
       mainEl.appendChild(chatSection);
+      initChat();
     }
     show(chatSection);
-    
-    // ... Chat logic ...
   }
 
   // User Welcome & Dropdown
